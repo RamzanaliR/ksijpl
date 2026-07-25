@@ -1,7 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 const DIVISION_LABELS: Record<string, string> = {
   juniors: "Care & Cure KSIJ Juniors PL",
@@ -50,7 +51,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
     .sort((a, b) => new Date(b.kickoff_at ?? 0).getTime() - new Date(a.kickoff_at ?? 0).getTime());
   const fixtures = allMatches
     .filter((m) => m.status === "scheduled")
-    .sort((a, b) => new Date(a.kickoff_at ?? 0).getTime() - new Date(b.kickoff_at ?? 0).getTime());
+    .sort((a, b) => new Date(a.kickoff_at ?? 0).getTime() - new Date(a.kickoff_at ?? 0).getTime());
 
   function resultLine(m: any) {
     const isHome = m.home_team_id === id;
@@ -61,6 +62,22 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
     return { opponent, us, them, outcome, isHome };
   }
 
+  // Season stats derived from completed results — real numbers, no fabricated per-player data
+  const stats = results.reduce(
+    (acc, m) => {
+      const r = resultLine(m);
+      acc.played++;
+      if (r.outcome === "W") acc.won++;
+      else if (r.outcome === "D") acc.drawn++;
+      else acc.lost++;
+      acc.gf += r.us ?? 0;
+      acc.ga += r.them ?? 0;
+      return acc;
+    },
+    { played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0 }
+  );
+  const points = stats.won * 3 + stats.drawn;
+
   const groupedPlayers = POSITION_ORDER.map((pos) => ({
     pos,
     label: POSITION_LABELS[pos],
@@ -68,18 +85,12 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
   })).filter((g) => g.players.length > 0);
   const unassigned = (players ?? []).filter((p) => !p.position);
 
+  const lastResult = results[0];
+  const nextFixtures = fixtures.slice(0, 5);
+
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
-      <nav className="border-b border-[#0B3363]/10 dark:border-white/10 sticky top-0 z-20 bg-white/95 dark:bg-[#0B1220]/95 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <Image src="/logos/gofiber-pl-badge.png" alt="gofiber KSIJ PL" width={32} height={32} className="object-contain" />
-            <Image src="/logos/care-cure-pl-badge.png" alt="Care & Cure KSIJ PL" width={32} height={32} className="object-contain" />
-            KSIJ DAR PL
-          </Link>
-          <Link href="/teams" className="text-sm font-semibold text-[#3EA0D9] hover:underline">← All teams</Link>
-        </div>
-      </nav>
+      <SiteHeader active="teams" />
 
       <main className="max-w-6xl mx-auto px-6 py-10 flex-1 w-full">
         {/* Header */}
@@ -102,125 +113,147 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
           </div>
         </div>
 
-        {/* Jerseys */}
-        <section className="mb-10">
-          <h2 className="font-display font-bold text-lg mb-4">Kit</h2>
-          {team.slug ? (
-            <div className="grid grid-cols-2 gap-4 max-w-md">
-              <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4 text-center">
-                <Image
-                  src={`/jerseys/${team.slug}-home.jpg`}
-                  alt={`${team.name} home jersey`}
-                  width={300}
-                  height={300}
-                  className="object-contain w-full h-auto rounded-lg mb-2"
-                />
-                <div className="text-xs font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Home</div>
-              </div>
-              <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4 text-center">
-                <Image
-                  src={`/jerseys/${team.slug}-away.jpg`}
-                  alt={`${team.name} away jersey`}
-                  width={300}
-                  height={300}
-                  className="object-contain w-full h-auto rounded-lg mb-2"
-                />
-                <div className="text-xs font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Away</div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-[#0B3363]/40 dark:text-white/40 rounded-2xl border border-dashed border-[#0B3363]/15 dark:border-white/15 p-6 max-w-md">
-              Kit images coming soon for this team.
-            </div>
-          )}
-        </section>
-
-        <div className="grid md:grid-cols-2 gap-8 mb-10">
-          {/* Previous Results */}
+        {/* 3-column layout: Kit | Squad + Stats | Last Result + Upcoming */}
+        <div className="grid lg:grid-cols-[260px_1fr_280px] gap-8">
+          {/* Left: Kit */}
           <section>
-            <h2 className="font-display font-bold text-lg mb-4">Previous Results</h2>
-            <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 divide-y divide-[#0B3363]/5 dark:divide-white/5">
-              {results.slice(0, 8).map((m) => {
-                const r = resultLine(m);
-                const badgeColor =
-                  r.outcome === "W" ? "bg-green-500/15 text-green-700 dark:text-green-400"
-                  : r.outcome === "L" ? "bg-red-500/15 text-red-600 dark:text-red-400"
-                  : "bg-slate-500/15 text-slate-500";
-                return (
-                  <div key={m.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${badgeColor}`}>
-                      {r.outcome}
-                    </span>
-                    <span className="flex-1 px-3 truncate">
-                      {r.isHome ? "vs" : "@"} {r.opponent}
-                    </span>
-                    <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2.5 py-1 rounded">
-                      {r.us}–{r.them}
-                    </span>
-                  </div>
-                );
-              })}
-              {results.length === 0 && <div className="px-4 py-6 text-center text-sm text-[#0B3363]/40 dark:text-white/40">No results yet.</div>}
-            </div>
+            <h2 className="font-display font-bold text-lg mb-4">Kit</h2>
+            {team.slug ? (
+              <div className="flex flex-col gap-4">
+                <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4 text-center">
+                  <Image
+                    src={`/jerseys/${team.slug}-home.jpg`}
+                    alt={`${team.name} home jersey`}
+                    width={300}
+                    height={300}
+                    className="object-contain w-full h-auto rounded-lg mb-2"
+                  />
+                  <div className="text-xs font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Home</div>
+                </div>
+                <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4 text-center">
+                  <Image
+                    src={`/jerseys/${team.slug}-away.jpg`}
+                    alt={`${team.name} away jersey`}
+                    width={300}
+                    height={300}
+                    className="object-contain w-full h-auto rounded-lg mb-2"
+                  />
+                  <div className="text-xs font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Away</div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-[#0B3363]/40 dark:text-white/40 rounded-2xl border border-dashed border-[#0B3363]/15 dark:border-white/15 p-6">
+                Kit images coming soon for this team.
+              </div>
+            )}
           </section>
 
-          {/* Upcoming Fixtures */}
+          {/* Middle: Squad + Stats */}
           <section>
-            <h2 className="font-display font-bold text-lg mb-4">Upcoming Fixtures</h2>
-            <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 divide-y divide-[#0B3363]/5 dark:divide-white/5">
-              {fixtures.slice(0, 8).map((m) => {
-                const isHome = m.home_team_id === id;
-                const opponent = teamName(isHome ? m.away_team_id : m.home_team_id);
-                return (
-                  <div key={m.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                    <span className="truncate">{isHome ? "vs" : "@"} {opponent}</span>
-                    <span className="text-xs text-[#0B3363]/50 dark:text-white/50 flex-shrink-0 ml-3">
-                      {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
-                    </span>
-                  </div>
-                );
-              })}
-              {fixtures.length === 0 && <div className="px-4 py-6 text-center text-sm text-[#0B3363]/40 dark:text-white/40">No fixtures scheduled.</div>}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display font-bold text-lg">Squad &amp; Stats</h2>
             </div>
-          </section>
-        </div>
 
-        {/* Squad */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display font-bold text-lg">Squad</h2>
-            <span className="text-xs text-[#0B3363]/40 dark:text-white/40">
-              Match-by-match stats (goals, appearances) aren't tracked yet — squad list only, for now.
-            </span>
-          </div>
-          {(players ?? []).length === 0 ? (
-            <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-6 text-center text-sm text-[#0B3363]/40 dark:text-white/40">
-              No players registered yet.
-            </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-6">
-              {[...groupedPlayers, ...(unassigned.length ? [{ pos: "—", label: "Unassigned", players: unassigned }] : [])].map((g) => (
-                <div key={g.pos}>
-                  <div className="text-xs font-bold uppercase tracking-wide text-[#3EA0D9] mb-2">{g.label}</div>
-                  <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 divide-y divide-[#0B3363]/5 dark:divide-white/5">
-                    {g.players.map((p) => (
-                      <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                        <span className="w-6 text-[#0B3363]/40 dark:text-white/40 flex-shrink-0">{p.squad_number ?? "—"}</span>
-                        <span className="truncate">{p.full_name}</span>
-                        {p.nickname && <span className="text-xs text-[#0B3363]/40 dark:text-white/40 ml-auto flex-shrink-0">"{p.nickname}"</span>}
-                      </div>
-                    ))}
-                  </div>
+            {/* Season stats row — derived from real completed results */}
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-6">
+              {[
+                ["P", stats.played],
+                ["W", stats.won],
+                ["D", stats.drawn],
+                ["L", stats.lost],
+                ["GF", stats.gf],
+                ["GA", stats.ga],
+                ["PTS", points],
+              ].map(([label, value]) => (
+                <div key={label as string} className="rounded-xl border border-[#0B3363]/10 dark:border-white/10 py-2 text-center">
+                  <div className="text-[10px] font-bold uppercase text-[#0B3363]/40 dark:text-white/40">{label}</div>
+                  <div className="font-display font-bold text-lg">{value}</div>
                 </div>
               ))}
             </div>
-          )}
-        </section>
+            <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-6">
+              Season stats are calculated from completed results. Per-player stats (goals, appearances) aren't tracked yet.
+            </p>
+
+            {(players ?? []).length === 0 ? (
+              <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-6 text-center text-sm text-[#0B3363]/40 dark:text-white/40">
+                No players registered yet.
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-6">
+                {[...groupedPlayers, ...(unassigned.length ? [{ pos: "—", label: "Unassigned", players: unassigned }] : [])].map((g) => (
+                  <div key={g.pos}>
+                    <div className="text-xs font-bold uppercase tracking-wide text-[#3EA0D9] mb-2">{g.label}</div>
+                    <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 divide-y divide-[#0B3363]/5 dark:divide-white/5">
+                      {g.players.map((p) => (
+                        <div key={p.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                          <span className="w-6 text-[#0B3363]/40 dark:text-white/40 flex-shrink-0">{p.squad_number ?? "—"}</span>
+                          <span className="truncate">{p.full_name}</span>
+                          {p.nickname && <span className="text-xs text-[#0B3363]/40 dark:text-white/40 ml-auto flex-shrink-0">"{p.nickname}"</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Right: Last Result (small) + Upcoming Fixtures */}
+          <div className="flex flex-col gap-6">
+            <section>
+              <h2 className="font-display font-bold text-base mb-3">Last Result</h2>
+              {lastResult ? (
+                (() => {
+                  const r = resultLine(lastResult);
+                  const badgeColor =
+                    r.outcome === "W" ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                    : r.outcome === "L" ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                    : "bg-slate-500/15 text-slate-500";
+                  return (
+                    <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 px-4 py-3 flex items-center justify-between text-sm">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${badgeColor}`}>
+                        {r.outcome}
+                      </span>
+                      <span className="flex-1 px-3 truncate">{r.isHome ? "vs" : "@"} {r.opponent}</span>
+                      <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2.5 py-1 rounded">
+                        {r.us}–{r.them}
+                      </span>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 px-4 py-5 text-center text-sm text-[#0B3363]/40 dark:text-white/40">
+                  No results yet.
+                </div>
+              )}
+            </section>
+
+            <section>
+              <h2 className="font-display font-bold text-base mb-3">Upcoming Fixtures</h2>
+              <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 divide-y divide-[#0B3363]/5 dark:divide-white/5">
+                {nextFixtures.map((m) => {
+                  const isHome = m.home_team_id === id;
+                  const opponent = teamName(isHome ? m.away_team_id : m.home_team_id);
+                  return (
+                    <div key={m.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                      <span className="truncate">{isHome ? "vs" : "@"} {opponent}</span>
+                      <span className="text-xs text-[#0B3363]/50 dark:text-white/50 flex-shrink-0 ml-3">
+                        {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
+                      </span>
+                    </div>
+                  );
+                })}
+                {nextFixtures.length === 0 && (
+                  <div className="px-4 py-5 text-center text-sm text-[#0B3363]/40 dark:text-white/40">No fixtures scheduled.</div>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
       </main>
 
-      <footer className="mt-auto bg-[#0B3363] dark:bg-[#060B14] text-white">
-        <div className="text-center text-xs opacity-40 py-4">© 2026 KSIJ League</div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

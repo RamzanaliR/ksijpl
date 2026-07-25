@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Modal from "@/components/admin/Modal";
+import { generateRoundRobin, scheduleMatchdays, type ScheduledMatch } from "@/lib/round-robin";
 
 type Division = { id: string; name: string };
 type Season = { id: string; label: string; competitions: { name: string; division_id: string } | null };
@@ -32,6 +34,39 @@ export default function FixturesAdmin() {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; errors: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- Fixture generator state ---
+  const [genOpen, setGenOpen] = useState(false);
+  const [genStep, setGenStep] = useState<"form" | "preview">("form");
+  const [genPitch1, setGenPitch1] = useState(true);
+  const [genPitch2, setGenPitch2] = useState(true);
+  const [genPitch1Name, setGenPitch1Name] = useState("Pitch 1");
+  const [genPitch2Name, setGenPitch2Name] = useState("Pitch 02");
+  const [gamesPerDay, setGamesPerDay] = useState("4");
+  const [duration, setDuration] = useState("60");
+  const [gap, setGap] = useState("15");
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("16:00");
+  const [allowedDows, setAllowedDows] = useState<Set<number>>(new Set([0, 6])); // Sun, Sat by default
+  const [genError, setGenError] = useState("");
+  const [genPreview, setGenPreview] = useState<{
+    scheduled: ScheduledMatch[];
+    roundsCount: number;
+    matchdaysCount: number;
+    homeCount: Record<string, number>;
+  } | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [genResult, setGenResult] = useState<{ added: number } | null>(null);
+
+  const DOW_OPTIONS = [
+    { value: 1, label: "Mon" },
+    { value: 2, label: "Tue" },
+    { value: 3, label: "Wed" },
+    { value: 4, label: "Thu" },
+    { value: 5, label: "Fri" },
+    { value: 6, label: "Sat" },
+    { value: 0, label: "Sun" },
+  ];
 
   async function loadDivisions() {
     const { data } = await supabase.from("divisions").select("id,name").order("name");
@@ -287,11 +322,132 @@ export default function FixturesAdmin() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // --- Fixture generator -----------------------------------------------
+
+  function openGenerator() {
+    setGenStep("form");
+    setGenPreview(null);
+    setGenResult(null);
+    setGenError("");
+    setGenOpen(true);
+  }
+
+  function currentSeasonTeams(): Team[] {
+    const season = seasons.find((s) => s.id === selectedSeason);
+    if (!season?.competitions?.division_id) return [];
+    return teams.filter((t) => t.division_id === season.competitions!.division_id);
+  }
+
+  function handlePreview() {
+    setGenError("");
+    const divisionTeams = currentSeasonTeams();
+    if (divisionTeams.length < 2) {
+      setGenError("This season's division needs at least 2 teams to generate fixtures.");
+      return;
+    }
+    const gpd = Number(gamesPerDay);
+    const dur = Number(duration);
+    const gapMin = Number(gap);
+    if (!Number.isInteger(gpd) || gpd < 1) {
+      setGenError("Games per match day must be a positive whole number.");
+      return;
+    }
+    if (!Number.isFinite(dur) || dur <= 0 || !Number.isFinite(gapMin) || gapMin < 0) {
+      setGenError("Match duration and break must be valid numbers.");
+      return;
+    }
+    if (!startDate) {
+      setGenError("Pick a start date.");
+      return;
+    }
+    if (allowedDows.size === 0) {
+      setGenError("Select at least one match day of the week.");
+      return;
+    }
+    const pitches: string[] = [];
+    if (genPitch1) pitches.push(genPitch1Name.trim() || "Pitch 1");
+    if (genPitch2) pitches.push(genPitch2Name.trim() || "Pitch 02");
+    if (pitches.length === 0) {
+      setGenError("Select at least one pitch.");
+      return;
+    }
+
+    const [h, m] = startTime.split(":").map(Number);
+    const startTimeMinutes = h * 60 + m;
+
+    const { rounds, homeCount } = generateRoundRobin(divisionTeams.map((t) => t.id));
+    const scheduled = scheduleMatchdays(rounds, {
+      startDate: new Date(`${startDate}T00:00:00`),
+      allowedDows,
+      gamesPerMatchday: gpd,
+      startTimeMinutes,
+      durationMinutes: dur,
+      gapMinutes: gapMin,
+      pitches,
+    });
+
+    const matchdaysCount = new Set(scheduled.map((s) => s.kickoffAt.toDateString())).size;
+
+    setGenPreview({ scheduled, roundsCount: rounds.length, matchdaysCount, homeCount });
+    setGenStep("preview");
+  }
+
+  async function handleConfirmGenerate() {
+    if (!genPreview) return;
+    setConfirming(true);
+    setGenError("");
+
+    // Ensure gameweek rows exist for round numbers 1..roundsCount
+    const gameweekIdByRound = new Map<number, string>();
+    for (let roundNum = 1; roundNum <= genPreview.roundsCount; roundNum++) {
+      const { data: existing } = await supabase
+        .from("gameweeks")
+        .select("id")
+        .eq("season_id", selectedSeason)
+        .eq("number", roundNum)
+        .maybeSingle();
+      if (existing) {
+        gameweekIdByRound.set(roundNum, existing.id);
+      } else {
+        const { data: created, error } = await supabase
+          .from("gameweeks")
+          .insert({ season_id: selectedSeason, number: roundNum })
+          .select("id")
+          .single();
+        if (error || !created) {
+          setGenError(`Could not create gameweek ${roundNum}: ${error?.message ?? "unknown error"}`);
+          setConfirming(false);
+          return;
+        }
+        gameweekIdByRound.set(roundNum, created.id);
+      }
+    }
+
+    const rows = genPreview.scheduled.map((s) => ({
+      season_id: selectedSeason,
+      gameweek_id: gameweekIdByRound.get(s.roundIndex + 1) ?? null,
+      home_team_id: s.home,
+      away_team_id: s.away,
+      kickoff_at: s.kickoffAt.toISOString(),
+      venue: s.venue,
+      status: "scheduled",
+    }));
+
+    const { error, data } = await supabase.from("matches").insert(rows).select("id");
+    setConfirming(false);
+    if (error) {
+      setGenError(`Insert failed: ${error.message}`);
+      return;
+    }
+    setGenResult({ added: data?.length ?? rows.length });
+    if (selectedSeason) loadMatches(selectedSeason);
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="admin-page-title">Fixtures &amp; Scores</h1>
-        <div>
+        <div className="flex gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -302,6 +458,9 @@ export default function FixturesAdmin() {
               if (file) handleImportFile(file);
             }}
           />
+          <button onClick={openGenerator} className="admin-btn admin-btn-gold">
+            Generate Fixtures
+          </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
@@ -382,6 +541,169 @@ export default function FixturesAdmin() {
           <div className="admin-empty">No fixtures yet for this season.</div>
         )}
       </div>
+
+      <Modal
+        open={genOpen}
+        onClose={() => setGenOpen(false)}
+        title="Generate Fixtures"
+        description={
+          genStep === "form"
+            ? `Round-robin schedule for ${currentSeasonTeams().length} teams in the selected season.`
+            : "Review the schedule before creating fixtures."
+        }
+        maxWidth="max-w-xl"
+      >
+        {genStep === "form" && (
+          <div className="flex flex-col gap-4">
+            {matches.length > 0 && (
+              <div className="admin-alert admin-alert-warning">
+                This season already has {matches.length} fixture{matches.length === 1 ? "" : "s"}. Generating won't remove
+                them — new fixtures will be added on top.
+              </div>
+            )}
+
+            <div>
+              <label className="admin-label">Pitches in use</label>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm text-[#0B3363]">
+                  <input type="checkbox" checked={genPitch1} onChange={(e) => setGenPitch1(e.target.checked)} />
+                  <input
+                    value={genPitch1Name}
+                    onChange={(e) => setGenPitch1Name(e.target.value)}
+                    disabled={!genPitch1}
+                    className="admin-input py-1 w-40"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-[#0B3363]">
+                  <input type="checkbox" checked={genPitch2} onChange={(e) => setGenPitch2(e.target.checked)} />
+                  <input
+                    value={genPitch2Name}
+                    onChange={(e) => setGenPitch2Name(e.target.value)}
+                    disabled={!genPitch2}
+                    className="admin-input py-1 w-40"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">Multiple pitches let games run in parallel at the same kickoff time.</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="admin-label">Games / match day</label>
+                <input value={gamesPerDay} onChange={(e) => setGamesPerDay(e.target.value)} type="number" min={1} className="admin-input" />
+              </div>
+              <div>
+                <label className="admin-label">Duration (min)</label>
+                <input value={duration} onChange={(e) => setDuration(e.target.value)} type="number" min={1} className="admin-input" />
+              </div>
+              <div>
+                <label className="admin-label">Break (min)</label>
+                <input value={gap} onChange={(e) => setGap(e.target.value)} type="number" min={0} className="admin-input" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="admin-label">Start date</label>
+                <input value={startDate} onChange={(e) => setStartDate(e.target.value)} type="date" className="admin-input" />
+              </div>
+              <div>
+                <label className="admin-label">First kickoff time</label>
+                <input value={startTime} onChange={(e) => setStartTime(e.target.value)} type="time" className="admin-input" />
+              </div>
+            </div>
+
+            <div>
+              <label className="admin-label">Match days of the week</label>
+              <div className="flex flex-wrap gap-2">
+                {DOW_OPTIONS.map((d) => {
+                  const checked = allowedDows.has(d.value);
+                  return (
+                    <button
+                      type="button"
+                      key={d.value}
+                      onClick={() => {
+                        setAllowedDows((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(d.value)) next.delete(d.value);
+                          else next.add(d.value);
+                          return next;
+                        });
+                      }}
+                      className={`admin-pill ${checked ? "admin-pill-success" : "admin-pill-neutral"}`}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {genError && <div className="admin-alert admin-alert-error">{genError}</div>}
+
+            <div className="flex justify-end gap-2 mt-2">
+              <button onClick={() => setGenOpen(false)} className="admin-btn admin-btn-ghost">Cancel</button>
+              <button onClick={handlePreview} className="admin-btn admin-btn-primary">Preview Schedule</button>
+            </div>
+          </div>
+        )}
+
+        {genStep === "preview" && genPreview && !genResult && (
+          <div className="flex flex-col gap-4">
+            <div className="admin-alert admin-alert-success">
+              {currentSeasonTeams().length} teams · {genPreview.roundsCount} rounds · {genPreview.scheduled.length} matches ·{" "}
+              {genPreview.matchdaysCount} matchdays
+            </div>
+
+            <div>
+              <div className="admin-label mb-1">Home / away balance</div>
+              <div className="max-h-64 overflow-y-auto rounded-xl border border-[#0B3363]/10">
+                <table className="admin-table">
+                  <thead>
+                    <tr><th>Team</th><th className="text-right">Home</th><th className="text-right">Away</th></tr>
+                  </thead>
+                  <tbody>
+                    {currentSeasonTeams()
+                      .slice()
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((t) => {
+                        const home = genPreview.homeCount[t.id] ?? 0;
+                        const total = genPreview.roundsCount;
+                        return (
+                          <tr key={t.id}>
+                            <td>{t.name}</td>
+                            <td className="text-right">{home}</td>
+                            <td className="text-right">{total - home}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {genError && <div className="admin-alert admin-alert-error">{genError}</div>}
+
+            <div className="flex justify-end gap-2 mt-2">
+              <button onClick={() => setGenStep("form")} className="admin-btn admin-btn-ghost">Back</button>
+              <button onClick={handleConfirmGenerate} disabled={confirming} className="admin-btn admin-btn-primary">
+                {confirming ? "Creating…" : "Confirm & Create Fixtures"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {genResult && (
+          <div className="flex flex-col gap-4">
+            <div className="admin-alert admin-alert-success">
+              Created {genResult.added} fixture{genResult.added === 1 ? "" : "s"} across {genPreview?.matchdaysCount} matchdays.
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => setGenOpen(false)} className="admin-btn admin-btn-primary">Done</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
+import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 
 const DIVISION_LABELS: Record<string, string> = {
   juniors: "Care & Cure KSIJ Juniors PL",
@@ -21,16 +23,7 @@ export default async function TeamsIndex() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
-      <nav className="border-b border-[#0B3363]/10 dark:border-white/10 sticky top-0 z-20 bg-white/95 dark:bg-[#0B1220]/95 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <Image src="/logos/gofiber-pl-badge.png" alt="gofiber KSIJ PL" width={32} height={32} className="object-contain" />
-            <Image src="/logos/care-cure-pl-badge.png" alt="Care & Cure KSIJ PL" width={32} height={32} className="object-contain" />
-            KSIJ DAR PL
-          </Link>
-          <Link href="/" className="text-sm font-semibold text-[#3EA0D9] hover:underline">← Back home</Link>
-        </div>
-      </nav>
+      <SiteHeader active="teams" />
 
       <main className="max-w-6xl mx-auto px-6 py-10 flex-1 w-full">
         <h1 className="font-display font-bold text-3xl mb-1">Teams</h1>
@@ -72,9 +65,7 @@ export default async function TeamsIndex() {
         })}
       </main>
 
-      <footer className="mt-auto bg-[#0B3363] dark:bg-[#060B14] text-white">
-        <div className="text-center text-xs opacity-40 py-4">© 2026 KSIJ League</div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
