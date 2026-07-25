@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Modal from "@/components/admin/Modal";
 
 type Division = { id: string; name: string; slug: string };
 type Team = { id: string; name: string; short_name: string | null; division_id: string };
@@ -11,13 +12,47 @@ const DIVISION_LABELS: Record<string, string> = {
   seniors: "goFiber KSIJ PL Teams",
 };
 
+const EditIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+  </svg>
+);
+const CheckIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 6L9 17l-5-5" />
+  </svg>
+);
+const XIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 6L6 18M6 6l12 12" />
+  </svg>
+);
+const TrashIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+  </svg>
+);
+const PlusIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
 export default function TeamsAdmin() {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [addOpen, setAddOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newShort, setNewShort] = useState("");
   const [newDivision, setNewDivision] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editShort, setEditShort] = useState("");
 
   async function load() {
     setLoading(true);
@@ -38,20 +73,42 @@ export default function TeamsAdmin() {
   async function addTeam(e: React.FormEvent) {
     e.preventDefault();
     if (!newName || !newDivision) return;
+    setSaving(true);
     const { error } = await supabase
       .from("teams")
       .insert({ name: newName, short_name: newShort || null, division_id: newDivision });
+    setSaving(false);
     if (!error) {
       setNewName("");
       setNewShort("");
+      setAddOpen(false);
       load();
     } else {
       alert(error.message);
     }
   }
 
-  async function renameTeam(id: string, name: string) {
-    await supabase.from("teams").update({ name }).eq("id", id);
+  function startEdit(t: Team) {
+    setEditingId(t.id);
+    setEditName(t.name);
+    setEditShort(t.short_name ?? "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function saveEdit(id: string) {
+    const { error } = await supabase
+      .from("teams")
+      .update({ name: editName, short_name: editShort || null })
+      .eq("id", id);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setEditingId(null);
+    load();
   }
 
   async function deleteTeam(id: string) {
@@ -68,43 +125,12 @@ export default function TeamsAdmin() {
 
   return (
     <div>
-      <h1 className="admin-page-title mb-6">Teams</h1>
-
-      <form onSubmit={addTeam} className="admin-card p-5 mb-8 flex gap-3 items-end flex-wrap">
-        <div>
-          <label className="admin-label">Division</label>
-          <select
-            value={newDivision}
-            onChange={(e) => setNewDivision(e.target.value)}
-            className="admin-select"
-          >
-            {divisions.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="admin-label">Team name</label>
-          <input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            className="admin-input w-56"
-            placeholder="e.g. Dar Falcons"
-          />
-        </div>
-        <div>
-          <label className="admin-label">Short name</label>
-          <input
-            value={newShort}
-            onChange={(e) => setNewShort(e.target.value)}
-            className="admin-input w-24"
-            placeholder="DAR"
-          />
-        </div>
-        <button className="admin-btn admin-btn-primary">Add Team</button>
-      </form>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="admin-page-title">Teams</h1>
+        <button onClick={() => setAddOpen(true)} className="admin-btn admin-btn-primary">
+          <PlusIcon /> Add Team
+        </button>
+      </div>
 
       {loading ? (
         <div className="admin-subtitle">Loading…</div>
@@ -117,21 +143,66 @@ export default function TeamsAdmin() {
                 <span className="admin-pill ml-2 align-middle">{teams.filter((t) => t.division_id === d.id).length}</span>
               </h2>
               <div className="admin-card overflow-hidden">
-                {teams
-                  .filter((t) => t.division_id === d.id)
-                  .map((t) => (
-                    <div key={t.id} className="admin-row">
-                      <input
-                        defaultValue={t.name}
-                        onBlur={(e) => renameTeam(t.id, e.target.value)}
-                        className="bg-transparent focus:bg-slate-50 rounded px-2 py-1 w-48 text-[#0B3363] outline-none focus:ring-2 focus:ring-[#3EA0D9]/30 transition-shadow"
-                      />
-                      <span className="text-xs text-slate-400 mr-4">{t.short_name}</span>
-                      <button onClick={() => deleteTeam(t.id)} className="admin-btn-danger flex-shrink-0">
-                        Delete
-                      </button>
-                    </div>
-                  ))}
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Team</th>
+                      <th>Short</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teams
+                      .filter((t) => t.division_id === d.id)
+                      .map((t) =>
+                        editingId === t.id ? (
+                          <tr key={t.id}>
+                            <td>
+                              <input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="admin-input py-1"
+                                autoFocus
+                              />
+                            </td>
+                            <td>
+                              <input
+                                value={editShort}
+                                onChange={(e) => setEditShort(e.target.value)}
+                                className="admin-input py-1 w-20"
+                                placeholder="e.g. DAR"
+                              />
+                            </td>
+                            <td>
+                              <div className="flex items-center justify-end gap-1">
+                                <button onClick={() => saveEdit(t.id)} className="admin-icon-btn" aria-label="Save" title="Save">
+                                  <CheckIcon />
+                                </button>
+                                <button onClick={cancelEdit} className="admin-icon-btn" aria-label="Cancel" title="Cancel">
+                                  <XIcon />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          <tr key={t.id}>
+                            <td>{t.name}</td>
+                            <td className="text-slate-400">{t.short_name || "—"}</td>
+                            <td>
+                              <div className="flex items-center justify-end gap-1">
+                                <button onClick={() => startEdit(t)} className="admin-icon-btn" aria-label="Edit" title="Edit">
+                                  <EditIcon />
+                                </button>
+                                <button onClick={() => deleteTeam(t.id)} className="admin-icon-btn admin-icon-btn-danger" aria-label="Delete" title="Delete">
+                                  <TrashIcon />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      )}
+                  </tbody>
+                </table>
                 {teams.filter((t) => t.division_id === d.id).length === 0 && (
                   <div className="admin-empty">No teams yet.</div>
                 )}
@@ -140,6 +211,40 @@ export default function TeamsAdmin() {
           ))}
         </div>
       )}
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Team" description="Create a new team in a division.">
+        <form onSubmit={addTeam} className="flex flex-col gap-3">
+          <div>
+            <label className="admin-label">Division</label>
+            <select value={newDivision} onChange={(e) => setNewDivision(e.target.value)} className="admin-select">
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="admin-label">Team name</label>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="admin-input"
+              placeholder="e.g. Dar Falcons"
+            />
+          </div>
+          <div>
+            <label className="admin-label">Short name</label>
+            <input
+              value={newShort}
+              onChange={(e) => setNewShort(e.target.value)}
+              className="admin-input"
+              placeholder="e.g. DAR"
+            />
+          </div>
+          <button disabled={saving} className="admin-btn admin-btn-primary mt-2">
+            {saving ? "Adding…" : "Add Team"}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 }
