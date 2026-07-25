@@ -40,7 +40,9 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
       const teamMap: Record<string, string> = {};
       (teams ?? []).forEach((t: any) => (teamMap[t.id] = t.name));
       const results = (matches ?? []).filter((m: any) => m.status === "completed").slice(-5).reverse();
-      const fixtures = (matches ?? []).filter((m: any) => m.status === "scheduled").slice(0, 5);
+      const live = (matches ?? []).filter((m: any) => m.status === "live");
+      const scheduled = (matches ?? []).filter((m: any) => m.status === "scheduled").slice(0, 5 - live.length);
+      const fixtures = [...live, ...scheduled];
       return {
         key: s.competitions?.sponsor_name ?? s.id,
         label: DIVISION_LABELS[s.competitions?.sponsor_name] ?? s.competitions?.name ?? "League",

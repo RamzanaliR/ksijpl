@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export type DivisionPanelData = {
@@ -16,7 +17,17 @@ export type DivisionPanelData = {
 
 export default function LeagueDivisionPanel({ divisions }: { divisions: DivisionPanelData[] }) {
   const [active, setActive] = useState(0);
+  const router = useRouter();
   const d = divisions[active];
+
+  const anyLive = divisions.some((dv) => dv.fixtures.some((m) => m.status === "live"));
+
+  useEffect(() => {
+    if (!anyLive) return;
+    const id = setInterval(() => router.refresh(), 30000);
+    return () => clearInterval(id);
+  }, [anyLive, router]);
+
   if (!d) return null;
 
   return (
@@ -95,15 +106,28 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
           <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Upcoming Fixtures</h3>
           <div className="space-y-1">
-            {d.fixtures.map((m: any) => (
-              <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
-                <span className="text-[10px] opacity-50 text-center w-1/5">
-                  {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
-                </span>
-                <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
-              </div>
-            ))}
+            {d.fixtures.map((m: any) =>
+              m.status === "live" ? (
+                <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
+                  <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-display font-bold text-xs bg-red-500/10 text-red-600 px-2.5 py-1 rounded flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      {m.home_score ?? 0}–{m.away_score ?? 0}
+                    </span>
+                  </span>
+                  <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
+                </div>
+              ) : (
+                <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
+                  <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
+                  <span className="text-[10px] opacity-50 text-center w-1/5">
+                    {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
+                  </span>
+                  <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
+                </div>
+              )
+            )}
             {d.fixtures.length === 0 && <div className="py-4 text-center opacity-50 text-xs">No fixtures scheduled</div>}
           </div>
         </div>
