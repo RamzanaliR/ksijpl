@@ -6,20 +6,27 @@ import Modal from "@/components/admin/Modal";
 import { generateRoundRobin, scheduleMatchdays, type ScheduledMatch } from "@/lib/round-robin";
 
 type Division = { id: string; name: string };
-type Season = { id: string; label: string; competitions: { name: string; division_id: string } | null };
+type Season = { id: string; label: string; competitions: { name: string; division_id: string; sponsor_name: string } | null };
 type Team = { id: string; name: string; division_id: string };
+type Gameweek = { id: string; number: number };
 type Match = {
   id: string;
   season_id: string;
+  gameweek_id: string | null;
   home_team_id: string;
   away_team_id: string;
   kickoff_at: string | null;
+  venue: string | null;
   status: string;
   home_score: number | null;
   away_score: number | null;
 };
 
 const ALLOWED_STATUS = ["scheduled", "live", "completed", "postponed", "cancelled"];
+const DIVISION_LABELS: Record<string, string> = {
+  gofiber: "gofiber KSIJ PL",
+  "Care & Cure": "Care & Cure KSIJ PL",
+};
 
 export default function FixturesAdmin() {
   const [divisions, setDivisions] = useState<Division[]>([]);
@@ -27,6 +34,8 @@ export default function FixturesAdmin() {
   const [selectedSeason, setSelectedSeason] = useState("");
   const [teams, setTeams] = useState<Team[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [gameweeks, setGameweeks] = useState<Gameweek[]>([]);
+  const [gwIndex, setGwIndex] = useState(0);
   const [homeTeam, setHomeTeam] = useState("");
   const [awayTeam, setAwayTeam] = useState("");
   const [kickoff, setKickoff] = useState("");
@@ -76,10 +85,15 @@ export default function FixturesAdmin() {
   async function loadSeasons() {
     const { data } = await supabase
       .from("seasons")
-      .select("id,label,competitions(name,division_id)")
+      .select("id,label,competitions(name,division_id,sponsor_name)")
       .order("label");
-    setSeasons((data as any) ?? []);
-    if (data && data.length && !selectedSeason) setSelectedSeason(data[0].id);
+    const ordered = [...((data as any) ?? [])].sort(
+      (a: any, b: any) =>
+        ["gofiber", "Care & Cure"].indexOf(a.competitions?.sponsor_name) -
+        ["gofiber", "Care & Cure"].indexOf(b.competitions?.sponsor_name)
+    );
+    setSeasons(ordered);
+    if (ordered.length && !selectedSeason) setSelectedSeason(ordered[0].id);
   }
 
   async function loadTeams() {
@@ -87,10 +101,16 @@ export default function FixturesAdmin() {
     setTeams(data ?? []);
   }
 
+  async function loadGameweeks(seasonId: string) {
+    const { data } = await supabase.from("gameweeks").select("id,number").eq("season_id", seasonId).order("number");
+    setGameweeks(data ?? []);
+    setGwIndex(0);
+  }
+
   async function loadMatches(seasonId: string) {
     const { data } = await supabase
       .from("matches")
-      .select("id,season_id,home_team_id,away_team_id,kickoff_at,status,home_score,away_score")
+      .select("id,season_id,gameweek_id,home_team_id,away_team_id,kickoff_at,venue,status,home_score,away_score")
       .eq("season_id", seasonId)
       .order("kickoff_at", { ascending: true, nullsFirst: true });
     setMatches(data ?? []);
@@ -103,12 +123,35 @@ export default function FixturesAdmin() {
   }, []);
 
   useEffect(() => {
-    if (selectedSeason) loadMatches(selectedSeason);
+    if (selectedSeason) {
+      loadMatches(selectedSeason);
+      loadGameweeks(selectedSeason);
+    }
   }, [selectedSeason]);
 
   function teamName(id: string) {
     return teams.find((t) => t.id === id)?.name ?? "—";
   }
+
+  const hasUnassigned = matches.some((m) => !m.gameweek_id);
+  const gwList: { id: string | null; number: number | null }[] = [
+    ...gameweeks.map((g) => ({ id: g.id, number: g.number })),
+    ...(hasUnassigned ? [{ id: null, number: null }] : []),
+  ];
+  const currentGw = gwList[gwIndex] ?? null;
+  const gwMatches = currentGw
+    ? matches.filter((m) => (currentGw.id === null ? !m.gameweek_id : m.gameweek_id === currentGw.id))
+    : [];
+  const gwDates = gwMatches
+    .map((m) => (m.kickoff_at ? new Date(m.kickoff_at) : null))
+    .filter((d): d is Date => !!d)
+    .sort((a, b) => a.getTime() - b.getTime());
+  const gwDateRange =
+    gwDates.length === 0
+      ? null
+      : gwDates[0].toDateString() === gwDates[gwDates.length - 1].toDateString()
+      ? gwDates[0].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+      : `${gwDates[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${gwDates[gwDates.length - 1].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
 
   async function addFixture(e: React.FormEvent) {
     e.preventDefault();
@@ -118,6 +161,7 @@ export default function FixturesAdmin() {
     }
     const { error } = await supabase.from("matches").insert({
       season_id: selectedSeason,
+      gameweek_id: currentGw?.id ?? null,
       home_team_id: homeTeam,
       away_team_id: awayTeam,
       kickoff_at: kickoff || null,
@@ -318,7 +362,10 @@ export default function FixturesAdmin() {
 
     setImportResult({ added, errors });
     setImporting(false);
-    if (selectedSeason) loadMatches(selectedSeason);
+    if (selectedSeason) {
+      loadMatches(selectedSeason);
+      loadGameweeks(selectedSeason);
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -440,7 +487,10 @@ export default function FixturesAdmin() {
       return;
     }
     setGenResult({ added: data?.length ?? rows.length });
-    if (selectedSeason) loadMatches(selectedSeason);
+    if (selectedSeason) {
+      loadMatches(selectedSeason);
+      loadGameweeks(selectedSeason);
+    }
   }
 
   return (
@@ -487,27 +537,58 @@ export default function FixturesAdmin() {
         </div>
       )}
 
-      <div className="mb-6 max-w-sm">
-        <label className="admin-label">Season</label>
-        <select
-          value={selectedSeason}
-          onChange={(e) => setSelectedSeason(e.target.value)}
-          className="admin-select"
-        >
-          {seasons.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.competitions?.name} — {s.label}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-center gap-2 mb-6">
+        {seasons.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setSelectedSeason(s.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              s.id === selectedSeason ? "admin-btn-primary" : "bg-[#0B3363]/5 text-[#0B3363] hover:bg-[#0B3363]/10"
+            }`}
+          >
+            {DIVISION_LABELS[s.competitions?.sponsor_name ?? ""] ?? s.competitions?.name} — {s.label}
+          </button>
+        ))}
       </div>
+
+      {gwList.length > 0 && (
+        <div className="admin-card px-5 py-3 mb-6 flex items-center justify-between max-w-lg">
+          <button
+            onClick={() => setGwIndex((i) => Math.max(0, i - 1))}
+            disabled={gwIndex === 0}
+            className="admin-icon-btn"
+            aria-label="Previous match week"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
+          <div className="flex items-center gap-2.5 text-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-[#3EA0D9] flex-shrink-0">
+              <rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18" /><path d="M8 3v3M16 3v3" />
+            </svg>
+            <div>
+              <div className="font-display font-bold text-sm text-[#0B3363]">
+                {currentGw?.id === null ? "Unassigned Fixtures" : `Match Week ${currentGw?.number}`}
+              </div>
+              {gwDateRange && <div className="text-xs text-slate-400">{gwDateRange}</div>}
+            </div>
+          </div>
+          <button
+            onClick={() => setGwIndex((i) => Math.min(gwList.length - 1, i + 1))}
+            disabled={gwIndex === gwList.length - 1}
+            className="admin-icon-btn"
+            aria-label="Next match week"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
+        </div>
+      )}
 
       <form onSubmit={addFixture} className="admin-card p-5 mb-8 flex gap-3 items-end flex-wrap">
         <div>
           <label className="admin-label">Home team</label>
           <select value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} className="admin-select w-48">
             <option value="">Select…</option>
-            {teams.map((t) => (
+            {currentSeasonTeams().map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
@@ -516,7 +597,7 @@ export default function FixturesAdmin() {
           <label className="admin-label">Away team</label>
           <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} className="admin-select w-48">
             <option value="">Select…</option>
-            {teams.map((t) => (
+            {currentSeasonTeams().map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
             ))}
           </select>
@@ -534,11 +615,13 @@ export default function FixturesAdmin() {
       </form>
 
       <div className="admin-card overflow-hidden">
-        {matches.map((m) => (
+        {gwMatches.map((m) => (
           <MatchRow key={m.id} match={m} teamName={teamName} onSave={updateScore} />
         ))}
-        {matches.length === 0 && (
-          <div className="admin-empty">No fixtures yet for this season.</div>
+        {gwMatches.length === 0 && (
+          <div className="admin-empty">
+            {gwList.length === 0 ? "No fixtures yet for this season." : "No fixtures in this match week."}
+          </div>
         )}
       </div>
 

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import LeagueDivisionPanel, { type DivisionPanelData } from "@/components/LeagueDivisionPanel";
 
 const SPONSOR_SLUGS = [
   "care-and-cure", "dar-glass", "dot-syndicate", "double-click", "fidahussein-and-co",
@@ -11,31 +12,52 @@ const SPONSOR_SLUGS = [
   "smiles-cars", "stepping-stones", "tiba", "u-world",
 ];
 
-async function getSeasonData() {
+const DIVISION_LABELS: Record<string, string> = {
+  gofiber: "gofiber KSIJ PL",
+  "Care & Cure": "Care & Cure KSIJ PL",
+};
+
+async function getSeasonData(): Promise<DivisionPanelData[]> {
   const { data: seasons } = await supabase
     .from("seasons")
     .select("id,label,is_active,competitions(name,sponsor_name,division_id)")
     .eq("is_active", true);
 
+  const ordered = [...(seasons ?? [])].sort(
+    (a: any, b: any) =>
+      ["gofiber", "Care & Cure"].indexOf(a.competitions?.sponsor_name) -
+      ["gofiber", "Care & Cure"].indexOf(b.competitions?.sponsor_name)
+  );
+
   return Promise.all(
-    (seasons ?? []).map(async (s: any) => {
+    ordered.map(async (s: any) => {
       const [{ data: standings }, { data: matches }, { data: teams }] = await Promise.all([
         supabase.from("standings").select("*").eq("season_id", s.id)
           .order("points", { ascending: false }).order("goal_difference", { ascending: false }),
         supabase.from("matches").select("*").eq("season_id", s.id).order("kickoff_at", { ascending: true }),
         supabase.from("teams").select("id,name").eq("division_id", s.competitions?.division_id),
       ]);
-      const teamMap = new Map((teams ?? []).map((t: any) => [t.id, t.name]));
-      const results = (matches ?? []).filter((m: any) => m.status === "completed").slice(-3).reverse();
-      const fixtures = (matches ?? []).filter((m: any) => m.status === "scheduled").slice(0, 3);
-      return { season: s, standings: standings ?? [], teamMap, results, fixtures };
+      const teamMap: Record<string, string> = {};
+      (teams ?? []).forEach((t: any) => (teamMap[t.id] = t.name));
+      const results = (matches ?? []).filter((m: any) => m.status === "completed").slice(-5).reverse();
+      const fixtures = (matches ?? []).filter((m: any) => m.status === "scheduled").slice(0, 5);
+      return {
+        key: s.competitions?.sponsor_name ?? s.id,
+        label: DIVISION_LABELS[s.competitions?.sponsor_name] ?? s.competitions?.name ?? "League",
+        competitionName: s.competitions?.name ?? "",
+        seasonLabel: s.label,
+        standings: standings ?? [],
+        teamMap,
+        results,
+        fixtures,
+      };
     })
   );
 }
 
 export default async function Home() {
   const seasonData = await getSeasonData();
-  const senior = seasonData.find((d) => d.season.competitions?.sponsor_name === "gofiber") ?? seasonData[0];
+  const senior = seasonData.find((d) => d.key === "gofiber") ?? seasonData[0];
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
@@ -49,8 +71,8 @@ export default async function Home() {
               <span className="w-1.5 h-1.5 rounded-full bg-[#F4B400]" /> Season Live
             </span>
             <h1 className="font-display font-bold text-4xl md:text-5xl leading-tight max-w-xl">
-              {senior?.season?.competitions?.name ?? "KSIJ League"}
-              <span className="text-[#3EA0D9]"> {senior?.season?.label}</span>
+              {senior?.competitionName ?? "KSIJ League"}
+              <span className="text-[#3EA0D9]"> {senior?.seasonLabel}</span>
             </h1>
             <p className="text-[#0B3363]/60 dark:text-white/60 mt-3 max-w-md">
               Follow live standings, results and fixtures across the Seniors and Juniors divisions.
@@ -64,77 +86,7 @@ export default async function Home() {
       </section>
 
       {/* Table / Results / Fixtures */}
-      <section className="max-w-6xl mx-auto px-6 py-10 grid md:grid-cols-3 gap-5">
-        {/* Table */}
-        <div className="rounded-2xl p-5 bg-[#0B3363] text-white dark:bg-white dark:text-[#0B3363]">
-          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-80">Table — {senior?.season?.competitions?.name}</h3>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs uppercase opacity-60">
-                <th className="text-left pb-2">#</th>
-                <th className="text-left pb-2">Team</th>
-                <th className="text-right pb-2">P</th>
-                <th className="text-right pb-2">Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(senior?.standings ?? []).slice(0, 8).map((row: any, i: number) => (
-                <tr key={row.team_id} className="border-t border-white/10 dark:border-[#0B3363]/10">
-                  <td className="py-1.5">{i + 1}</td>
-                  <td className="py-1.5">
-                    <Link href={`/teams/${row.team_id}`} className="hover:text-[#F4B400] transition-colors">
-                      {senior?.teamMap.get(row.team_id)}
-                    </Link>
-                  </td>
-                  <td className="py-1.5 text-right opacity-70">{row.played}</td>
-                  <td className="py-1.5 text-right font-bold text-[#F4B400]">{row.points}</td>
-                </tr>
-              ))}
-              {(!senior || senior.standings.length === 0) && (
-                <tr><td colSpan={4} className="py-4 text-center opacity-60 text-xs">No completed matches yet</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Results */}
-        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
-          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Latest Results</h3>
-          <div className="space-y-1">
-            {(senior?.results ?? []).map((m: any) => (
-              <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                <span className="w-2/5 truncate">{senior?.teamMap.get(m.home_team_id)}</span>
-                <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2.5 py-1 rounded">
-                  {m.home_score}–{m.away_score}
-                </span>
-                <span className="w-2/5 truncate text-right">{senior?.teamMap.get(m.away_team_id)}</span>
-              </div>
-            ))}
-            {(!senior || senior.results.length === 0) && (
-              <div className="py-4 text-center opacity-50 text-xs">No results yet</div>
-            )}
-          </div>
-        </div>
-
-        {/* Fixtures */}
-        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
-          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Upcoming Fixtures</h3>
-          <div className="space-y-1">
-            {(senior?.fixtures ?? []).map((m: any) => (
-              <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                <span className="w-2/5 truncate">{senior?.teamMap.get(m.home_team_id)}</span>
-                <span className="text-[10px] opacity-50 text-center w-1/5">
-                  {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
-                </span>
-                <span className="w-2/5 truncate text-right">{senior?.teamMap.get(m.away_team_id)}</span>
-              </div>
-            ))}
-            {(!senior || senior.fixtures.length === 0) && (
-              <div className="py-4 text-center opacity-50 text-xs">No fixtures scheduled</div>
-            )}
-          </div>
-        </div>
-      </section>
+      <LeagueDivisionPanel divisions={seasonData} />
 
       {/* News (placeholder) */}
       <section className="max-w-6xl mx-auto px-6 pb-10">
