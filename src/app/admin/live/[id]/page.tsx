@@ -28,7 +28,12 @@ const EVENT_META: Record<string, { label: string; icon: string; short: string }>
   assist: { label: "Assist", icon: "🅰️", short: "A" },
   yellow_card: { label: "Yellow Card", icon: "🟨", short: "Y" },
   red_card: { label: "Red Card", icon: "🟥", short: "R" },
+  own_goal: { label: "Own Goal", icon: "🔴", short: "OG" },
+  penalty_save: { label: "Penalty Save", icon: "🧤", short: "PS" },
+  penalty_miss: { label: "Penalty Miss", icon: "❌", short: "PM" },
 };
+const PRIMARY_EVENTS = ["goal", "assist", "yellow_card", "red_card"] as const;
+const MORE_EVENTS = ["own_goal", "penalty_save", "penalty_miss"] as const;
 
 export default function LiveMatchConsole() {
   const params = useParams();
@@ -345,11 +350,23 @@ function TeamRoster({
   onLogEvent: (playerId: string, type: string) => void;
   onSetMotm: (playerId: string) => void;
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(playerId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(playerId)) next.delete(playerId);
+      else next.add(playerId);
+      return next;
+    });
+  }
+
   return (
     <div className="admin-card overflow-hidden">
       {players.map((p) => {
         const isPresent = present.has(p.id);
         const isMotm = motmPlayerId === p.id;
+        const isExpanded = expanded.has(p.id);
         return (
           <div key={p.id} className="px-4 py-3 border-b border-[#0B3363]/5 last:border-0">
             <div className="flex items-center justify-between gap-2 mb-2">
@@ -368,7 +385,7 @@ function TeamRoster({
               </button>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <div className="flex items-center gap-1 text-xs text-slate-400">
-                  {(["goal", "assist", "yellow_card", "red_card"] as const).map((type) => {
+                  {[...PRIMARY_EVENTS, ...MORE_EVENTS].map((type) => {
                     const count = eventCount(p.id, type);
                     return count > 0 ? (
                       <span key={type}>{EVENT_META[type].icon}{count > 1 ? count : ""}</span>
@@ -388,7 +405,7 @@ function TeamRoster({
               </div>
             </div>
             <div className="flex items-center gap-1.5">
-              {(["goal", "assist", "yellow_card", "red_card"] as const).map((type) => (
+              {PRIMARY_EVENTS.map((type) => (
                 <button
                   key={type}
                   onClick={() => onLogEvent(p.id, type)}
@@ -398,7 +415,28 @@ function TeamRoster({
                   {EVENT_META[type].icon} {EVENT_META[type].short}
                 </button>
               ))}
+              <button
+                onClick={() => toggleExpanded(p.id)}
+                aria-label="More actions"
+                className="admin-icon-btn flex-shrink-0"
+              >
+                {isExpanded ? "▲" : "⋯"}
+              </button>
             </div>
+            {isExpanded && (
+              <div className="flex items-center gap-1.5 mt-1.5">
+                {MORE_EVENTS.map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => onLogEvent(p.id, type)}
+                    disabled={busyPlayerId === p.id + type}
+                    className="admin-btn bg-[#0B3363]/5 hover:bg-[#0B3363]/10 text-[#0B3363] text-xs py-1.5 px-2.5 flex-1"
+                  >
+                    {EVENT_META[type].icon} {EVENT_META[type].short}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
