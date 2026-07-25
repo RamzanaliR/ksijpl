@@ -5,15 +5,16 @@ import Image from "next/image";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 
-const NAV_ITEMS: { key: "seasons" | "teams" | "stats" | "news" | "fantasy"; label: string; href: string }[] = [
+const NAV_ITEMS: { key: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy"; label: string; href: string }[] = [
   { key: "seasons", label: "Seasons", href: "/" },
   { key: "teams", label: "Teams", href: "/teams" },
+  { key: "cup", label: "Cup", href: "/cup" },
   { key: "stats", label: "Stats", href: "#" },
   { key: "news", label: "Latest News", href: "#" },
   { key: "fantasy", label: "Fantasy", href: "#" },
 ];
 
-export default function SiteHeader({ active }: { active?: "seasons" | "teams" | "stats" | "news" | "fantasy" }) {
+export default function SiteHeader({ active }: { active?: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy" }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const linkClass = (key: string) =>

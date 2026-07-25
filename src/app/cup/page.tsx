@@ -44,7 +44,7 @@ export default async function CupPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
-      <SiteHeader />
+      <SiteHeader active="cup" />
       <main className="max-w-6xl mx-auto px-6 py-10 flex-1 w-full">
         <h1 className="font-display font-bold text-3xl mb-1">Cup</h1>
         <p className="text-[#0B3363]/60 dark:text-white/60 mb-8">Knockout brackets for both divisions.</p>
