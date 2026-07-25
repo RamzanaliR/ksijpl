@@ -26,37 +26,38 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-      <form onSubmit={handleSubmit} className="bg-white border rounded-xl p-8 w-full max-w-sm">
-        <h1 className="text-xl font-bold text-blue-900 mb-1">KSIJ Admin</h1>
-        <p className="text-sm text-slate-500 mb-6">Sign in to manage teams, players and scores.</p>
+    <div
+      className="min-h-screen flex items-center justify-center p-6"
+      style={{ background: "linear-gradient(160deg, #0B3363 0%, #0a2b54 55%, #082246 100%)" }}
+    >
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl shadow-black/20">
+        <div className="w-10 h-10 rounded-xl bg-[#F4B400] flex items-center justify-center mb-4">
+          <span className="font-display font-bold text-[#0B3363] text-base">K</span>
+        </div>
+        <h1 className="admin-page-title mb-1">KSIJ Admin</h1>
+        <p className="admin-subtitle mb-6">Sign in to manage teams, players and scores.</p>
 
-        {error && (
-          <div className="bg-red-50 text-red-700 text-sm rounded px-3 py-2 mb-4">{error}</div>
-        )}
+        {error && <div className="admin-alert admin-alert-error mb-4">{error}</div>}
 
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+        <label className="admin-label">Email</label>
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border rounded px-3 py-2 text-sm w-full mb-4"
+          className="admin-input mb-4"
         />
 
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Password</label>
+        <label className="admin-label">Password</label>
         <input
           type="password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border rounded px-3 py-2 text-sm w-full mb-6"
+          className="admin-input mb-6"
         />
 
-        <button
-          disabled={loading}
-          className="bg-blue-700 text-white w-full py-2.5 rounded text-sm font-semibold disabled:opacity-50"
-        >
+        <button disabled={loading} className="admin-btn admin-btn-primary w-full py-2.5">
           {loading ? "Signing in…" : "Sign In"}
         </button>
       </form>

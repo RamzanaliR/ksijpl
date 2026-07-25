@@ -58,42 +58,42 @@ export default function AdminsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Admins</h1>
+      <h1 className="admin-page-title mb-6">Admins</h1>
 
-      <form onSubmit={invite} className="bg-white border rounded-xl p-5 mb-6 flex gap-3 items-end flex-wrap">
+      <form onSubmit={invite} className="admin-card p-5 mb-6 flex gap-3 items-end flex-wrap">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+          <label className="admin-label">Email</label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="border rounded px-3 py-2 text-sm w-56"
+            className="admin-input w-56"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Full name</label>
+          <label className="admin-label">Full name</label>
           <input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="border rounded px-3 py-2 text-sm w-48"
+            className="admin-input w-48"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="border rounded px-3 py-2 text-sm">
+          <label className="admin-label">Role</label>
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="admin-select">
             <option value="matchday_admin">Matchday Admin</option>
             <option value="super_admin">Super Admin</option>
           </select>
         </div>
-        <button disabled={loading} className="bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-50">
+        <button disabled={loading} className="admin-btn admin-btn-primary">
           {loading ? "Inviting…" : "Invite Admin"}
         </button>
       </form>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm rounded px-3 py-2 mb-4 max-w-lg">{error}</div>}
+      {error && <div className="admin-alert admin-alert-error mb-4 max-w-lg">{error}</div>}
       {result && (
-        <div className="bg-amber-50 border border-amber-300 text-amber-800 text-sm rounded px-4 py-3 mb-6 max-w-lg">
+        <div className="admin-alert admin-alert-warning mb-6 max-w-lg">
           <div className="font-semibold mb-1">Share these credentials securely — shown only once:</div>
           <div>Email: {result.email}</div>
           <div>Temporary password: <code className="bg-white px-1.5 py-0.5 rounded">{result.temp_password}</code></div>
@@ -101,13 +101,14 @@ export default function AdminsPage() {
         </div>
       )}
 
-      <div className="bg-white border rounded-xl divide-y max-w-lg">
+      <div className="admin-card overflow-hidden max-w-lg">
         {admins.map((a) => (
-          <div key={a.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <span>{a.full_name || "—"}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{a.role}</span>
+          <div key={a.id} className="admin-row">
+            <span className="text-[#0B3363]">{a.full_name || "—"}</span>
+            <span className="admin-pill">{a.role}</span>
           </div>
         ))}
+        {admins.length === 0 && <div className="admin-empty">No admins yet.</div>}
       </div>
     </div>
   );

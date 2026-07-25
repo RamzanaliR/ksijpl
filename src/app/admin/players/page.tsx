@@ -70,14 +70,14 @@ export default function PlayersAdmin() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Players</h1>
+      <h1 className="admin-page-title mb-6">Players</h1>
 
-      <div className="mb-6">
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Team</label>
+      <div className="mb-6 max-w-xs">
+        <label className="admin-label">Team</label>
         <select
           value={selectedTeam}
           onChange={(e) => setSelectedTeam(e.target.value)}
-          className="border rounded px-3 py-2 text-sm w-72"
+          className="admin-select"
         >
           {teams.map((t) => (
             <option key={t.id} value={t.id}>
@@ -87,22 +87,22 @@ export default function PlayersAdmin() {
         </select>
       </div>
 
-      <form onSubmit={addPlayer} className="bg-white border rounded-xl p-5 mb-8 flex gap-3 items-end flex-wrap">
+      <form onSubmit={addPlayer} className="admin-card p-5 mb-8 flex gap-3 items-end flex-wrap">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Full name</label>
+          <label className="admin-label">Full name</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="border rounded px-3 py-2 text-sm w-56"
+            className="admin-input w-56"
             placeholder="e.g. John Mushi"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Position</label>
+          <label className="admin-label">Position</label>
           <select
             value={position}
             onChange={(e) => setPosition(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
+            className="admin-select"
           >
             {POSITIONS.map((p) => (
               <option key={p} value={p}>
@@ -112,27 +112,27 @@ export default function PlayersAdmin() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Squad #</label>
+          <label className="admin-label">Squad #</label>
           <input
             value={number}
             onChange={(e) => setNumber(e.target.value)}
-            className="border rounded px-3 py-2 text-sm w-20"
+            className="admin-input w-20"
             type="number"
           />
         </div>
-        <button className="bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">
-          Add Player
-        </button>
+        <button className="admin-btn admin-btn-primary">Add Player</button>
       </form>
 
-      <div className="bg-white border rounded-xl divide-y">
+      <div className="admin-card overflow-hidden">
         {players.map((p) => (
-          <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-            <span className="w-64">{p.full_name}</span>
+          <div key={p.id} className="admin-row">
+            <span className="w-64 text-[#0B3363]">{p.full_name}</span>
             <select
               value={p.position ?? ""}
               onChange={(e) => updatePosition(p.id, e.target.value)}
-              className={`text-xs border rounded px-1.5 py-1 w-20 ${!p.position ? "border-amber-400 bg-amber-50" : "border-slate-200"}`}
+              className={`text-xs border rounded-lg px-1.5 py-1 w-20 outline-none transition-colors ${
+                !p.position ? "border-amber-400 bg-amber-50" : "border-slate-200 text-[#0B3363]"
+              }`}
             >
               <option value="">—</option>
               {POSITIONS.map((pos) => (
@@ -140,13 +140,13 @@ export default function PlayersAdmin() {
               ))}
             </select>
             <span className="text-xs text-slate-400 w-10">#{p.squad_number}</span>
-            <button onClick={() => deletePlayer(p.id)} className="text-xs text-red-600 hover:underline">
+            <button onClick={() => deletePlayer(p.id)} className="admin-btn-danger">
               Delete
             </button>
           </div>
         ))}
         {players.length === 0 && (
-          <div className="px-4 py-4 text-sm text-slate-400">No players yet for this team.</div>
+          <div className="admin-empty">No players yet for this team.</div>
         )}
       </div>
     </div>

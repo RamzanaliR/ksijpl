@@ -290,7 +290,7 @@ export default function FixturesAdmin() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Fixtures &amp; Scores</h1>
+        <h1 className="admin-page-title">Fixtures &amp; Scores</h1>
         <div>
           <input
             ref={fileInputRef}
@@ -305,7 +305,7 @@ export default function FixturesAdmin() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="bg-slate-900 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
+            className="admin-btn admin-btn-primary"
           >
             {importing ? "Importing…" : "Import CSV"}
           </button>
@@ -313,19 +313,13 @@ export default function FixturesAdmin() {
       </div>
 
       {importResult && (
-        <div
-          className={`mb-6 rounded-xl border p-4 text-sm ${
-            importResult.errors.length > 0
-              ? "bg-amber-50 border-amber-200"
-              : "bg-green-50 border-green-200"
-          }`}
-        >
+        <div className={`admin-alert mb-6 ${importResult.errors.length > 0 ? "admin-alert-warning" : "admin-alert-success"}`}>
           <div className="font-semibold mb-1">
             Imported {importResult.added} fixture{importResult.added === 1 ? "" : "s"}
             {importResult.errors.length > 0 ? `, ${importResult.errors.length} row(s) skipped` : ""}
           </div>
           {importResult.errors.length > 0 && (
-            <ul className="list-disc pl-5 space-y-0.5 text-amber-800">
+            <ul className="list-disc pl-5 space-y-0.5">
               {importResult.errors.map((e, i) => (
                 <li key={i}>{e}</li>
               ))}
@@ -334,12 +328,12 @@ export default function FixturesAdmin() {
         </div>
       )}
 
-      <div className="mb-6">
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Season</label>
+      <div className="mb-6 max-w-sm">
+        <label className="admin-label">Season</label>
         <select
           value={selectedSeason}
           onChange={(e) => setSelectedSeason(e.target.value)}
-          className="border rounded px-3 py-2 text-sm w-80"
+          className="admin-select"
         >
           {seasons.map((s) => (
             <option key={s.id} value={s.id}>
@@ -349,10 +343,10 @@ export default function FixturesAdmin() {
         </select>
       </div>
 
-      <form onSubmit={addFixture} className="bg-white border rounded-xl p-5 mb-8 flex gap-3 items-end flex-wrap">
+      <form onSubmit={addFixture} className="admin-card p-5 mb-8 flex gap-3 items-end flex-wrap">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Home team</label>
-          <select value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} className="border rounded px-3 py-2 text-sm w-48">
+          <label className="admin-label">Home team</label>
+          <select value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} className="admin-select w-48">
             <option value="">Select…</option>
             {teams.map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
@@ -360,8 +354,8 @@ export default function FixturesAdmin() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Away team</label>
-          <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} className="border rounded px-3 py-2 text-sm w-48">
+          <label className="admin-label">Away team</label>
+          <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} className="admin-select w-48">
             <option value="">Select…</option>
             {teams.map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
@@ -369,25 +363,23 @@ export default function FixturesAdmin() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Kickoff</label>
+          <label className="admin-label">Kickoff</label>
           <input
             type="datetime-local"
             value={kickoff}
             onChange={(e) => setKickoff(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
+            className="admin-input"
           />
         </div>
-        <button className="bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">
-          Add Fixture
-        </button>
+        <button className="admin-btn admin-btn-primary">Add Fixture</button>
       </form>
 
-      <div className="bg-white border rounded-xl divide-y">
+      <div className="admin-card overflow-hidden">
         {matches.map((m) => (
           <MatchRow key={m.id} match={m} teamName={teamName} onSave={updateScore} />
         ))}
         {matches.length === 0 && (
-          <div className="px-4 py-4 text-sm text-slate-400">No fixtures yet for this season.</div>
+          <div className="admin-empty">No fixtures yet for this season.</div>
         )}
       </div>
     </div>
@@ -407,8 +399,8 @@ function MatchRow({
   const [away, setAway] = useState(match.away_score?.toString() ?? "");
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 text-sm">
-      <div className="w-72">
+    <div className="admin-row">
+      <div className="w-72 text-[#0B3363]">
         {teamName(match.home_team_id)} <span className="text-slate-400">vs</span> {teamName(match.away_team_id)}
       </div>
       <div className="text-xs text-slate-400 w-40">
@@ -418,28 +410,24 @@ function MatchRow({
         <input
           value={home}
           onChange={(e) => setHome(e.target.value)}
-          className="border rounded w-12 text-center py-1"
+          className="admin-input w-12 text-center px-1"
           type="number"
         />
-        <span>–</span>
+        <span className="text-slate-400">–</span>
         <input
           value={away}
           onChange={(e) => setAway(e.target.value)}
-          className="border rounded w-12 text-center py-1"
+          className="admin-input w-12 text-center px-1"
           type="number"
         />
         <button
           onClick={() => onSave(match.id, Number(home), Number(away))}
           disabled={home === "" || away === ""}
-          className="bg-blue-900 text-white px-3 py-1.5 rounded text-xs font-semibold disabled:opacity-30"
+          className="admin-btn admin-btn-primary py-1.5 px-3 text-xs"
         >
           Save
         </button>
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full ${
-            match.status === "completed" ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
-          }`}
-        >
+        <span className={`admin-pill ${match.status === "completed" ? "admin-pill-success" : "admin-pill-neutral"}`}>
           {match.status}
         </span>
       </div>

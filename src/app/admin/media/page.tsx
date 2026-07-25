@@ -116,22 +116,22 @@ export default function MediaAdmin() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Media</h1>
-      <p className="text-sm text-slate-500 mb-6 max-w-2xl">
+      <h1 className="admin-page-title mb-1">Media</h1>
+      <p className="admin-subtitle mb-6 max-w-2xl">
         Upload league logos, sponsor logos, team crests, jerseys, and hero images here. Files are stored
         in Supabase Storage and served publicly — copy the URL to use anywhere on the site.
       </p>
 
-      <form onSubmit={upload} className="bg-white border rounded-xl p-5 mb-8 flex gap-3 items-end flex-wrap">
+      <form onSubmit={upload} className="admin-card p-5 mb-8 flex gap-3 items-end flex-wrap">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Category</label>
+          <label className="admin-label">Category</label>
           <select
             value={category}
             onChange={(e) => {
               setCategory(e.target.value);
               setTeamId("");
             }}
-            className="border rounded px-3 py-2 text-sm w-56"
+            className="admin-select w-56"
           >
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -141,8 +141,8 @@ export default function MediaAdmin() {
 
         {activeCategoryDef.teamScoped && (
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1">Team</label>
-            <select value={teamId} onChange={(e) => setTeamId(e.target.value)} className="border rounded px-3 py-2 text-sm w-56">
+            <label className="admin-label">Team</label>
+            <select value={teamId} onChange={(e) => setTeamId(e.target.value)} className="admin-select w-56">
               <option value="">Select team…</option>
               {teams.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
             </select>
@@ -150,30 +150,30 @@ export default function MediaAdmin() {
         )}
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Label (optional)</label>
-          <input value={label} onChange={(e) => setLabel(e.target.value)} className="border rounded px-3 py-2 text-sm w-48" placeholder="e.g. Home jersey 2026" />
+          <label className="admin-label">Label (optional)</label>
+          <input value={label} onChange={(e) => setLabel(e.target.value)} className="admin-input w-48" placeholder="e.g. Home jersey 2026" />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">File</label>
+          <label className="admin-label">File</label>
           <input
             type="file"
             accept="image/*"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="text-sm w-56"
+            className="text-sm w-56 text-[#0B3363]"
           />
         </div>
 
-        <button disabled={uploading} className="bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-50">
+        <button disabled={uploading} className="admin-btn admin-btn-primary">
           {uploading ? "Uploading…" : "Upload"}
         </button>
       </form>
 
-      {error && <div className="bg-red-50 text-red-700 text-sm rounded px-3 py-2 mb-4 max-w-lg">{error}</div>}
+      {error && <div className="admin-alert admin-alert-error mb-4 max-w-lg">{error}</div>}
 
-      <div className="mb-4">
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Filter</label>
-        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="border rounded px-3 py-2 text-sm w-56">
+      <div className="mb-4 max-w-xs">
+        <label className="admin-label">Filter</label>
+        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className="admin-select">
           <option value="all">All categories</option>
           {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
         </select>
@@ -181,17 +181,17 @@ export default function MediaAdmin() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {visibleAssets.map((a) => (
-          <div key={a.id} className="bg-white border rounded-xl p-3 flex flex-col">
-            <div className="h-24 flex items-center justify-center bg-slate-50 rounded mb-2 overflow-hidden">
+          <div key={a.id} className="admin-card p-3 flex flex-col">
+            <div className="h-24 flex items-center justify-center bg-slate-50 rounded-lg mb-2 overflow-hidden">
               <img src={a.url} alt={a.label ?? a.category} className="max-h-24 max-w-full object-contain" />
             </div>
-            <div className="text-[10px] font-bold uppercase text-blue-700">{CATEGORIES.find((c) => c.value === a.category)?.label}</div>
+            <div className="text-[10px] font-bold uppercase text-[#3EA0D9]">{CATEGORIES.find((c) => c.value === a.category)?.label}</div>
             {teamName(a.team_id) && <div className="text-xs text-slate-500 truncate">{teamName(a.team_id)}</div>}
             {a.label && <div className="text-xs text-slate-400 truncate">{a.label}</div>}
             <div className="flex items-center justify-between mt-2">
               <button
                 onClick={() => navigator.clipboard.writeText(a.url)}
-                className="text-[11px] text-blue-600 hover:underline"
+                className="text-[11px] text-[#3EA0D9] hover:underline"
               >
                 Copy URL
               </button>
@@ -202,7 +202,7 @@ export default function MediaAdmin() {
           </div>
         ))}
         {visibleAssets.length === 0 && (
-          <div className="col-span-full text-sm text-slate-400 py-6 text-center">No files uploaded yet for this filter.</div>
+          <div className="col-span-full admin-empty">No files uploaded yet for this filter.</div>
         )}
       </div>
     </div>

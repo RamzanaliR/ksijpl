@@ -36,34 +36,31 @@ export default function AccountPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Account</h1>
-      <form onSubmit={updatePassword} className="bg-white border rounded-xl p-6 max-w-sm">
-        <h2 className="font-semibold text-slate-800 mb-1">Change password</h2>
-        <p className="text-sm text-slate-500 mb-4">
+      <h1 className="admin-page-title mb-6">Account</h1>
+      <form onSubmit={updatePassword} className="admin-card p-6 max-w-sm">
+        <h2 className="font-semibold text-[#0B3363] mb-1">Change password</h2>
+        <p className="admin-subtitle mb-4">
           If you're using the shared placeholder password, please change it now.
         </p>
 
-        {error && <div className="bg-red-50 text-red-700 text-sm rounded px-3 py-2 mb-3">{error}</div>}
-        {message && <div className="bg-green-50 text-green-700 text-sm rounded px-3 py-2 mb-3">{message}</div>}
+        {error && <div className="admin-alert admin-alert-error mb-3">{error}</div>}
+        {message && <div className="admin-alert admin-alert-success mb-3">{message}</div>}
 
-        <label className="block text-xs font-semibold text-slate-500 mb-1">New password</label>
+        <label className="admin-label">New password</label>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="border rounded px-3 py-2 text-sm w-full mb-3"
+          className="admin-input mb-3"
         />
-        <label className="block text-xs font-semibold text-slate-500 mb-1">Confirm password</label>
+        <label className="admin-label">Confirm password</label>
         <input
           type="password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          className="border rounded px-3 py-2 text-sm w-full mb-4"
+          className="admin-input mb-4"
         />
-        <button
-          disabled={loading}
-          className="bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold disabled:opacity-50"
-        >
+        <button disabled={loading} className="admin-btn admin-btn-primary w-full">
           {loading ? "Updating…" : "Update Password"}
         </button>
       </form>

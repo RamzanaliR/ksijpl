@@ -68,15 +68,15 @@ export default function TeamsAdmin() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Teams</h1>
+      <h1 className="admin-page-title mb-6">Teams</h1>
 
-      <form onSubmit={addTeam} className="bg-white border rounded-xl p-5 mb-8 flex gap-3 items-end flex-wrap">
+      <form onSubmit={addTeam} className="admin-card p-5 mb-8 flex gap-3 items-end flex-wrap">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Division</label>
+          <label className="admin-label">Division</label>
           <select
             value={newDivision}
             onChange={(e) => setNewDivision(e.target.value)}
-            className="border rounded px-3 py-2 text-sm text-slate-900"
+            className="admin-select"
           >
             {divisions.map((d) => (
               <option key={d.id} value={d.id}>
@@ -86,58 +86,54 @@ export default function TeamsAdmin() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Team name</label>
+          <label className="admin-label">Team name</label>
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="border rounded px-3 py-2 text-sm text-slate-900 w-56"
+            className="admin-input w-56"
             placeholder="e.g. Dar Falcons"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1">Short name</label>
+          <label className="admin-label">Short name</label>
           <input
             value={newShort}
             onChange={(e) => setNewShort(e.target.value)}
-            className="border rounded px-3 py-2 text-sm text-slate-900 w-24"
+            className="admin-input w-24"
             placeholder="DAR"
           />
         </div>
-        <button className="bg-blue-700 text-white px-4 py-2 rounded text-sm font-semibold">
-          Add Team
-        </button>
+        <button className="admin-btn admin-btn-primary">Add Team</button>
       </form>
 
       {loading ? (
-        <div className="text-slate-500 text-sm">Loading…</div>
+        <div className="admin-subtitle">Loading…</div>
       ) : (
         <div className="grid md:grid-cols-2 gap-8">
           {orderedDivisions.map((d) => (
             <div key={d.id}>
-              <h2 className="font-semibold text-slate-700 mb-2">
-                {DIVISION_LABELS[d.slug] ?? d.name} ({teams.filter((t) => t.division_id === d.id).length})
+              <h2 className="font-semibold text-[#0B3363] mb-2 text-sm">
+                {DIVISION_LABELS[d.slug] ?? d.name}
+                <span className="admin-pill ml-2 align-middle">{teams.filter((t) => t.division_id === d.id).length}</span>
               </h2>
-              <div className="bg-white border rounded-xl divide-y">
+              <div className="admin-card overflow-hidden">
                 {teams
                   .filter((t) => t.division_id === d.id)
                   .map((t) => (
-                    <div key={t.id} className="flex items-center justify-between px-4 py-2.5">
+                    <div key={t.id} className="admin-row">
                       <input
                         defaultValue={t.name}
                         onBlur={(e) => renameTeam(t.id, e.target.value)}
-                        className="text-sm text-slate-900 bg-transparent focus:bg-slate-50 rounded px-2 py-1 w-48"
+                        className="bg-transparent focus:bg-slate-50 rounded px-2 py-1 w-48 text-[#0B3363] outline-none focus:ring-2 focus:ring-[#3EA0D9]/30 transition-shadow"
                       />
                       <span className="text-xs text-slate-400 mr-4">{t.short_name}</span>
-                      <button
-                        onClick={() => deleteTeam(t.id)}
-                        className="text-xs text-red-600 hover:underline flex-shrink-0"
-                      >
+                      <button onClick={() => deleteTeam(t.id)} className="admin-btn-danger flex-shrink-0">
                         Delete
                       </button>
                     </div>
                   ))}
                 {teams.filter((t) => t.division_id === d.id).length === 0 && (
-                  <div className="px-4 py-4 text-sm text-slate-400">No teams yet.</div>
+                  <div className="admin-empty">No teams yet.</div>
                 )}
               </div>
             </div>
