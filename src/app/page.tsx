@@ -56,8 +56,9 @@ export default async function Home() {
       <nav className="border-b border-[#0B3363]/10 dark:border-white/10 sticky top-0 z-20 bg-white/95 dark:bg-[#0B1220]/95 backdrop-blur">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2 font-display font-bold text-lg">
-            <Image src={logos["gofiber-pl-badge"]} alt="KSIJ League" width={36} height={36} className="rounded" />
-            KSIJ League
+            <Image src={logos["gofiber-pl-badge"]} alt="gofiber KSIJ PL" width={36} height={36} className="rounded" />
+            <Image src={logos["care-cure-pl-badge"]} alt="Care & Cure KSIJ PL" width={36} height={36} className="rounded" />
+            KSIJ DAR PL
           </div>
           <ul className="hidden md:flex gap-7 text-sm font-semibold">
             <li><Link href="#" className="text-[#3EA0D9] border-b-2 border-[#3EA0D9] pb-4 -mb-4">Seasons</Link></li>
@@ -207,9 +208,13 @@ export default async function Home() {
         <div className="flex gap-6 w-max animate-scroll-x">
           {[...SPONSOR_SLUGS, ...SPONSOR_SLUGS].map((slug, i) => (
             <div key={i} className="w-28 h-16 bg-white rounded-lg border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-2">
-              <span className="text-[#0B3363] font-display font-bold text-xs uppercase text-center leading-tight">
-                {slug.replace(/-/g, " ")}
-              </span>
+              <Image
+                src={`/sponsors/${slug}.png`}
+                alt={slug.replace(/-/g, " ")}
+                width={96}
+                height={48}
+                className="object-contain w-full h-full"
+              />
             </div>
           ))}
         </div>
@@ -248,9 +253,13 @@ export default async function Home() {
           <div className="max-w-6xl mx-auto px-6 py-6 flex flex-wrap gap-4 items-center">
             {SPONSOR_SLUGS.slice(0, 8).map((slug) => (
               <div key={slug} className="w-20 h-11 bg-white rounded-md border-2 border-[#0B3363] flex items-center justify-center p-1">
-                <span className="text-[#0B3363] font-display font-bold text-[8px] uppercase text-center leading-tight">
-                  {slug.replace(/-/g, " ")}
-                </span>
+                <Image
+                  src={`/sponsors/${slug}.png`}
+                  alt={slug.replace(/-/g, " ")}
+                  width={70}
+                  height={35}
+                  className="object-contain w-full h-full"
+                />
               </div>
             ))}
           </div>
