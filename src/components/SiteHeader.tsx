@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
+import { supabase } from "@/lib/supabase";
 
 const NAV_ITEMS: { key: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy"; label: string; href: string }[] = [
   { key: "seasons", label: "Seasons", href: "/" },
@@ -16,6 +18,21 @@ const NAV_ITEMS: { key: "seasons" | "teams" | "cup" | "stats" | "news" | "fantas
 
 export default function SiteHeader({ active }: { active?: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy" }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setSignedIn(!!session?.user));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    setMenuOpen(false);
+    router.push("/");
+    router.refresh();
+  }
 
   const linkClass = (key: string) =>
     active === key
@@ -52,9 +69,18 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
           </ul>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link href="/admin" className="hidden sm:inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#0B3363] text-white hover:bg-[#0B3363]/90 dark:bg-[#3EA0D9] dark:hover:bg-[#3EA0D9]/90">
-              Sign In
-            </Link>
+            {signedIn ? (
+              <button
+                onClick={handleSignOut}
+                className="hidden sm:inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#0B3363] text-white hover:bg-[#0B3363]/90 dark:bg-[#3EA0D9] dark:hover:bg-[#3EA0D9]/90"
+              >
+                Sign Out
+              </button>
+            ) : (
+              <Link href="/fantasy/login" className="hidden sm:inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#0B3363] text-white hover:bg-[#0B3363]/90 dark:bg-[#3EA0D9] dark:hover:bg-[#3EA0D9]/90">
+                Sign In
+              </Link>
+            )}
             <button
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Toggle menu"
@@ -86,13 +112,22 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
                 </li>
               ))}
               <li className="sm:hidden pt-1">
-                <Link
-                  href="/admin"
-                  onClick={() => setMenuOpen(false)}
-                  className="block text-center py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9]"
-                >
-                  Sign In
-                </Link>
+                {signedIn ? (
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full text-center py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9]"
+                  >
+                    Sign Out
+                  </button>
+                ) : (
+                  <Link
+                    href="/fantasy/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="block text-center py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9]"
+                  >
+                    Sign In
+                  </Link>
+                )}
               </li>
             </ul>
           </div>

@@ -109,6 +109,30 @@ function Carousel<T>({
   );
 }
 
+function ResponsiveList<T>({
+  items,
+  pageSize,
+  renderItem,
+  emptyText,
+}: {
+  items: T[];
+  pageSize: number;
+  renderItem: (item: T) => React.ReactNode;
+  emptyText: string;
+}) {
+  if (items.length === 0) {
+    return <div className="py-4 text-center opacity-50 text-xs">{emptyText}</div>;
+  }
+  return (
+    <>
+      <div className="md:hidden">
+        <Carousel items={items} pageSize={pageSize} renderItem={renderItem} emptyText={emptyText} />
+      </div>
+      <div className="hidden md:block space-y-1">{items.map((item) => renderItem(item))}</div>
+    </>
+  );
+}
+
 export default function LeagueDivisionPanel({ divisions }: { divisions: DivisionPanelData[] }) {
   const [active, setActive] = useState(0);
   const router = useRouter();
@@ -191,7 +215,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
               "Latest Results"
             )}
           </h3>
-          <Carousel
+          <ResponsiveList
             items={d.results}
             pageSize={5}
             emptyText="No results yet"
@@ -210,7 +234,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         {/* Fixtures */}
         <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0">
           <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Upcoming Fixtures</h3>
-          <Carousel
+          <ResponsiveList
             items={d.fixtures}
             pageSize={5}
             emptyText="No fixtures scheduled"
