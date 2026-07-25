@@ -2,7 +2,6 @@ import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
-import { logos } from "@/lib/logos";
 
 const SPONSOR_SLUGS = [
   "care-and-cure", "dar-glass", "dot-syndicate", "double-click", "fidahussein-and-co",
@@ -38,7 +37,7 @@ export default async function Home() {
   const senior = seasonData.find((d) => d.season.competitions?.sponsor_name === "gofiber") ?? seasonData[0];
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
       {/* Utility bar */}
       <div className="bg-[#0B3363] text-white text-xs">
         <div className="max-w-6xl mx-auto px-6 flex gap-6 overflow-x-auto py-2">
@@ -56,8 +55,8 @@ export default async function Home() {
       <nav className="border-b border-[#0B3363]/10 dark:border-white/10 sticky top-0 z-20 bg-white/95 dark:bg-[#0B1220]/95 backdrop-blur">
         <div className="max-w-6xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2 font-display font-bold text-lg">
-            <Image src={logos["gofiber-pl-badge"]} alt="gofiber KSIJ PL" width={36} height={36} className="rounded" />
-            <Image src={logos["care-cure-pl-badge"]} alt="Care & Cure KSIJ PL" width={36} height={36} className="rounded" />
+            <Image src="/logos/gofiber-pl-badge.png" alt="gofiber KSIJ PL" width={36} height={36} className="object-contain" />
+            <Image src="/logos/care-cure-pl-badge.png" alt="Care & Cure KSIJ PL" width={36} height={36} className="object-contain" />
             KSIJ DAR PL
           </div>
           <ul className="hidden md:flex gap-7 text-sm font-semibold">
@@ -91,8 +90,8 @@ export default async function Home() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Image src={logos["gofiber-pl-badge"]} alt="gofiber KSIJ PL" width={90} height={112} />
-            <Image src={logos["care-cure-pl-badge"]} alt="Care & Cure KSIJ PL" width={90} height={112} />
+            <Image src="/logos/gofiber-pl-badge.png" alt="gofiber KSIJ PL" width={90} height={112} className="object-contain" />
+            <Image src="/logos/care-cure-pl-badge.png" alt="Care & Cure KSIJ PL" width={90} height={112} className="object-contain" />
           </div>
         </div>
       </section>
@@ -266,6 +265,6 @@ export default async function Home() {
         </div>
         <div className="text-center text-xs opacity-40 py-4">© 2026 KSIJ League</div>
       </footer>
-    </>
+    </div>
   );
 }

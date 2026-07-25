@@ -28,7 +28,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-full flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
+      <body className="min-h-full flex flex-col bg-white text-[#0B3363] transition-colors">
         {children}
       </body>
     </html>

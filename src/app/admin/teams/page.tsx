@@ -6,6 +6,11 @@ import { supabase } from "@/lib/supabase";
 type Division = { id: string; name: string; slug: string };
 type Team = { id: string; name: string; short_name: string | null; division_id: string };
 
+const DIVISION_LABELS: Record<string, string> = {
+  juniors: "Care & Cure KSIJ PL Teams",
+  seniors: "goFiber KSIJ PL Teams",
+};
+
 export default function TeamsAdmin() {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -55,6 +60,12 @@ export default function TeamsAdmin() {
     load();
   }
 
+  // Juniors on the left, Seniors on the right, regardless of DB ordering
+  const orderedDivisions = [...divisions].sort((a, b) => {
+    const order = ["juniors", "seniors"];
+    return order.indexOf(a.slug) - order.indexOf(b.slug);
+  });
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Teams</h1>
@@ -65,7 +76,7 @@ export default function TeamsAdmin() {
           <select
             value={newDivision}
             onChange={(e) => setNewDivision(e.target.value)}
-            className="border rounded px-3 py-2 text-sm"
+            className="border rounded px-3 py-2 text-sm text-slate-900"
           >
             {divisions.map((d) => (
               <option key={d.id} value={d.id}>
@@ -79,7 +90,7 @@ export default function TeamsAdmin() {
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="border rounded px-3 py-2 text-sm w-56"
+            className="border rounded px-3 py-2 text-sm text-slate-900 w-56"
             placeholder="e.g. Dar Falcons"
           />
         </div>
@@ -88,7 +99,7 @@ export default function TeamsAdmin() {
           <input
             value={newShort}
             onChange={(e) => setNewShort(e.target.value)}
-            className="border rounded px-3 py-2 text-sm w-24"
+            className="border rounded px-3 py-2 text-sm text-slate-900 w-24"
             placeholder="DAR"
           />
         </div>
@@ -100,33 +111,38 @@ export default function TeamsAdmin() {
       {loading ? (
         <div className="text-slate-500 text-sm">Loading…</div>
       ) : (
-        divisions.map((d) => (
-          <div key={d.id} className="mb-8">
-            <h2 className="font-semibold text-slate-700 mb-2">
-              {d.name} ({teams.filter((t) => t.division_id === d.id).length})
-            </h2>
-            <div className="bg-white border rounded-xl divide-y">
-              {teams
-                .filter((t) => t.division_id === d.id)
-                .map((t) => (
-                  <div key={t.id} className="flex items-center justify-between px-4 py-2.5">
-                    <input
-                      defaultValue={t.name}
-                      onBlur={(e) => renameTeam(t.id, e.target.value)}
-                      className="text-sm bg-transparent focus:bg-slate-50 rounded px-2 py-1 w-64"
-                    />
-                    <span className="text-xs text-slate-400 mr-4">{t.short_name}</span>
-                    <button
-                      onClick={() => deleteTeam(t.id)}
-                      className="text-xs text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))}
+        <div className="grid md:grid-cols-2 gap-8">
+          {orderedDivisions.map((d) => (
+            <div key={d.id}>
+              <h2 className="font-semibold text-slate-700 mb-2">
+                {DIVISION_LABELS[d.slug] ?? d.name} ({teams.filter((t) => t.division_id === d.id).length})
+              </h2>
+              <div className="bg-white border rounded-xl divide-y">
+                {teams
+                  .filter((t) => t.division_id === d.id)
+                  .map((t) => (
+                    <div key={t.id} className="flex items-center justify-between px-4 py-2.5">
+                      <input
+                        defaultValue={t.name}
+                        onBlur={(e) => renameTeam(t.id, e.target.value)}
+                        className="text-sm text-slate-900 bg-transparent focus:bg-slate-50 rounded px-2 py-1 w-48"
+                      />
+                      <span className="text-xs text-slate-400 mr-4">{t.short_name}</span>
+                      <button
+                        onClick={() => deleteTeam(t.id)}
+                        className="text-xs text-red-600 hover:underline flex-shrink-0"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                {teams.filter((t) => t.division_id === d.id).length === 0 && (
+                  <div className="px-4 py-4 text-sm text-slate-400">No teams yet.</div>
+                )}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </div>
   );
