@@ -57,6 +57,16 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/cup",
+    label: "Cup",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z" />
+        <path d="M7 5H4a3 3 0 0 0 3 5M17 5h3a3 3 0 0 1-3 5" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/media",
     label: "Media",
     icon: (

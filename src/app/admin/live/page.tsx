@@ -38,13 +38,15 @@ export default function LiveMatchPicker() {
     (async () => {
       const { data } = await supabase
         .from("seasons")
-        .select("id,label,competitions(name,division_id,sponsor_name)")
+        .select("id,label,competitions(name,division_id,sponsor_name,type)")
         .order("label");
-      const ordered = [...((data as any) ?? [])].sort(
-        (a: any, b: any) =>
-          ["gofiber", "Care & Cure"].indexOf(a.competitions?.sponsor_name) -
-          ["gofiber", "Care & Cure"].indexOf(b.competitions?.sponsor_name)
-      );
+      const ordered = [...((data as any) ?? [])]
+        .filter((s: any) => s.competitions?.type === "league")
+        .sort(
+          (a: any, b: any) =>
+            ["gofiber", "Care & Cure"].indexOf(a.competitions?.sponsor_name) -
+            ["gofiber", "Care & Cure"].indexOf(b.competitions?.sponsor_name)
+        );
       setSeasons(ordered);
       if (ordered.length) setSelectedSeason(ordered[0].id);
       const { data: tms } = await supabase.from("teams").select("id,name,slug,short_name,division_id").order("name");

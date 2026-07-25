@@ -15,11 +15,11 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
         <div className="max-w-6xl mx-auto px-6 flex gap-6 overflow-x-auto py-2">
           <Link href="#" className="whitespace-nowrap font-semibold hover:text-[#F4B400]">gofiber KSIJ PL</Link>
           <span className="text-white/30">/</span>
-          <Link href="#" className="whitespace-nowrap font-semibold hover:text-[#F4B400]">gofiber KSIJ Cup</Link>
+          <Link href="/cup" className="whitespace-nowrap font-semibold hover:text-[#F4B400]">gofiber KSIJ Cup</Link>
           <span className="text-white/30">/</span>
           <Link href="#" className="whitespace-nowrap font-semibold hover:text-[#F4B400]">Care & Cure KSIJ PL</Link>
           <span className="text-white/30">/</span>
-          <Link href="#" className="whitespace-nowrap font-semibold hover:text-[#F4B400]">Care & Cure KSIJ Cup</Link>
+          <Link href="/cup" className="whitespace-nowrap font-semibold hover:text-[#F4B400]">Care & Cure KSIJ Cup</Link>
         </div>
       </div>
 

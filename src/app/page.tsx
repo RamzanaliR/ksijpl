@@ -20,10 +20,12 @@ const DIVISION_LABELS: Record<string, string> = {
 async function getSeasonData(): Promise<DivisionPanelData[]> {
   const { data: seasons } = await supabase
     .from("seasons")
-    .select("id,label,is_active,competitions(name,sponsor_name,division_id)")
+    .select("id,label,is_active,competitions(name,sponsor_name,division_id,type)")
     .eq("is_active", true);
 
-  const ordered = [...(seasons ?? [])].sort(
+  const ordered = [...(seasons ?? [])]
+    .filter((s: any) => s.competitions?.type === "league")
+    .sort(
     (a: any, b: any) =>
       ["gofiber", "Care & Cure"].indexOf(a.competitions?.sponsor_name) -
       ["gofiber", "Care & Cure"].indexOf(b.competitions?.sponsor_name)
