@@ -16,57 +16,6 @@ export type DivisionPanelData = {
   matchWeekInProgress: boolean;
 };
 
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
-
-function SwipePages<T>({
-  items,
-  pageSize,
-  renderItem,
-  emptyText,
-}: {
-  items: T[];
-  pageSize: number;
-  renderItem: (item: T) => React.ReactNode;
-  emptyText: string;
-}) {
-  const pages = chunk(items, pageSize);
-  const [page, setPage] = useState(0);
-
-  if (items.length === 0) {
-    return <div className="py-4 text-center opacity-50 text-xs">{emptyText}</div>;
-  }
-
-  return (
-    <div>
-      <div
-        className="flex overflow-x-auto snap-x snap-mandatory -mx-5 px-5"
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          const idx = Math.round(el.scrollLeft / el.clientWidth);
-          if (idx !== page) setPage(idx);
-        }}
-      >
-        {pages.map((pageItems, i) => (
-          <div key={i} className="w-full flex-shrink-0 snap-start space-y-1">
-            {pageItems.map((item) => renderItem(item))}
-          </div>
-        ))}
-      </div>
-      {pages.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 mt-3">
-          {pages.map((_, i) => (
-            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === page ? "bg-[#3EA0D9]" : "bg-[#0B3363]/15 dark:bg-white/15"}`} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function LeagueDivisionPanel({ divisions }: { divisions: DivisionPanelData[] }) {
   const [active, setActive] = useState(0);
   const router = useRouter();
@@ -149,11 +98,8 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
               "Latest Results"
             )}
           </h3>
-          <SwipePages
-            items={d.results}
-            pageSize={5}
-            emptyText="No results yet"
-            renderItem={(m: any) => (
+          <div className="space-y-1">
+            {d.results.map((m: any) => (
               <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
                 <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
                 <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2.5 py-1 rounded">
@@ -161,18 +107,16 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
                 </span>
                 <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
               </div>
-            )}
-          />
+            ))}
+            {d.results.length === 0 && <div className="py-4 text-center opacity-50 text-xs">No results yet</div>}
+          </div>
         </div>
 
         {/* Fixtures */}
         <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
           <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Upcoming Fixtures</h3>
-          <SwipePages
-            items={d.fixtures}
-            pageSize={5}
-            emptyText="No fixtures scheduled"
-            renderItem={(m: any) =>
+          <div className="space-y-1">
+            {d.fixtures.map((m: any) =>
               m.status === "live" ? (
                 <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
                   <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
@@ -193,8 +137,9 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
                   <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
                 </div>
               )
-            }
-          />
+            )}
+            {d.fixtures.length === 0 && <div className="py-4 text-center opacity-50 text-xs">No fixtures scheduled</div>}
+          </div>
         </div>
       </div>
     </section>
