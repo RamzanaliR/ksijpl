@@ -58,7 +58,7 @@ function Carousel<T>({
   return (
     <div>
       <div
-        className="overflow-hidden"
+        className="overflow-hidden w-full min-w-0"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
@@ -180,7 +180,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         </div>
 
         {/* Results */}
-        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
+        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0">
           <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70 flex items-center gap-2">
             {d.matchWeekInProgress ? (
               <>
@@ -208,7 +208,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         </div>
 
         {/* Fixtures */}
-        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
+        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0">
           <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Upcoming Fixtures</h3>
           <Carousel
             items={d.fixtures}
