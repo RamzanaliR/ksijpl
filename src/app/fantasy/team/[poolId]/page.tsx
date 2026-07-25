@@ -28,10 +28,16 @@ type Player = {
   price: number;
 };
 type LineupEntry = { isStarting: boolean; benchOrder: number | null };
+type SortMode = "price_desc" | "price_asc" | "name";
 
 const POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
-const POSITION_LABELS: Record<Position, string> = { GK: "Goalkeepers", DEF: "Defenders", MID: "Midfielders", FWD: "Forwards" };
-type SortMode = "price_desc" | "price_asc" | "name";
+const POSITION_LABELS: Record<Position, string> = { GK: "Goalkeeper", DEF: "Defenders", MID: "Midfielders", FWD: "Forwards" };
+
+const FORMATIONS: Record<string, { DEF: number; MID: number; FWD: number }> = {
+  "2-3-2": { DEF: 2, MID: 3, FWD: 2 },
+  "3-2-2": { DEF: 3, MID: 2, FWD: 2 },
+  "3-3-1": { DEF: 3, MID: 3, FWD: 1 },
+};
 
 export default function SquadBuilder() {
   const params = useParams();
@@ -52,11 +58,11 @@ export default function SquadBuilder() {
   const [lineup, setLineup] = useState<Record<string, LineupEntry>>({});
   const [captainId, setCaptainId] = useState<string>("");
   const [viceCaptainId, setViceCaptainId] = useState<string>("");
+  const [formationKey, setFormationKey] = useState<string>("2-3-2");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
-  // Left panel filters
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
   const [sortMode, setSortMode] = useState<SortMode>("price_desc");
@@ -180,36 +186,61 @@ export default function SquadBuilder() {
     startingPlayers.some((p) => p.id === captainId) &&
     startingPlayers.some((p) => p.id === viceCaptainId);
 
-  function togglePlayer(p: Player) {
+  function addPlayer(p: Player) {
+    setSaved(false);
+    if (selected.has(p.id)) return;
+    if (selected.size >= (settings?.squad_size ?? 12)) return;
+    if (countByPos(p.position) >= requiredByPosition[p.position]) return;
+    if (p.price > remaining) return;
+    setSelected((prev) => new Set(prev).add(p.id));
+    setLineup((lu) => ({ ...lu, [p.id]: { isStarting: false, benchOrder: null } }));
+  }
+
+  function removePlayer(p: Player) {
     setSaved(false);
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(p.id)) {
-        next.delete(p.id);
-        setLineup((lu) => {
-          const copy = { ...lu };
-          delete copy[p.id];
-          return copy;
-        });
-        if (captainId === p.id) setCaptainId("");
-        if (viceCaptainId === p.id) setViceCaptainId("");
-      } else {
-        if (next.size >= (settings?.squad_size ?? 12)) return prev;
-        if (countByPos(p.position) >= requiredByPosition[p.position]) return prev;
-        if (p.price > remaining) return prev;
-        next.add(p.id);
-        // Auto-start until the starting count reaches the required XI size, respecting the GK cap
-        setLineup((lu) => {
-          const currentStarting = selectedPlayers.filter((sp) => lu[sp.id]?.isStarting).length;
-          const currentStartingGk = selectedPlayers.filter((sp) => sp.position === "GK" && lu[sp.id]?.isStarting).length;
-          const canAutoStart =
-            currentStarting < (settings?.starting_xi_size ?? 8) &&
-            (p.position !== "GK" || currentStartingGk < (settings?.starting_gk_count ?? 1));
-          return { ...lu, [p.id]: { isStarting: canAutoStart, benchOrder: canAutoStart ? null : 99 } };
-        });
-      }
+      next.delete(p.id);
       return next;
     });
+    setLineup((lu) => {
+      const copy = { ...lu };
+      delete copy[p.id];
+      return copy;
+    });
+    if (captainId === p.id) setCaptainId("");
+    if (viceCaptainId === p.id) setViceCaptainId("");
+  }
+
+  function togglePlayer(p: Player) {
+    if (selected.has(p.id)) removePlayer(p);
+    else addPlayer(p);
+  }
+
+  function autoPick() {
+    setSaved(false);
+    let remainingBudget = remaining;
+    const nextSelected = new Set(selected);
+    const nextLineup = { ...lineup };
+
+    for (const pos of POSITIONS) {
+      const need = requiredByPosition[pos] - countByPos(pos);
+      if (need <= 0) continue;
+      const candidates = players
+        .filter((p) => p.position === pos && !nextSelected.has(p.id))
+        .sort((a, b) => a.price - b.price);
+      let filled = 0;
+      for (const c of candidates) {
+        if (filled >= need) break;
+        if (c.price > remainingBudget) continue;
+        nextSelected.add(c.id);
+        nextLineup[c.id] = { isStarting: false, benchOrder: null };
+        remainingBudget = Math.round((remainingBudget - c.price) * 10) / 10;
+        filled++;
+      }
+    }
+    setSelected(nextSelected);
+    setLineup(nextLineup);
   }
 
   function toggleStarting(p: Player) {
@@ -220,7 +251,7 @@ export default function SquadBuilder() {
       const next = { ...prev };
 
       if (!current.isStarting) {
-        if (startingCount >= (settings?.starting_xi_size ?? 8)) return prev; // bench someone first
+        if (startingCount >= (settings?.starting_xi_size ?? 8)) return prev;
         if (p.position === "GK") {
           selectedPlayers.forEach((other) => {
             if (other.position === "GK" && other.id !== p.id && next[other.id]?.isStarting) {
@@ -236,6 +267,34 @@ export default function SquadBuilder() {
       }
       return next;
     });
+  }
+
+  function applyFormation(key: string) {
+    setFormationKey(key);
+    const shape = FORMATIONS[key];
+    if (!shape) return;
+    const next: Record<string, LineupEntry> = {};
+    let benchOrder = 1;
+
+    // Exactly 1 GK starts — keep the current starting GK if there is one
+    const gks = selectedPlayers.filter((p) => p.position === "GK");
+    const currentStartGk = gks.find((p) => lineup[p.id]?.isStarting);
+    const startGk = currentStartGk ?? gks[0];
+    gks.forEach((p) => {
+      next[p.id] = p.id === startGk?.id ? { isStarting: true, benchOrder: null } : { isStarting: false, benchOrder: benchOrder++ };
+    });
+
+    (["DEF", "MID", "FWD"] as const).forEach((pos) => {
+      const group = selectedPlayers.filter((p) => p.position === pos).sort((a, b) => b.price - a.price);
+      const count = shape[pos];
+      group.forEach((p, i) => {
+        next[p.id] = i < count ? { isStarting: true, benchOrder: null } : { isStarting: false, benchOrder: benchOrder++ };
+      });
+    });
+
+    setLineup(next);
+    if (captainId && !next[captainId]?.isStarting) setCaptainId("");
+    if (viceCaptainId && !next[viceCaptainId]?.isStarting) setViceCaptainId("");
   }
 
   function moveBench(playerId: string, direction: -1 | 1) {
@@ -377,6 +436,15 @@ export default function SquadBuilder() {
     );
   }
 
+  // Build fixed-shape slots for the Squad Selection pitch: filled ones show the player, empty ones show a placeholder
+  function buildSlots(pos: Position) {
+    const count = requiredByPosition[pos];
+    const filled = selectedPlayers.filter((p) => p.position === pos);
+    const slots: (Player | null)[] = [];
+    for (let i = 0; i < count; i++) slots.push(filled[i] ?? null);
+    return slots;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
       <SiteHeader active="fantasy" />
@@ -389,7 +457,8 @@ export default function SquadBuilder() {
         <div className="grid lg:grid-cols-[340px_1fr] gap-6">
           {/* Left: Player Selection */}
           <section>
-            <h2 className="font-display font-bold text-base mb-2">Player Selection</h2>
+            <h2 className="font-display font-bold text-base mb-1">Player Selection</h2>
+            <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">Select players to fill your squad. Max budget £{budget}m.</p>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -407,7 +476,12 @@ export default function SquadBuilder() {
                 <option value="name">Name</option>
               </select>
             </div>
-            <div className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-2">{filteredPlayers.length} players shown</div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs bg-[#3EA0D9]/15 text-[#3EA0D9] font-semibold px-2.5 py-1 rounded-lg">{filteredPlayers.length} players shown</div>
+              <button onClick={() => { setSelected(new Set()); setLineup({}); setCaptainId(""); setViceCaptainId(""); }} className="text-xs text-red-600 hover:underline">
+                Reset
+              </button>
+            </div>
 
             <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 max-h-[560px] overflow-y-auto divide-y divide-[#0B3363]/5 dark:divide-white/5">
               {filteredPlayers.map((p) => {
@@ -446,119 +520,161 @@ export default function SquadBuilder() {
             </div>
           </section>
 
-          {/* Right: Squad Selection (pitch) */}
+          {/* Right: Squad Selection */}
           <section>
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-display font-bold text-base">Squad Selection</h2>
               <div className="flex items-center gap-3">
                 <div className={`text-sm font-bold px-3 py-1.5 rounded-lg ${selected.size === settings.squad_size ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-[#0B3363]/5 dark:bg-white/10"}`}>
-                  {selected.size}/{settings.squad_size} players
+                  {selected.size}/{settings.squad_size} selected
                 </div>
                 <div className={`text-sm font-bold px-3 py-1.5 rounded-lg ${remaining < 0 ? "bg-red-500/15 text-red-600" : "bg-[#F4B400]/20"}`}>
                   £{remaining.toFixed(1)}m bank
                 </div>
               </div>
             </div>
-            <div className="flex gap-2 mb-4 flex-wrap">
-              {POSITIONS.map((pos) => (
-                <span
-                  key={pos}
-                  className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                    countByPos(pos) === requiredByPosition[pos] ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-[#0B3363]/5 dark:bg-white/10"
-                  }`}
-                >
-                  {pos} {countByPos(pos)}/{requiredByPosition[pos]}
-                </span>
-              ))}
-              <button onClick={() => { setSelected(new Set()); setLineup({}); setCaptainId(""); setViceCaptainId(""); }} className="text-xs text-red-600 hover:underline ml-auto">
-                Reset squad
+
+            <div className="flex items-center gap-2 mb-4">
+              <button onClick={autoPick} disabled={squadFull} className="admin-btn admin-btn-gold text-xs sm:text-sm">
+                Auto Pick
               </button>
+              <span className="text-xs text-[#0B3363]/40 dark:text-white/40">Fills any empty slots within budget.</span>
             </div>
 
-            {/* Pitch */}
-            <div
-              className="rounded-2xl p-4 sm:p-6 mb-4"
-              style={{ background: "linear-gradient(180deg, #2f8f4e 0%, #1f6b39 100%)" }}
-            >
+            {/* Fixed-shape pitch: 2 GK / 4 DEF / 4 MID / 2 FWD, "+" placeholders for empty slots */}
+            <div className="rounded-2xl p-4 sm:p-6 mb-6" style={{ background: "linear-gradient(180deg, #2f8f4e 0%, #1f6b39 100%)" }}>
               <div className="flex flex-col gap-4">
-                {POSITIONS.map((pos) => {
-                  const rowPlayers = startingPlayers.filter((p) => p.position === pos);
-                  if (rowPlayers.length === 0) return null;
-                  return (
-                    <div key={pos} className="flex justify-center gap-3 flex-wrap">
-                      {rowPlayers.map((p) => (
-                        <div key={p.id} className="w-24 sm:w-28 text-center">
+                {POSITIONS.map((pos) => (
+                  <div key={pos} className="flex justify-center gap-3 flex-wrap">
+                    {buildSlots(pos).map((p, i) => (
+                      <div key={p?.id ?? `${pos}-empty-${i}`} className="w-20 sm:w-24 text-center">
+                        {p ? (
                           <button
-                            onClick={() => toggleStarting(p)}
-                            className="w-full bg-white/95 rounded-xl p-2 hover:bg-white transition-colors relative"
+                            onClick={() => removePlayer(p)}
+                            className="w-full bg-white/95 hover:bg-white rounded-xl p-2 transition-colors"
                           >
-                            {captainId === p.id && (
-                              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#F4B400] text-[#0B3363] text-[10px] font-bold flex items-center justify-center">C</span>
-                            )}
-                            {viceCaptainId === p.id && (
-                              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#3EA0D9] text-white text-[10px] font-bold flex items-center justify-center">V</span>
-                            )}
-                            <div className="text-[10px] font-bold text-[#3EA0D9] uppercase">{p.position}</div>
-                            <div className="text-xs font-semibold text-[#0B3363] truncate">{p.nickname || p.full_name}</div>
+                            <div className="text-[9px] font-bold text-[#3EA0D9] uppercase">{p.position}</div>
+                            <div className="text-[11px] font-semibold text-[#0B3363] truncate">{p.nickname || p.full_name}</div>
                             <div className="text-[10px] text-[#0B3363]/50">£{p.price.toFixed(1)}</div>
                           </button>
-                          <div className="flex justify-center gap-1 mt-1">
-                            <button onClick={() => setCaptain(p.id)} className={`text-[10px] font-bold w-5 h-5 rounded-full ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-white/20 text-white"}`}>C</button>
-                            <button onClick={() => setVice(p.id)} className={`text-[10px] font-bold w-5 h-5 rounded-full ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-white/20 text-white"}`}>V</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-                {startingPlayers.length === 0 && (
-                  <div className="text-center text-white/70 text-sm py-10">Add players from the left to build your starting {settings.starting_xi_size}.</div>
-                )}
-              </div>
-            </div>
-
-            {/* Bench strip */}
-            <div>
-              <h3 className="font-display font-bold text-sm mb-2">Bench (tap Sub priority to reorder)</h3>
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {[...benchPlayers]
-                  .sort((a, b) => (lineup[a.id]?.benchOrder ?? 99) - (lineup[b.id]?.benchOrder ?? 99))
-                  .map((p, i, arr) => (
-                    <div key={p.id} className="w-28 flex-shrink-0 text-center">
-                      <button
-                        onClick={() => toggleStarting(p)}
-                        disabled={startingCount >= settings.starting_xi_size}
-                        className="w-full rounded-xl p-2 border border-[#0B3363]/10 dark:border-white/10 hover:border-[#3EA0D9]/50 transition-colors disabled:opacity-50"
-                      >
-                        <div className="text-[10px] font-bold text-[#0B3363]/40 dark:text-white/40 uppercase">Sub {i + 1} · {p.position}</div>
-                        <div className="text-xs font-semibold truncate">{p.nickname || p.full_name}</div>
-                        <div className="text-[10px] text-[#0B3363]/40 dark:text-white/40">£{p.price.toFixed(1)}</div>
-                      </button>
-                      <div className="flex justify-center gap-1 mt-1">
-                        <button onClick={() => moveBench(p.id, -1)} disabled={i === 0} className="w-6 h-6 text-xs disabled:opacity-20">↑</button>
-                        <button onClick={() => moveBench(p.id, 1)} disabled={i === arr.length - 1} className="w-6 h-6 text-xs disabled:opacity-20">↓</button>
+                        ) : (
+                          <button
+                            onClick={() => setPosFilter(pos)}
+                            className="w-full bg-black/10 hover:bg-black/15 rounded-xl p-3 flex flex-col items-center gap-1 transition-colors"
+                          >
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 5v14M5 12h14" />
+                              <circle cx="12" cy="12" r="10" opacity="0" />
+                            </svg>
+                            <span className="text-[10px] font-bold text-white uppercase">{pos}</span>
+                          </button>
+                        )}
                       </div>
-                    </div>
-                  ))}
-                {benchPlayers.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 py-4">No bench players yet.</div>}
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
 
-            {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2 mt-4">{error}</div>}
-            {saved && <div className="rounded-lg bg-green-50 text-green-700 text-sm px-3 py-2 mt-4">Squad saved!</div>}
-
-            <button
-              onClick={saveSquad}
-              disabled={!lineupValid || saving}
-              className="w-full mt-4 py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9] font-semibold text-sm disabled:opacity-40"
-            >
-              {saving ? "Saving…" : "Save Squad"}
-            </button>
-            {!lineupValid && (
-              <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mt-2">
-                Pick all {settings.squad_size} players, set exactly {settings.starting_xi_size} starters (with {settings.starting_gk_count} GK),
-                and choose a captain (C) + vice-captain (V) to save.
+            {!squadComplete ? (
+              <p className="text-xs text-[#0B3363]/40 dark:text-white/40">
+                Fill all {settings.squad_size} slots within budget to move on to picking your starting {settings.starting_xi_size}.
               </p>
+            ) : (
+              <>
+                {/* Step 2: Pick Team */}
+                <div className="border-t border-[#0B3363]/10 dark:border-white/10 pt-6">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h2 className="font-display font-bold text-base">Step 2 — Pick Team</h2>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-[#0B3363]/50 dark:text-white/50">Formation</label>
+                      <select
+                        value={formationKey}
+                        onChange={(e) => applyFormation(e.target.value)}
+                        className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs font-semibold"
+                      >
+                        {Object.keys(FORMATIONS).map((k) => (<option key={k} value={k}>{k}</option>))}
+                      </select>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">
+                    Pick a formation as a shortcut, then tap any player on the pitch or bench to move them — {settings.starting_gk_count} GK must always start.
+                  </p>
+
+                  <div className="rounded-2xl p-4 sm:p-6 mb-4" style={{ background: "linear-gradient(180deg, #2f8f4e 0%, #1f6b39 100%)" }}>
+                    <div className="flex flex-col gap-4">
+                      {POSITIONS.map((pos) => {
+                        const rowPlayers = startingPlayers.filter((p) => p.position === pos);
+                        if (rowPlayers.length === 0) return null;
+                        return (
+                          <div key={pos} className="flex justify-center gap-3 flex-wrap">
+                            {rowPlayers.map((p) => (
+                              <div key={p.id} className="w-24 sm:w-28 text-center">
+                                <button onClick={() => toggleStarting(p)} className="w-full bg-white/95 rounded-xl p-2 hover:bg-white transition-colors relative">
+                                  {captainId === p.id && <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#F4B400] text-[#0B3363] text-[10px] font-bold flex items-center justify-center">C</span>}
+                                  {viceCaptainId === p.id && <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#3EA0D9] text-white text-[10px] font-bold flex items-center justify-center">V</span>}
+                                  <div className="text-[10px] font-bold text-[#3EA0D9] uppercase">{p.position}</div>
+                                  <div className="text-xs font-semibold text-[#0B3363] truncate">{p.nickname || p.full_name}</div>
+                                  <div className="text-[10px] text-[#0B3363]/50">£{p.price.toFixed(1)}</div>
+                                </button>
+                                <div className="flex justify-center gap-1 mt-1">
+                                  <button onClick={() => setCaptain(p.id)} className={`text-[10px] font-bold w-5 h-5 rounded-full ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-white/20 text-white"}`}>C</button>
+                                  <button onClick={() => setVice(p.id)} className={`text-[10px] font-bold w-5 h-5 rounded-full ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-white/20 text-white"}`}>V</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                      {startingPlayers.length === 0 && (
+                        <div className="text-center text-white/70 text-sm py-10">Pick a formation above, or tap bench players below to build your starting {settings.starting_xi_size}.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-display font-bold text-sm mb-2">Bench ({benchPlayers.length}/{settings.squad_size - settings.starting_xi_size})</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {[...benchPlayers]
+                        .sort((a, b) => (lineup[a.id]?.benchOrder ?? 99) - (lineup[b.id]?.benchOrder ?? 99))
+                        .map((p, i, arr) => (
+                          <div key={p.id} className="w-28 flex-shrink-0 text-center">
+                            <button
+                              onClick={() => toggleStarting(p)}
+                              disabled={startingCount >= settings.starting_xi_size}
+                              className="w-full rounded-xl p-2 border border-[#0B3363]/10 dark:border-white/10 hover:border-[#3EA0D9]/50 transition-colors disabled:opacity-50"
+                            >
+                              <div className="text-[10px] font-bold text-[#0B3363]/40 dark:text-white/40 uppercase">Sub {i + 1} · {p.position}</div>
+                              <div className="text-xs font-semibold truncate">{p.nickname || p.full_name}</div>
+                              <div className="text-[10px] text-[#0B3363]/40 dark:text-white/40">£{p.price.toFixed(1)}</div>
+                            </button>
+                            <div className="flex justify-center gap-1 mt-1">
+                              <button onClick={() => moveBench(p.id, -1)} disabled={i === 0} className="w-6 h-6 text-xs disabled:opacity-20">↑</button>
+                              <button onClick={() => moveBench(p.id, 1)} disabled={i === arr.length - 1} className="w-6 h-6 text-xs disabled:opacity-20">↓</button>
+                            </div>
+                          </div>
+                        ))}
+                      {benchPlayers.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 py-4">No bench players yet.</div>}
+                    </div>
+                  </div>
+                </div>
+
+                {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2 mt-4">{error}</div>}
+                {saved && <div className="rounded-lg bg-green-50 text-green-700 text-sm px-3 py-2 mt-4">Squad saved!</div>}
+
+                <button
+                  onClick={saveSquad}
+                  disabled={!lineupValid || saving}
+                  className="w-full mt-4 py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9] font-semibold text-sm disabled:opacity-40"
+                >
+                  {saving ? "Saving…" : "Save Squad"}
+                </button>
+                {!lineupValid && (
+                  <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mt-2">
+                    Set exactly {settings.starting_xi_size} starters (with {settings.starting_gk_count} GK) and choose a captain (C) + vice-captain (V) to save.
+                  </p>
+                )}
+              </>
             )}
           </section>
         </div>
