@@ -92,7 +92,7 @@ export default async function AdminDashboard() {
       <h1 className="admin-page-title mb-1">Dashboard</h1>
       <p className="admin-subtitle mb-6">A quick look at what's live on the site right now.</p>
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
         <div className="admin-stat-card">
           <div className="admin-stat-label">Teams</div>
           <div className="admin-stat-value">{teamsCount ?? 0}</div>
@@ -113,7 +113,7 @@ export default async function AdminDashboard() {
 
       <div className="mb-8">
         <div className="admin-stat-label mb-3">Quick actions</div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {ACTIONS.map((a) => (
             <Link key={a.href} href={a.href} className="admin-action-card">
               <div className="admin-action-icon">{a.icon}</div>

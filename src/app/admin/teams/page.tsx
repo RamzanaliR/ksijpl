@@ -143,6 +143,7 @@ export default function TeamsAdmin() {
                 <span className="admin-pill ml-2 align-middle">{teams.filter((t) => t.division_id === d.id).length}</span>
               </h2>
               <div className="admin-card overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="admin-table">
                   <thead>
                     <tr>
@@ -203,6 +204,7 @@ export default function TeamsAdmin() {
                       )}
                   </tbody>
                 </table>
+                </div>
                 {teams.filter((t) => t.division_id === d.id).length === 0 && (
                   <div className="admin-empty">No teams yet.</div>
                 )}

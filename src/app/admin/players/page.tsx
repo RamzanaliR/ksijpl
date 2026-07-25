@@ -142,6 +142,7 @@ export default function PlayersAdmin() {
                 </select>
               </div>
               <div className="admin-card overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="admin-table">
                   <thead>
                     <tr>
@@ -186,6 +187,7 @@ export default function PlayersAdmin() {
                     ))}
                   </tbody>
                 </table>
+                </div>
                 {selectedTeam && players.length === 0 && (
                   <div className="admin-empty">No players yet for this team.</div>
                 )}

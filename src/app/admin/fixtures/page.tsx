@@ -495,9 +495,9 @@ export default function FixturesAdmin() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <h1 className="admin-page-title">Fixtures &amp; Scores</h1>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <input
             ref={fileInputRef}
             type="file"
@@ -508,13 +508,13 @@ export default function FixturesAdmin() {
               if (file) handleImportFile(file);
             }}
           />
-          <button onClick={openGenerator} className="admin-btn admin-btn-gold">
+          <button onClick={openGenerator} className="admin-btn admin-btn-gold text-xs sm:text-sm px-3 sm:px-4">
             Generate Fixtures
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={importing}
-            className="admin-btn admin-btn-primary"
+            className="admin-btn admin-btn-primary text-xs sm:text-sm px-3 sm:px-4"
           >
             {importing ? "Importing…" : "Import CSV"}
           </button>
@@ -537,7 +537,7 @@ export default function FixturesAdmin() {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
         {seasons.map((s) => (
           <button
             key={s.id}
@@ -670,7 +670,7 @@ export default function FixturesAdmin() {
               <p className="text-xs text-slate-400 mt-1">Multiple pitches let games run in parallel at the same kickoff time.</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="admin-label">Games / match day</label>
                 <input value={gamesPerDay} onChange={(e) => setGamesPerDay(e.target.value)} type="number" min={1} className="admin-input" />
@@ -741,6 +741,7 @@ export default function FixturesAdmin() {
             <div>
               <div className="admin-label mb-1">Home / away balance</div>
               <div className="max-h-64 overflow-y-auto rounded-xl border border-[#0B3363]/10">
+                <div className="overflow-x-auto">
                 <table className="admin-table">
                   <thead>
                     <tr><th>Team</th><th className="text-right">Home</th><th className="text-right">Away</th></tr>
@@ -762,6 +763,7 @@ export default function FixturesAdmin() {
                       })}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
 
@@ -804,14 +806,14 @@ function MatchRow({
   const [away, setAway] = useState(match.away_score?.toString() ?? "");
 
   return (
-    <div className="admin-row">
-      <div className="w-72 text-[#0B3363]">
+    <div className="admin-row flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+      <div className="text-[#0B3363] sm:w-64 sm:flex-shrink-0 truncate">
         {teamName(match.home_team_id)} <span className="text-slate-400">vs</span> {teamName(match.away_team_id)}
       </div>
-      <div className="text-xs text-slate-400 w-40">
+      <div className="text-xs text-slate-400 sm:w-36 sm:flex-shrink-0">
         {match.kickoff_at ? new Date(match.kickoff_at).toLocaleString() : "TBD"}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <input
           value={home}
           onChange={(e) => setHome(e.target.value)}

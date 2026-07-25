@@ -18,6 +18,16 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/live",
+    label: "Live Match Console",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3.5 2" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/teams",
     label: "Teams",
     icon: (
@@ -82,12 +92,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, []);
 
-  if (pathname === "/admin/login") {
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
+
+  if (pathname === "/admin/login" || pathname?.startsWith("/admin/live")) {
     return <>{children}</>;
   }
 
@@ -102,48 +117,80 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     .slice(0, 2)
     .toUpperCase();
 
+  const sidebarContent = (
+    <>
+      <div className="flex items-center gap-2.5 px-2 pt-2 pb-6">
+        <div className="w-8 h-8 rounded-lg bg-[#F4B400] flex items-center justify-center flex-shrink-0">
+          <span className="font-display font-bold text-[#0B3363] text-sm">K</span>
+        </div>
+        <div>
+          <div className="font-display font-bold text-white text-sm leading-tight">KSIJ Admin</div>
+          <div className="text-[11px] text-white/45 leading-tight">KSIJ DAR PL</div>
+        </div>
+        <button onClick={() => setDrawerOpen(false)} className="ml-auto md:hidden text-white/60 hover:text-white p-1" aria-label="Close menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <nav className="flex flex-col gap-0.5">
+        {NAV.map((item) => {
+          const isActive = item.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.href);
+          return (
+            <Link key={item.href} href={item.href} className={`admin-nav-link ${isActive ? "active" : ""}`}>
+              {item.icon}
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto pt-4 border-t border-white/10">
+        <div className="flex items-center gap-2.5 px-2 py-2">
+          <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            {user?.email && (
+              <div className="text-xs text-white/70 truncate">{user.email}</div>
+            )}
+            <button onClick={signOut} className="text-[11px] text-white/45 hover:text-white transition-colors">
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <div className="admin-shell min-h-screen flex">
-      <aside className="w-64 flex-shrink-0 flex flex-col p-4 sticky top-0 h-screen" style={{ background: "linear-gradient(180deg, #0B3363 0%, #0a2b54 100%)" }}>
-        <div className="flex items-center gap-2.5 px-2 pt-2 pb-6">
-          <div className="w-8 h-8 rounded-lg bg-[#F4B400] flex items-center justify-center flex-shrink-0">
-            <span className="font-display font-bold text-[#0B3363] text-sm">K</span>
-          </div>
-          <div>
-            <div className="font-display font-bold text-white text-sm leading-tight">KSIJ Admin</div>
-            <div className="text-[11px] text-white/45 leading-tight">KSIJ DAR PL</div>
-          </div>
+    <div className="admin-shell min-h-screen flex flex-col md:flex-row">
+      {/* Mobile top bar */}
+      <div className="md:hidden flex items-center gap-3 px-4 py-3 sticky top-0 z-30" style={{ background: "linear-gradient(180deg, #0B3363 0%, #0a2b54 100%)" }}>
+        <button onClick={() => setDrawerOpen(true)} className="text-white p-1 -ml-1" aria-label="Open menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
+        </button>
+        <div className="w-6 h-6 rounded bg-[#F4B400] flex items-center justify-center flex-shrink-0">
+          <span className="font-display font-bold text-[#0B3363] text-xs">K</span>
         </div>
+        <div className="font-display font-bold text-white text-sm">KSIJ Admin</div>
+      </div>
 
-        <nav className="flex flex-col gap-0.5">
-          {NAV.map((item) => {
-            const isActive = item.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.href);
-            return (
-              <Link key={item.href} href={item.href} className={`admin-nav-link ${isActive ? "active" : ""}`}>
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Mobile drawer backdrop */}
+      {drawerOpen && (
+        <div className="md:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setDrawerOpen(false)} />
+      )}
 
-        <div className="mt-auto pt-4 border-t border-white/10">
-          <div className="flex items-center gap-2.5 px-2 py-2">
-            <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              {user?.email && (
-                <div className="text-xs text-white/70 truncate">{user.email}</div>
-              )}
-              <button onClick={signOut} className="text-[11px] text-white/45 hover:text-white transition-colors">
-                Sign out
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Sidebar: fixed on desktop, slide-in drawer on mobile */}
+      <aside
+        className={`w-64 flex-shrink-0 flex flex-col p-4 fixed md:sticky top-0 h-screen z-50 transition-transform duration-200 ease-out md:translate-x-0 ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{ background: "linear-gradient(180deg, #0B3363 0%, #0a2b54 100%)" }}
+      >
+        {sidebarContent}
       </aside>
-      <main className="flex-1 p-8 max-w-6xl">{children}</main>
+
+      <main className="flex-1 p-4 md:p-8 max-w-6xl min-w-0 overflow-x-hidden">{children}</main>
     </div>
   );
 }
