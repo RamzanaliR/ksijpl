@@ -34,11 +34,11 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
     supabase.from("players").select("id,full_name,nickname,position,squad_number").eq("team_id", id).order("squad_number"),
     supabase
       .from("matches")
-      .select("id,kickoff_at,venue,status,home_score,away_score,away_team_id,home_team_id")
+      .select("id,kickoff_at,venue,status,home_score,away_score,home_pens,away_pens,away_team_id,home_team_id")
       .eq("home_team_id", id),
     supabase
       .from("matches")
-      .select("id,kickoff_at,venue,status,home_score,away_score,away_team_id,home_team_id")
+      .select("id,kickoff_at,venue,status,home_score,away_score,home_pens,away_pens,away_team_id,home_team_id")
       .eq("away_team_id", id),
     supabase.from("teams").select("id,name"),
   ]);
@@ -53,13 +53,34 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
     .filter((m) => m.status === "scheduled")
     .sort((a, b) => new Date(a.kickoff_at ?? 0).getTime() - new Date(a.kickoff_at ?? 0).getTime());
 
+  // Points: 3 for a regulation win, 0 for a regulation loss.
+  // A regulation draw is decided by penalties once entered: 2 pts for the shootout winner, 1 for the loser.
+  // A still-undecided draw (no penalties recorded yet) earns 1 pt each, as usual.
   function resultLine(m: any) {
     const isHome = m.home_team_id === id;
     const opponent = teamName(isHome ? m.away_team_id : m.home_team_id);
     const us = isHome ? m.home_score : m.away_score;
     const them = isHome ? m.away_score : m.home_score;
-    const outcome = us > them ? "W" : us < them ? "L" : "D";
-    return { opponent, us, them, outcome, isHome };
+    const pensDecided = m.home_pens !== null && m.away_pens !== null && m.home_pens !== m.away_pens;
+    const usPens = isHome ? m.home_pens : m.away_pens;
+    const themPens = isHome ? m.away_pens : m.home_pens;
+
+    let outcome: "W" | "D" | "L";
+    let points: number;
+    if (us > them) {
+      outcome = "W";
+      points = 3;
+    } else if (us < them) {
+      outcome = "L";
+      points = 0;
+    } else if (pensDecided) {
+      outcome = usPens > themPens ? "W" : "L";
+      points = usPens > themPens ? 2 : 1;
+    } else {
+      outcome = "D";
+      points = 1;
+    }
+    return { opponent, us, them, outcome, isHome, pensDecided, usPens, themPens, points };
   }
 
   // Season stats derived from completed results — real numbers, no fabricated per-player data
@@ -72,11 +93,12 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
       else acc.lost++;
       acc.gf += r.us ?? 0;
       acc.ga += r.them ?? 0;
+      acc.pts += r.points;
       return acc;
     },
-    { played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0 }
+    { played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, pts: 0 }
   );
-  const points = stats.won * 3 + stats.drawn;
+  const points = stats.pts;
 
   const groupedPlayers = POSITION_ORDER.map((pos) => ({
     pos,

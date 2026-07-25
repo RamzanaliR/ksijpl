@@ -39,6 +39,7 @@ export default function FixturesAdmin() {
   const [homeTeam, setHomeTeam] = useState("");
   const [awayTeam, setAwayTeam] = useState("");
   const [kickoff, setKickoff] = useState("");
+  const [addFixOpen, setAddFixOpen] = useState(false);
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; errors: string[] } | null>(null);
@@ -171,6 +172,7 @@ export default function FixturesAdmin() {
       setHomeTeam("");
       setAwayTeam("");
       setKickoff("");
+      setAddFixOpen(false);
       loadMatches(selectedSeason);
     } else {
       alert(error.message);
@@ -508,6 +510,9 @@ export default function FixturesAdmin() {
               if (file) handleImportFile(file);
             }}
           />
+          <button onClick={() => setAddFixOpen(true)} className="admin-btn admin-btn-primary text-xs sm:text-sm px-3 sm:px-4">
+            Add Fixture
+          </button>
           <button onClick={openGenerator} className="admin-btn admin-btn-gold text-xs sm:text-sm px-3 sm:px-4">
             Generate Fixtures
           </button>
@@ -583,38 +588,40 @@ export default function FixturesAdmin() {
         </div>
       )}
 
-      <form onSubmit={addFixture} className="admin-card p-5 mb-8 flex gap-3 items-end flex-wrap">
-        <div>
-          <label className="admin-label">Home team</label>
-          <select value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} className="admin-select w-48">
-            <option value="">Select…</option>
-            {currentSeasonTeams().map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="admin-label">Away team</label>
-          <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} className="admin-select w-48">
-            <option value="">Select…</option>
-            {currentSeasonTeams().map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="admin-label">Kickoff</label>
-          <input
-            type="datetime-local"
-            value={kickoff}
-            onChange={(e) => setKickoff(e.target.value)}
-            className="admin-input"
-          />
-        </div>
-        <button className="admin-btn admin-btn-primary">Add Fixture</button>
-      </form>
+      <Modal open={addFixOpen} onClose={() => setAddFixOpen(false)} title="Add Fixture" description="Adds to the match week you're currently viewing.">
+        <form onSubmit={addFixture} className="flex flex-col gap-3">
+          <div>
+            <label className="admin-label">Home team</label>
+            <select value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} className="admin-select">
+              <option value="">Select…</option>
+              {currentSeasonTeams().map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="admin-label">Away team</label>
+            <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} className="admin-select">
+              <option value="">Select…</option>
+              {currentSeasonTeams().map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="admin-label">Kickoff</label>
+            <input
+              type="datetime-local"
+              value={kickoff}
+              onChange={(e) => setKickoff(e.target.value)}
+              className="admin-input"
+            />
+          </div>
+          <button className="admin-btn admin-btn-primary mt-2">Add Fixture</button>
+        </form>
+      </Modal>
 
-      <div className="admin-card overflow-hidden">
+      <div className="flex flex-col gap-3">
         {gwMatches.map((m) => (
           <MatchRow key={m.id} match={m} teamName={teamName} onSave={updateScore} />
         ))}
@@ -806,37 +813,49 @@ function MatchRow({
   const [away, setAway] = useState(match.away_score?.toString() ?? "");
 
   return (
-    <div className="admin-row flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-      <div className="text-[#0B3363] sm:w-64 sm:flex-shrink-0 truncate">
-        {teamName(match.home_team_id)} <span className="text-slate-400">vs</span> {teamName(match.away_team_id)}
+    <div className="admin-card p-4">
+      {/* Time + venue + status */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-xs font-semibold text-[#B8860B] bg-[#F4B400]/15 px-2.5 py-1 rounded-lg">
+          {match.kickoff_at
+            ? new Date(match.kickoff_at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+            : "Time TBD"}
+          {match.venue ? ` · ${match.venue}` : ""}
+        </div>
+        <span className={`admin-pill ${match.status === "completed" ? "admin-pill-success" : "admin-pill-neutral"}`}>
+          {match.status}
+        </span>
       </div>
-      <div className="text-xs text-slate-400 sm:w-36 sm:flex-shrink-0">
-        {match.kickoff_at ? new Date(match.kickoff_at).toLocaleString() : "TBD"}
+
+      {/* Teams */}
+      <div className="font-semibold text-[#0B3363] mb-3 bg-[#3EA0D9]/8 rounded-lg px-3 py-2">
+        {teamName(match.home_team_id)} <span className="text-slate-400 font-normal">vs</span> {teamName(match.away_team_id)}
       </div>
-      <div className="flex items-center gap-2 flex-wrap">
+
+      {/* Score entry */}
+      <div className="flex items-center gap-2 bg-green-600/8 rounded-lg px-3 py-2">
         <input
           value={home}
           onChange={(e) => setHome(e.target.value)}
-          className="admin-input w-12 text-center px-1"
+          className="admin-input w-14 text-center px-1 bg-white"
           type="number"
+          placeholder="–"
         />
         <span className="text-slate-400">–</span>
         <input
           value={away}
           onChange={(e) => setAway(e.target.value)}
-          className="admin-input w-12 text-center px-1"
+          className="admin-input w-14 text-center px-1 bg-white"
           type="number"
+          placeholder="–"
         />
         <button
           onClick={() => onSave(match.id, Number(home), Number(away))}
           disabled={home === "" || away === ""}
-          className="admin-btn admin-btn-primary py-1.5 px-3 text-xs"
+          className="admin-btn admin-btn-primary py-1.5 px-3 text-xs ml-auto"
         >
           Save
         </button>
-        <span className={`admin-pill ${match.status === "completed" ? "admin-pill-success" : "admin-pill-neutral"}`}>
-          {match.status}
-        </span>
       </div>
     </div>
   );

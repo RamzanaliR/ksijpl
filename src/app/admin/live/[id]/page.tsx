@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import Modal from "@/components/admin/Modal";
 
 type Team = { id: string; name: string };
 type Player = { id: string; full_name: string; nickname: string | null; squad_number: number | null; position: string | null };
@@ -14,6 +15,10 @@ type MatchRow = {
   status: string;
   home_score: number | null;
   away_score: number | null;
+  home_pens: number | null;
+  away_pens: number | null;
+  home_motm_player_id: string | null;
+  away_motm_player_id: string | null;
   kickoff_at: string | null;
   venue: string | null;
 };
@@ -40,11 +45,15 @@ export default function LiveMatchConsole() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyPlayerId, setBusyPlayerId] = useState<string | null>(null);
+  const [activeSide, setActiveSide] = useState<"home" | "away">("home");
+  const [pensOpen, setPensOpen] = useState(false);
+  const [homePensInput, setHomePensInput] = useState("");
+  const [awayPensInput, setAwayPensInput] = useState("");
 
   const load = useCallback(async () => {
     const { data: m } = await supabase
       .from("matches")
-      .select("id,home_team_id,away_team_id,status,home_score,away_score,kickoff_at,venue")
+      .select("id,home_team_id,away_team_id,status,home_score,away_score,home_pens,away_pens,home_motm_player_id,away_motm_player_id,kickoff_at,venue")
       .eq("id", matchId)
       .maybeSingle();
     if (!m) {
@@ -52,6 +61,8 @@ export default function LiveMatchConsole() {
       return;
     }
     setMatch(m);
+    setHomePensInput(m.home_pens?.toString() ?? "");
+    setAwayPensInput(m.away_pens?.toString() ?? "");
 
     const [{ data: teamsData }, { data: attendance }, { data: evts }] = await Promise.all([
       supabase.from("teams").select("id,name").in("id", [m.home_team_id, m.away_team_id]),
@@ -97,7 +108,6 @@ export default function LiveMatchConsole() {
     if (!match) return;
     setBusyPlayerId(playerId + type);
 
-    // auto-mark present
     if (!present.has(playerId)) {
       await supabase
         .from("match_attendance")
@@ -141,6 +151,23 @@ export default function LiveMatchConsole() {
     setMatch((prev) => (prev ? { ...prev, status } : prev));
   }
 
+  async function saveMotm(side: "home" | "away", playerId: string) {
+    const field = side === "home" ? "home_motm_player_id" : "away_motm_player_id";
+    const current = side === "home" ? match?.home_motm_player_id : match?.away_motm_player_id;
+    const next = current === playerId ? null : playerId;
+    await supabase.from("matches").update({ [field]: next }).eq("id", matchId);
+    setMatch((prev) => (prev ? { ...prev, [field]: next } : prev));
+  }
+
+  async function savePenalties(e: React.FormEvent) {
+    e.preventDefault();
+    const hp = homePensInput === "" ? null : Number(homePensInput);
+    const ap = awayPensInput === "" ? null : Number(awayPensInput);
+    await supabase.from("matches").update({ home_pens: hp, away_pens: ap }).eq("id", matchId);
+    setMatch((prev) => (prev ? { ...prev, home_pens: hp, away_pens: ap } : prev));
+    setPensOpen(false);
+  }
+
   function eventCount(playerId: string, type: string) {
     return events.filter((e) => e.player_id === playerId && e.type === type).length;
   }
@@ -156,6 +183,11 @@ export default function LiveMatchConsole() {
   if (!match) {
     return <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center text-slate-400 text-sm">Match not found.</div>;
   }
+
+  const hasPens = match.home_pens !== null && match.away_pens !== null;
+  const activeTeamId = activeSide === "home" ? match.home_team_id : match.away_team_id;
+  const activePlayers = activeSide === "home" ? homePlayers : awayPlayers;
+  const activeMotm = activeSide === "home" ? match.home_motm_player_id : match.away_motm_player_id;
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-10">
@@ -174,50 +206,74 @@ export default function LiveMatchConsole() {
           <div className="text-center flex-1 min-w-0">
             <div className="font-semibold text-sm text-[#0B3363] truncate">{homeTeam?.name}</div>
           </div>
-          <div className="flex items-center gap-3 px-4 flex-shrink-0">
-            <span className="font-display font-bold text-3xl text-[#0B3363]">{match.home_score ?? 0}</span>
-            <span className="text-slate-300">–</span>
-            <span className="font-display font-bold text-3xl text-[#0B3363]">{match.away_score ?? 0}</span>
+          <div className="flex flex-col items-center px-4 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="font-display font-bold text-3xl text-[#0B3363]">{match.home_score ?? 0}</span>
+              <span className="text-slate-300">–</span>
+              <span className="font-display font-bold text-3xl text-[#0B3363]">{match.away_score ?? 0}</span>
+            </div>
+            {hasPens && (
+              <div className="text-xs text-slate-400 mt-0.5">Pens {match.home_pens}–{match.away_pens}</div>
+            )}
           </div>
           <div className="text-center flex-1 min-w-0">
             <div className="font-semibold text-sm text-[#0B3363] truncate">{awayTeam?.name}</div>
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <span className={`admin-pill ${match.status === "live" ? "admin-pill-warning" : match.status === "completed" ? "admin-pill-success" : "admin-pill-neutral"}`}>
-            {match.status}
-          </span>
-          {match.status === "scheduled" && (
-            <button onClick={() => setStatus("live")} className="admin-btn admin-btn-primary py-1.5 px-3 text-xs">Start Match</button>
-          )}
-          {match.status === "live" && (
-            <button onClick={() => setStatus("completed")} className="admin-btn admin-btn-primary py-1.5 px-3 text-xs">Full Time</button>
-          )}
-          {match.status === "completed" && (
-            <button onClick={() => setStatus("live")} className="admin-btn admin-btn-ghost py-1.5 px-3 text-xs">Reopen match</button>
-          )}
+        <div className="flex flex-col items-center gap-2 mb-6">
+          <div className="flex items-center justify-center gap-2">
+            {match.status !== "scheduled" && (
+              <span className={`admin-pill ${match.status === "live" ? "admin-pill-warning" : "admin-pill-success"}`}>
+                {match.status}
+              </span>
+            )}
+            {match.status === "scheduled" && (
+              <button onClick={() => setStatus("live")} className="admin-btn admin-btn-primary py-1.5 px-3 text-xs">Start Match</button>
+            )}
+            {match.status === "live" && (
+              <button onClick={() => setStatus("completed")} className="admin-btn admin-btn-primary py-1.5 px-3 text-xs">Full Time</button>
+            )}
+            {match.status === "completed" && (
+              <button onClick={() => setStatus("live")} className="admin-btn admin-btn-ghost py-1.5 px-3 text-xs">Reopen match</button>
+            )}
+          </div>
+          <button onClick={() => setPensOpen(true)} className="admin-btn bg-[#0B3363]/5 hover:bg-[#0B3363]/10 text-[#0B3363] py-1.5 px-3 text-xs">
+            {hasPens ? "Edit Penalties" : "Penalties"}
+          </button>
         </div>
 
-        {/* Rosters */}
-        <div className="grid md:grid-cols-2 gap-5 mb-6">
+        {/* Team tabs */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveSide("home")}
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold truncate transition-colors ${
+              activeSide === "home" ? "admin-btn-primary" : "bg-white text-[#0B3363] border border-[#0B3363]/10"
+            }`}
+          >
+            {homeTeam?.name ?? "Home"}
+          </button>
+          <button
+            onClick={() => setActiveSide("away")}
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold truncate transition-colors ${
+              activeSide === "away" ? "admin-btn-primary" : "bg-white text-[#0B3363] border border-[#0B3363]/10"
+            }`}
+          >
+            {awayTeam?.name ?? "Away"}
+          </button>
+        </div>
+
+        {/* Active team roster */}
+        <div className="mb-6">
           <TeamRoster
-            teamName={homeTeam?.name ?? "Home"}
-            players={homePlayers}
+            players={activePlayers}
             present={present}
             eventCount={eventCount}
             busyPlayerId={busyPlayerId}
-            onToggleAttendance={(pid) => toggleAttendance(pid, match.home_team_id)}
-            onLogEvent={(pid, type) => logEvent(pid, match.home_team_id, type)}
-          />
-          <TeamRoster
-            teamName={awayTeam?.name ?? "Away"}
-            players={awayPlayers}
-            present={present}
-            eventCount={eventCount}
-            busyPlayerId={busyPlayerId}
-            onToggleAttendance={(pid) => toggleAttendance(pid, match.away_team_id)}
-            onLogEvent={(pid, type) => logEvent(pid, match.away_team_id, type)}
+            motmPlayerId={activeMotm}
+            onToggleAttendance={(pid) => toggleAttendance(pid, activeTeamId)}
+            onLogEvent={(pid, type) => logEvent(pid, activeTeamId, type)}
+            onSetMotm={(pid) => saveMotm(activeSide, pid)}
           />
         </div>
 
@@ -249,50 +305,69 @@ export default function LiveMatchConsole() {
           </div>
         </div>
       </div>
+
+      <Modal open={pensOpen} onClose={() => setPensOpen(false)} title="Penalty Shootout" description="Enter the final penalty shootout score.">
+        <form onSubmit={savePenalties} className="flex flex-col gap-3">
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="admin-label truncate block">{homeTeam?.name}</label>
+              <input value={homePensInput} onChange={(e) => setHomePensInput(e.target.value)} type="number" min={0} className="admin-input" />
+            </div>
+            <span className="text-slate-400 pb-2.5">–</span>
+            <div className="flex-1">
+              <label className="admin-label truncate block">{awayTeam?.name}</label>
+              <input value={awayPensInput} onChange={(e) => setAwayPensInput(e.target.value)} type="number" min={0} className="admin-input" />
+            </div>
+          </div>
+          <button className="admin-btn admin-btn-primary mt-2">Save Penalties</button>
+        </form>
+      </Modal>
     </div>
   );
 }
 
 function TeamRoster({
-  teamName,
   players,
   present,
   eventCount,
   busyPlayerId,
+  motmPlayerId,
   onToggleAttendance,
   onLogEvent,
+  onSetMotm,
 }: {
-  teamName: string;
   players: Player[];
   present: Set<string>;
   eventCount: (playerId: string, type: string) => number;
   busyPlayerId: string | null;
+  motmPlayerId: string | null;
   onToggleAttendance: (playerId: string) => void;
   onLogEvent: (playerId: string, type: string) => void;
+  onSetMotm: (playerId: string) => void;
 }) {
   return (
-    <div>
-      <h3 className="font-display font-bold text-sm text-[#0B3363] mb-2">{teamName}</h3>
-      <div className="admin-card overflow-hidden">
-        {players.map((p) => {
-          const isPresent = present.has(p.id);
-          return (
-            <div key={p.id} className="px-4 py-3 border-b border-[#0B3363]/5 last:border-0">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <button onClick={() => onToggleAttendance(p.id)} className="flex items-center gap-2 min-w-0 text-left">
-                  <span
-                    className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                      isPresent ? "bg-[#3EA0D9] border-[#3EA0D9]" : "border-slate-300"
-                    }`}
-                  >
-                    {isPresent && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
-                  </span>
-                  <span className="text-xs text-slate-400 flex-shrink-0">{p.squad_number ?? "—"}</span>
-                  <span className={`text-sm truncate ${isPresent ? "text-[#0B3363] font-medium" : "text-slate-400"}`}>
-                    {p.nickname || p.full_name}
-                  </span>
-                </button>
-                <div className="flex items-center gap-1 flex-shrink-0 text-xs text-slate-400">
+    <div className="admin-card overflow-hidden">
+      {players.map((p) => {
+        const isPresent = present.has(p.id);
+        const isMotm = motmPlayerId === p.id;
+        return (
+          <div key={p.id} className="px-4 py-3 border-b border-[#0B3363]/5 last:border-0">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <button onClick={() => onToggleAttendance(p.id)} className="flex items-center gap-2 min-w-0 text-left flex-1">
+                <span
+                  className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                    isPresent ? "bg-[#3EA0D9] border-[#3EA0D9]" : "border-slate-300"
+                  }`}
+                >
+                  {isPresent && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                </span>
+                <span className="text-xs text-slate-400 flex-shrink-0">{p.squad_number ?? "—"}</span>
+                <span className={`text-sm truncate ${isPresent ? "text-[#0B3363] font-medium" : "text-slate-400"}`}>
+                  {p.nickname || p.full_name}
+                </span>
+              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <div className="flex items-center gap-1 text-xs text-slate-400">
                   {(["goal", "assist", "yellow_card", "red_card"] as const).map((type) => {
                     const count = eventCount(p.id, type);
                     return count > 0 ? (
@@ -300,24 +375,34 @@ function TeamRoster({
                     ) : null;
                   })}
                 </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {(["goal", "assist", "yellow_card", "red_card"] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => onLogEvent(p.id, type)}
-                    disabled={busyPlayerId === p.id + type}
-                    className="admin-btn bg-[#0B3363]/5 hover:bg-[#0B3363]/10 text-[#0B3363] text-xs py-1.5 px-2.5 flex-1"
-                  >
-                    {EVENT_META[type].icon} {EVENT_META[type].short}
-                  </button>
-                ))}
+                <button
+                  onClick={() => onSetMotm(p.id)}
+                  aria-label="Man of the Match"
+                  title="Man of the Match"
+                  className={`admin-icon-btn ${isMotm ? "text-[#F4B400]" : ""}`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill={isMotm ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.6-5.8-3.1-5.8 3.1 1.1-6.6-4.8-4.6 6.6-.9z" />
+                  </svg>
+                </button>
               </div>
             </div>
-          );
-        })}
-        {players.length === 0 && <div className="admin-empty">No players registered for this team.</div>}
-      </div>
+            <div className="flex items-center gap-1.5">
+              {(["goal", "assist", "yellow_card", "red_card"] as const).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => onLogEvent(p.id, type)}
+                  disabled={busyPlayerId === p.id + type}
+                  className="admin-btn bg-[#0B3363]/5 hover:bg-[#0B3363]/10 text-[#0B3363] text-xs py-1.5 px-2.5 flex-1"
+                >
+                  {EVENT_META[type].icon} {EVENT_META[type].short}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {players.length === 0 && <div className="admin-empty">No players registered for this team.</div>}
     </div>
   );
 }
