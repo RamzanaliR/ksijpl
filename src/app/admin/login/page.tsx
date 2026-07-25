@@ -15,12 +15,21 @@ export default function AdminLogin() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setLoading(false);
       setError(error.message);
       return;
     }
+
+    const { data: adminRow } = await supabase.from("admin_users").select("id").eq("id", data.user.id).maybeSingle();
+    if (!adminRow) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError("This account doesn't have admin access.");
+      return;
+    }
+
     router.push("/admin");
     router.refresh();
   }
