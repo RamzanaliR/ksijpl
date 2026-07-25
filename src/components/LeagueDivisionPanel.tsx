@@ -98,7 +98,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
               "Latest Results"
             )}
           </h3>
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-[420px] overflow-y-auto">
             {d.results.map((m: any) => (
               <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
                 <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
@@ -115,7 +115,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         {/* Fixtures */}
         <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
           <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Upcoming Fixtures</h3>
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-[420px] overflow-y-auto">
             {d.fixtures.map((m: any) =>
               m.status === "live" ? (
                 <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">

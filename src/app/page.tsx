@@ -39,9 +39,9 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
       ]);
       const teamMap: Record<string, string> = {};
       (teams ?? []).forEach((t: any) => (teamMap[t.id] = t.name));
-      const results = (matches ?? []).filter((m: any) => m.status === "completed").slice(-5).reverse();
+      const results = (matches ?? []).filter((m: any) => m.status === "completed").reverse();
       const live = (matches ?? []).filter((m: any) => m.status === "live");
-      const scheduled = (matches ?? []).filter((m: any) => m.status === "scheduled").slice(0, 5 - live.length);
+      const scheduled = (matches ?? []).filter((m: any) => m.status === "scheduled");
       const fixtures = [...live, ...scheduled];
 
       // Is the current match week in progress? (at least one match started, but not all finished yet)
