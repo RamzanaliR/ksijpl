@@ -47,6 +47,9 @@ export default function SquadBuilder() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [upcomingFixtures, setUpcomingFixtures] = useState<any[]>([]);
+  const [upcomingGwNumber, setUpcomingGwNumber] = useState<number | null>(null);
+  const [teamNames, setTeamNames] = useState<Record<string, string>>({});
   const [poolLabel, setPoolLabel] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -78,7 +81,7 @@ export default function SquadBuilder() {
 
       const { data: settingsRow } = await supabase
         .from("fantasy_settings")
-        .select("id,budget,squad_size,starting_xi_size,min_gk,min_def,min_mid,min_fwd,starting_gk_count,seasons(label,competitions(name,sponsor_name,division_id))")
+        .select("id,season_id,budget,squad_size,starting_xi_size,min_gk,min_def,min_mid,min_fwd,starting_gk_count,seasons(label,competitions(name,sponsor_name,division_id))")
         .eq("id", poolId)
         .maybeSingle();
 
@@ -97,8 +100,24 @@ export default function SquadBuilder() {
       ]);
       const teamNameMap: Record<string, string> = {};
       (teamsRaw ?? []).forEach((t: any) => (teamNameMap[t.id] = t.name));
+      setTeamNames(teamNameMap);
       const priceMap: Record<string, number> = {};
       (prices ?? []).forEach((p: any) => (priceMap[p.player_id] = Number(p.price)));
+
+      // Upcoming match week fixtures for this pool's season, to help with selection
+      const seasonId = (settingsRow as any).season_id;
+      const { data: gws } = await supabase.from("gameweeks").select("id,number").eq("season_id", seasonId).order("number");
+      const { data: allMatches } = await supabase
+        .from("matches")
+        .select("id,gameweek_id,home_team_id,away_team_id,kickoff_at,venue,status")
+        .eq("season_id", seasonId)
+        .in("status", ["scheduled", "live"])
+        .order("kickoff_at", { ascending: true });
+      const nextGw = (gws ?? []).find((g: any) => (allMatches ?? []).some((m: any) => m.gameweek_id === g.id));
+      if (nextGw) {
+        setUpcomingGwNumber(nextGw.number);
+        setUpcomingFixtures((allMatches ?? []).filter((m: any) => m.gameweek_id === nextGw.id));
+      }
 
       const teamIds = (teamsRaw ?? []).map((t: any) => t.id);
       const { data: playersRaw } = await supabase
@@ -454,9 +473,30 @@ export default function SquadBuilder() {
           <h1 className="font-display font-bold text-2xl">{teamName}</h1>
         </div>
 
-        <div className="grid lg:grid-cols-[340px_1fr] gap-6">
+        {upcomingFixtures.length > 0 && (
+          <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-display font-bold text-sm">Match Week {upcomingGwNumber} Fixtures</h2>
+              <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40">Use this to guide your picks</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 min-w-0 w-full">
+              {upcomingFixtures.map((m) => (
+                <div key={m.id} className="flex-shrink-0 rounded-xl bg-[#0B3363]/5 dark:bg-white/5 px-3 py-2 text-xs whitespace-nowrap">
+                  <div className="font-semibold">
+                    {teamNames[m.home_team_id] ?? "—"} <span className="text-[#0B3363]/40 dark:text-white/40 font-normal">vs</span> {teamNames[m.away_team_id] ?? "—"}
+                  </div>
+                  <div className="text-[#0B3363]/40 dark:text-white/40">
+                    {m.status === "live" ? "● Live now" : m.kickoff_at ? new Date(m.kickoff_at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Time TBD"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="grid lg:grid-cols-[340px_1fr] gap-6 min-w-0">
           {/* Left: Player Selection */}
-          <section>
+          <section className="min-w-0">
             <h2 className="font-display font-bold text-base mb-1">Player Selection</h2>
             <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">Select players to fill your squad. Max budget £{budget}m.</p>
             <input
@@ -521,7 +561,7 @@ export default function SquadBuilder() {
           </section>
 
           {/* Right: Squad Selection */}
-          <section>
+          <section className="min-w-0">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-display font-bold text-base">Squad Selection</h2>
               <div className="flex items-center gap-3">
@@ -634,7 +674,7 @@ export default function SquadBuilder() {
 
                   <div>
                     <h3 className="font-display font-bold text-sm mb-2">Bench ({benchPlayers.length}/{settings.squad_size - settings.starting_xi_size})</h3>
-                    <div className="flex gap-3 overflow-x-auto pb-2">
+                    <div className="flex gap-3 overflow-x-auto pb-2 w-full">
                       {[...benchPlayers]
                         .sort((a, b) => (lineup[a.id]?.benchOrder ?? 99) - (lineup[b.id]?.benchOrder ?? 99))
                         .map((p, i, arr) => (
