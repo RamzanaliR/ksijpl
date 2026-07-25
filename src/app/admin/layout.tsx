@@ -10,6 +10,7 @@ const NAV = [
   {
     href: "/admin",
     label: "Dashboard",
+    scope: "all",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" />
@@ -20,6 +21,7 @@ const NAV = [
   {
     href: "/admin/live",
     label: "Live Match Console",
+    scope: "league",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="9" />
@@ -30,6 +32,7 @@ const NAV = [
   {
     href: "/admin/teams",
     label: "Teams",
+    scope: "league",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="9" cy="7" r="3.2" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
@@ -40,6 +43,7 @@ const NAV = [
   {
     href: "/admin/players",
     label: "Players",
+    scope: "league",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
@@ -49,6 +53,7 @@ const NAV = [
   {
     href: "/admin/fixtures",
     label: "Fixtures & Scores",
+    scope: "league",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18" /><path d="M8 3v3M16 3v3" />
@@ -59,6 +64,7 @@ const NAV = [
   {
     href: "/admin/cup",
     label: "Cup",
+    scope: "league",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z" />
@@ -67,8 +73,19 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/fantasy",
+    label: "Fantasy",
+    scope: "fantasy",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.6-5.8-3.1-5.8 3.1 1.1-6.6-4.8-4.6 6.6-.9z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/media",
     label: "Media",
+    scope: "league",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="14" rx="2" /><circle cx="8.5" cy="9.5" r="1.6" />
@@ -79,6 +96,7 @@ const NAV = [
   {
     href: "/admin/account",
     label: "Account",
+    scope: "all",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
@@ -89,6 +107,7 @@ const NAV = [
   {
     href: "/admin/admins",
     label: "Admins",
+    scope: "super",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 3l7 3.2v5.3c0 4.6-3 8.7-7 9.9-4-1.2-7-5.3-7-9.9V6.2L12 3z" />
@@ -102,10 +121,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        const { data: adminRow } = await supabase.from("admin_users").select("role").eq("id", data.user.id).maybeSingle();
+        setRole(adminRow?.role ?? null);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -115,6 +141,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (pathname === "/admin/login" || pathname?.startsWith("/admin/live")) {
     return <>{children}</>;
   }
+
+  function canSee(scope: string) {
+    if (scope === "all") return true;
+    if (!role) return false;
+    if (role === "super_admin") return true;
+    if (scope === "super") return false;
+    if (scope === "league") return role === "matchday_admin";
+    if (scope === "fantasy") return role === "fantasy_admin";
+    return false;
+  }
+
+  const visibleNav = NAV.filter((item) => canSee(item.scope));
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -143,7 +181,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <nav className="flex flex-col gap-0.5">
-        {NAV.map((item) => {
+        {visibleNav.map((item) => {
           const isActive = item.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.href);
           return (
             <Link key={item.href} href={item.href} className={`admin-nav-link ${isActive ? "active" : ""}`}>

@@ -83,6 +83,7 @@ export default function AdminsPage() {
           <label className="admin-label">Role</label>
           <select value={role} onChange={(e) => setRole(e.target.value)} className="admin-select">
             <option value="matchday_admin">Matchday Admin</option>
+            <option value="fantasy_admin">Fantasy Admin</option>
             <option value="super_admin">Super Admin</option>
           </select>
         </div>
