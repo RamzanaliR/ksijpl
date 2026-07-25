@@ -17,9 +17,9 @@ export default function SiteFooter() {
         <div>
           <h5 className="font-display font-bold text-xs uppercase tracking-wide mb-3 opacity-70">Fantasy</h5>
           <div className="space-y-2 text-sm">
-            <Link href="#" className="block hover:text-[#F4B400]">Create Squad</Link>
-            <Link href="#" className="block hover:text-[#F4B400]">Leaderboard</Link>
-            <Link href="#" className="block hover:text-[#F4B400]">Rules</Link>
+            <Link href="/fantasy" className="block hover:text-[#F4B400]">Create Squad</Link>
+            <Link href="/fantasy" className="block hover:text-[#F4B400]">Leaderboard</Link>
+            <Link href="/fantasy" className="block hover:text-[#F4B400]">Rules</Link>
           </div>
         </div>
         <div>

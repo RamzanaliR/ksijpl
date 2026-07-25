@@ -11,7 +11,7 @@ const NAV_ITEMS: { key: "seasons" | "teams" | "cup" | "stats" | "news" | "fantas
   { key: "cup", label: "Cup", href: "/cup" },
   { key: "stats", label: "Stats", href: "#" },
   { key: "news", label: "Latest News", href: "#" },
-  { key: "fantasy", label: "Fantasy", href: "#" },
+  { key: "fantasy", label: "Fantasy", href: "/fantasy" },
 ];
 
 export default function SiteHeader({ active }: { active?: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy" }) {

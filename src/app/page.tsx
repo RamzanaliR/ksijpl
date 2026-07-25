@@ -135,11 +135,11 @@ export default async function Home() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-[#F4B400] flex items-center justify-center text-xl">⚽</div>
             <div>
-              <div className="font-display font-bold text-lg">Fantasy League — Coming Soon</div>
+              <div className="font-display font-bold text-lg">Fantasy League</div>
               <div className="text-sm opacity-70">Pick your squad and compete with the community.</div>
             </div>
           </div>
-          <button className="px-5 py-2.5 rounded-lg bg-[#F4B400] text-[#0B3363] font-bold text-sm">Get Notified</button>
+          <Link href="/fantasy" className="px-5 py-2.5 rounded-lg bg-[#F4B400] text-[#0B3363] font-bold text-sm">Sign Up</Link>
         </div>
       </section>
 
