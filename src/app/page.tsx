@@ -61,6 +61,7 @@ export default async function Home() {
           </div>
           <ul className="hidden md:flex gap-7 text-sm font-semibold">
             <li><Link href="#" className="text-[#3EA0D9] border-b-2 border-[#3EA0D9] pb-4 -mb-4">Seasons</Link></li>
+            <li><Link href="/teams" className="hover:text-[#3EA0D9]">Teams</Link></li>
             <li><Link href="#" className="hover:text-[#3EA0D9]">Stats</Link></li>
             <li><Link href="#" className="hover:text-[#3EA0D9]">Latest News</Link></li>
             <li><Link href="#" className="hover:text-[#3EA0D9]">Fantasy</Link></li>
@@ -114,7 +115,11 @@ export default async function Home() {
               {(senior?.standings ?? []).slice(0, 8).map((row: any, i: number) => (
                 <tr key={row.team_id} className="border-t border-white/10 dark:border-[#0B3363]/10">
                   <td className="py-1.5">{i + 1}</td>
-                  <td className="py-1.5">{senior?.teamMap.get(row.team_id)}</td>
+                  <td className="py-1.5">
+                    <Link href={`/teams/${row.team_id}`} className="hover:text-[#F4B400] transition-colors">
+                      {senior?.teamMap.get(row.team_id)}
+                    </Link>
+                  </td>
                   <td className="py-1.5 text-right opacity-70">{row.played}</td>
                   <td className="py-1.5 text-right font-bold text-[#F4B400]">{row.points}</td>
                 </tr>
@@ -243,7 +248,7 @@ export default async function Home() {
             <h5 className="font-display font-bold text-xs uppercase tracking-wide mb-3 opacity-70">More</h5>
             <div className="space-y-2 text-sm">
               <Link href="#" className="block hover:text-[#F4B400]">Latest News</Link>
-              <Link href="#" className="block hover:text-[#F4B400]">Teams</Link>
+              <Link href="/teams" className="block hover:text-[#F4B400]">Teams</Link>
               <Link href="#" className="block hover:text-[#F4B400]">Players</Link>
             </div>
           </div>
