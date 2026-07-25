@@ -43,6 +43,19 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
       const live = (matches ?? []).filter((m: any) => m.status === "live");
       const scheduled = (matches ?? []).filter((m: any) => m.status === "scheduled").slice(0, 5 - live.length);
       const fixtures = [...live, ...scheduled];
+
+      // Is the current match week in progress? (at least one match started, but not all finished yet)
+      const byGameweek = new Map<string, { total: number; completed: number; started: number }>();
+      (matches ?? []).forEach((m: any) => {
+        if (!m.gameweek_id) return;
+        const g = byGameweek.get(m.gameweek_id) ?? { total: 0, completed: 0, started: 0 };
+        g.total++;
+        if (m.status === "completed") g.completed++;
+        if (m.status === "completed" || m.status === "live") g.started++;
+        byGameweek.set(m.gameweek_id, g);
+      });
+      const matchWeekInProgress = [...byGameweek.values()].some((g) => g.started > 0 && g.completed < g.total);
+
       return {
         key: s.competitions?.sponsor_name ?? s.id,
         label: DIVISION_LABELS[s.competitions?.sponsor_name] ?? s.competitions?.name ?? "League",
@@ -52,6 +65,7 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
         teamMap,
         results,
         fixtures,
+        matchWeekInProgress,
       };
     })
   );

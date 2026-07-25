@@ -13,6 +13,7 @@ export type DivisionPanelData = {
   teamMap: Record<string, string>;
   results: any[];
   fixtures: any[];
+  matchWeekInProgress: boolean;
 };
 
 export default function LeagueDivisionPanel({ divisions }: { divisions: DivisionPanelData[] }) {
@@ -87,7 +88,16 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
 
         {/* Results */}
         <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10">
-          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Latest Results</h3>
+          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70 flex items-center gap-2">
+            {d.matchWeekInProgress ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-red-600 dark:text-red-400">Live Results</span>
+              </>
+            ) : (
+              "Latest Results"
+            )}
+          </h3>
           <div className="space-y-1">
             {d.results.map((m: any) => (
               <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">

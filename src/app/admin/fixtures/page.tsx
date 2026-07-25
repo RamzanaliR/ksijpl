@@ -818,7 +818,7 @@ function MatchRow({
       <div className="flex items-center justify-between mb-3">
         <div className="text-xs font-semibold text-[#B8860B] bg-[#F4B400]/15 px-2.5 py-1 rounded-lg">
           {match.kickoff_at
-            ? new Date(match.kickoff_at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+            ? new Date(match.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
             : "Time TBD"}
           {match.venue ? ` · ${match.venue}` : ""}
         </div>

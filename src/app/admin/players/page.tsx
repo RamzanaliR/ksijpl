@@ -39,6 +39,7 @@ export default function PlayersAdmin() {
   const [position, setPosition] = useState("MID");
   const [number, setNumber] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mobileTab, setMobileTab] = useState(0);
 
   const orderedDivisions = useMemo(
     () => [...divisions].sort((a, b) => ["juniors", "seniors"].indexOf(a.slug) - ["juniors", "seniors"].indexOf(b.slug)),
@@ -122,13 +123,27 @@ export default function PlayersAdmin() {
         </button>
       </div>
 
+      <div className="flex items-center gap-2 mb-4 md:hidden">
+        {orderedDivisions.map((d, i) => (
+          <button
+            key={d.id}
+            onClick={() => setMobileTab(i)}
+            className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              i === mobileTab ? "admin-btn-primary" : "bg-[#0B3363]/5 text-[#0B3363]"
+            }`}
+          >
+            {DIVISION_LABELS[d.slug] ?? d.name}
+          </button>
+        ))}
+      </div>
+
       <div className="grid md:grid-cols-2 gap-8">
-        {orderedDivisions.map((d) => {
+        {orderedDivisions.map((d, i) => {
           const divisionTeams = teams.filter((t) => t.division_id === d.id);
           const selectedTeam = selectedTeamByDivision[d.id] ?? "";
           const players = playersByTeam[selectedTeam] ?? [];
           return (
-            <div key={d.id}>
+            <div key={d.id} className={i === mobileTab ? "" : "hidden md:block"}>
               <h2 className="font-semibold text-[#0B3363] mb-2 text-sm">{DIVISION_LABELS[d.slug] ?? d.name}</h2>
               <div className="mb-3">
                 <select

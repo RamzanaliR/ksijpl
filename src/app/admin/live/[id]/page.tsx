@@ -204,7 +204,7 @@ export default function LiveMatchConsole() {
       <div className="max-w-3xl mx-auto p-4">
         <div className="admin-card p-5 mb-4 flex items-center justify-between">
           <div className="text-center flex-1 min-w-0">
-            <div className="font-semibold text-sm text-[#0B3363] truncate">{homeTeam?.name}</div>
+            <div className="font-semibold text-sm text-[#0B3363] leading-tight line-clamp-2">{homeTeam?.name}</div>
           </div>
           <div className="flex flex-col items-center px-4 flex-shrink-0">
             <div className="flex items-center gap-3">
@@ -217,7 +217,7 @@ export default function LiveMatchConsole() {
             )}
           </div>
           <div className="text-center flex-1 min-w-0">
-            <div className="font-semibold text-sm text-[#0B3363] truncate">{awayTeam?.name}</div>
+            <div className="font-semibold text-sm text-[#0B3363] leading-tight line-clamp-2">{awayTeam?.name}</div>
           </div>
         </div>
 
@@ -247,7 +247,7 @@ export default function LiveMatchConsole() {
         <div className="flex gap-2 mb-4">
           <button
             onClick={() => setActiveSide("home")}
-            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold truncate transition-colors ${
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold leading-tight line-clamp-2 transition-colors ${
               activeSide === "home" ? "admin-btn-primary" : "bg-white text-[#0B3363] border border-[#0B3363]/10"
             }`}
           >
@@ -255,7 +255,7 @@ export default function LiveMatchConsole() {
           </button>
           <button
             onClick={() => setActiveSide("away")}
-            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold truncate transition-colors ${
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold leading-tight line-clamp-2 transition-colors ${
               activeSide === "away" ? "admin-btn-primary" : "bg-white text-[#0B3363] border border-[#0B3363]/10"
             }`}
           >

@@ -53,6 +53,7 @@ export default function TeamsAdmin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editShort, setEditShort] = useState("");
+  const [mobileTab, setMobileTab] = useState(0);
 
   async function load() {
     setLoading(true);
@@ -135,83 +136,98 @@ export default function TeamsAdmin() {
       {loading ? (
         <div className="admin-subtitle">Loading…</div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-8">
-          {orderedDivisions.map((d) => (
-            <div key={d.id}>
-              <h2 className="font-semibold text-[#0B3363] mb-2 text-sm">
+        <>
+          <div className="flex items-center gap-2 mb-4 md:hidden">
+            {orderedDivisions.map((d, i) => (
+              <button
+                key={d.id}
+                onClick={() => setMobileTab(i)}
+                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  i === mobileTab ? "admin-btn-primary" : "bg-[#0B3363]/5 text-[#0B3363]"
+                }`}
+              >
                 {DIVISION_LABELS[d.slug] ?? d.name}
-                <span className="admin-pill ml-2 align-middle">{teams.filter((t) => t.division_id === d.id).length}</span>
-              </h2>
-              <div className="admin-card overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Team</th>
-                      <th>Short</th>
-                      <th className="text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teams
-                      .filter((t) => t.division_id === d.id)
-                      .map((t) =>
-                        editingId === t.id ? (
-                          <tr key={t.id}>
-                            <td>
-                              <input
-                                value={editName}
-                                onChange={(e) => setEditName(e.target.value)}
-                                className="admin-input py-1"
-                                autoFocus
-                              />
-                            </td>
-                            <td>
-                              <input
-                                value={editShort}
-                                onChange={(e) => setEditShort(e.target.value)}
-                                className="admin-input py-1 w-20"
-                                placeholder="e.g. DAR"
-                              />
-                            </td>
-                            <td>
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => saveEdit(t.id)} className="admin-icon-btn" aria-label="Save" title="Save">
-                                  <CheckIcon />
-                                </button>
-                                <button onClick={cancelEdit} className="admin-icon-btn" aria-label="Cancel" title="Cancel">
-                                  <XIcon />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          <tr key={t.id}>
-                            <td>{t.name}</td>
-                            <td className="text-slate-400">{t.short_name || "—"}</td>
-                            <td>
-                              <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => startEdit(t)} className="admin-icon-btn" aria-label="Edit" title="Edit">
-                                  <EditIcon />
-                                </button>
-                                <button onClick={() => deleteTeam(t.id)} className="admin-icon-btn admin-icon-btn-danger" aria-label="Delete" title="Delete">
-                                  <TrashIcon />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      )}
-                  </tbody>
-                </table>
+              </button>
+            ))}
+          </div>
+          <div className="grid md:grid-cols-2 gap-8">
+            {orderedDivisions.map((d, i) => (
+              <div key={d.id} className={i === mobileTab ? "" : "hidden md:block"}>
+                <h2 className="font-semibold text-[#0B3363] mb-2 text-sm">
+                  {DIVISION_LABELS[d.slug] ?? d.name}
+                  <span className="admin-pill ml-2 align-middle">{teams.filter((t) => t.division_id === d.id).length}</span>
+                </h2>
+                <div className="admin-card overflow-hidden">
+                  <div className="overflow-x-auto">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Team</th>
+                        <th>Short</th>
+                        <th className="text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {teams
+                        .filter((t) => t.division_id === d.id)
+                        .map((t) =>
+                          editingId === t.id ? (
+                            <tr key={t.id}>
+                              <td>
+                                <input
+                                  value={editName}
+                                  onChange={(e) => setEditName(e.target.value)}
+                                  className="admin-input py-1"
+                                  autoFocus
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  value={editShort}
+                                  onChange={(e) => setEditShort(e.target.value)}
+                                  className="admin-input py-1 w-20"
+                                  placeholder="e.g. DAR"
+                                />
+                              </td>
+                              <td>
+                                <div className="flex items-center justify-end gap-1">
+                                  <button onClick={() => saveEdit(t.id)} className="admin-icon-btn" aria-label="Save" title="Save">
+                                    <CheckIcon />
+                                  </button>
+                                  <button onClick={cancelEdit} className="admin-icon-btn" aria-label="Cancel" title="Cancel">
+                                    <XIcon />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            <tr key={t.id}>
+                              <td>{t.name}</td>
+                              <td className="text-slate-400">{t.short_name || "—"}</td>
+                              <td>
+                                <div className="flex items-center justify-end gap-1">
+                                  <button onClick={() => startEdit(t)} className="admin-icon-btn" aria-label="Edit" title="Edit">
+                                    <EditIcon />
+                                  </button>
+                                  <button onClick={() => deleteTeam(t.id)} className="admin-icon-btn admin-icon-btn-danger" aria-label="Delete" title="Delete">
+                                    <TrashIcon />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        )}
+                    </tbody>
+                  </table>
+                  </div>
+                  {teams.filter((t) => t.division_id === d.id).length === 0 && (
+                    <div className="admin-empty">No teams yet.</div>
+                  )}
                 </div>
-                {teams.filter((t) => t.division_id === d.id).length === 0 && (
-                  <div className="admin-empty">No teams yet.</div>
-                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Team" description="Create a new team in a division.">

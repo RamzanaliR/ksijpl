@@ -143,7 +143,7 @@ export default function LiveMatchPicker() {
                 <div className="text-center mb-3">
                   <span className="text-xs font-semibold text-red-600 bg-red-500/8 px-2.5 py-1 rounded-lg">
                     {m.kickoff_at
-                      ? new Date(m.kickoff_at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+                      ? new Date(m.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
                       : "Time TBD"}
                     {m.venue ? ` · ${m.venue}` : ""}
                   </span>
@@ -153,7 +153,7 @@ export default function LiveMatchPicker() {
                   {/* Home */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <TeamCrest team={home} />
-                    <span className="font-semibold text-[#0B3363] text-sm truncate">{home?.name ?? "—"}</span>
+                    <span className="font-semibold text-[#0B3363] text-sm leading-tight line-clamp-2">{home?.name ?? "—"}</span>
                   </div>
 
                   {/* Score */}
@@ -172,7 +172,7 @@ export default function LiveMatchPicker() {
 
                   {/* Away */}
                   <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
-                    <span className="font-semibold text-[#0B3363] text-sm truncate">{away?.name ?? "—"}</span>
+                    <span className="font-semibold text-[#0B3363] text-sm leading-tight line-clamp-2">{away?.name ?? "—"}</span>
                     <TeamCrest team={away} />
                   </div>
                 </div>
@@ -188,11 +188,11 @@ export default function LiveMatchPicker() {
 
 function TeamCrest({ team }: { team: Team | undefined }) {
   return (
-    <div className="w-8 h-8 rounded-lg bg-white border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 overflow-hidden">
+    <div className="w-11 h-11 rounded-lg bg-white border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 overflow-hidden">
       {team?.slug ? (
-        <Image src={`/sponsors/${team.slug}.png`} alt={team.name} width={26} height={26} className="object-contain w-full h-full" />
+        <Image src={`/sponsors/${team.slug}.png`} alt={team.name} width={36} height={36} className="object-contain w-full h-full" />
       ) : (
-        <span className="font-display font-bold text-[#0B3363] text-[10px]">
+        <span className="font-display font-bold text-[#0B3363] text-xs">
           {team?.short_name || team?.name?.slice(0, 2).toUpperCase() || "—"}
         </span>
       )}
