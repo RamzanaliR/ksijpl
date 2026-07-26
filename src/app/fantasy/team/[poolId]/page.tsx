@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import FantasySubNav from "@/components/FantasySubNav";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
 import { computeDeadline, formatDeadline } from "@/lib/fantasy-deadline";
@@ -342,6 +343,7 @@ export default function SquadBuilder() {
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
       <SiteHeader active="fantasy" />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
+        <FantasySubNav poolId={poolId} />
         <div className="mb-4">
           <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9]">{poolLabel}</div>
           <h1 className="font-display font-bold text-2xl">{teamName}</h1>
