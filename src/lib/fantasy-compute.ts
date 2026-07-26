@@ -135,6 +135,14 @@ export async function computeGameweekPoints(fantasySettingsId: string, gameweekI
     const captainId = squadRows.find((r: any) => r.is_captain)?.player_id ?? null;
     const viceCaptainId = squadRows.find((r: any) => r.is_vice_captain)?.player_id ?? null;
 
+    const { data: chipRow } = await supabase
+      .from("fantasy_chip_usage")
+      .select("chip_type")
+      .eq("fantasy_team_id", team.id)
+      .eq("gameweek_id", gameweekId)
+      .maybeSingle();
+    const activeChip = chipRow?.chip_type ?? null;
+
     const toSquadPlayer = (r: any): SquadPlayer => ({
       playerId: r.player_id,
       position: r.players.position,
@@ -145,7 +153,9 @@ export async function computeGameweekPoints(fantasySettingsId: string, gameweekI
     const starters = squadRows.filter((r: any) => r.is_starting).map(toSquadPlayer);
     const bench = squadRows.filter((r: any) => !r.is_starting).map(toSquadPlayer);
 
-    const { finalLineup } = applyAutoSubs(starters, bench, { startingGkCount: 1 });
+    // Bench Boost: every squad member counts, no auto-subs needed
+    const finalLineup =
+      activeChip === "bench_boost" ? squadRows.map((r: any) => r.player_id) : applyAutoSubs(starters, bench, { startingGkCount: 1 }).finalLineup;
     const playedMap: Record<string, boolean> = {};
     squadRows.forEach((r: any) => (playedMap[r.player_id] = attendedPlayerIds.has(r.player_id)));
     const finalCaptainId = resolveCaptain(finalLineup, playedMap, captainId, viceCaptainId);
@@ -154,7 +164,7 @@ export async function computeGameweekPoints(fantasySettingsId: string, gameweekI
     const squadSnapshotRows: any[] = [];
     finalLineup.forEach((playerId) => {
       const base = basePointsByPlayer[playerId] ?? 0;
-      const multiplier = playerId === finalCaptainId ? 2 : 1;
+      const multiplier = playerId === finalCaptainId ? (activeChip === "triple_captain" ? 3 : 2) : 1;
       total += base * multiplier;
       squadSnapshotRows.push({
         fantasy_team_id: team.id,
@@ -182,15 +192,40 @@ export async function computeGameweekPoints(fantasySettingsId: string, gameweekI
       await supabase.from("fantasy_gameweek_squads").insert(squadSnapshotRows);
     }
 
+    const { data: settingsRow } = await supabase.from("fantasy_settings").select("transfer_cost_points").eq("id", fantasySettingsId).maybeSingle();
+    const costPerTransfer = settingsRow?.transfer_cost_points ?? 4;
+    const { data: paidTransfers } = await supabase
+      .from("fantasy_transfers")
+      .select("id")
+      .eq("fantasy_team_id", team.id)
+      .eq("gameweek_id", gameweekId)
+      .eq("was_free", false);
+    const transferCost = activeChip === "free_hit" ? 0 : (paidTransfers?.length ?? 0) * costPerTransfer;
+    const netPoints = total - transferCost;
+
     const { error: pointsError } = await supabase
       .from("fantasy_gameweek_points")
       .upsert(
-        { fantasy_team_id: team.id, gameweek_id: gameweekId, raw_points: total, transfer_cost: 0, net_points: total },
+        { fantasy_team_id: team.id, gameweek_id: gameweekId, raw_points: total, transfer_cost: transferCost, net_points: netPoints },
         { onConflict: "fantasy_team_id,gameweek_id" }
       );
     if (pointsError) throw new Error(`Could not save team points for ${team.team_name}: ${pointsError.message}`);
 
-    teamResults.push({ teamId: team.id, teamName: team.team_name, points: total });
+    teamResults.push({ teamId: team.id, teamName: team.team_name, points: netPoints });
+
+    if (activeChip === "free_hit") {
+      const { data: snapshot } = await supabase
+        .from("fantasy_free_hit_snapshots")
+        .select("id,squad,restored")
+        .eq("fantasy_team_id", team.id)
+        .maybeSingle();
+      if (snapshot && !snapshot.restored) {
+        await supabase.from("fantasy_team_players").delete().eq("fantasy_team_id", team.id);
+        const restoredRows = (snapshot.squad as any[]).map((p) => ({ ...p, fantasy_team_id: team.id }));
+        if (restoredRows.length > 0) await supabase.from("fantasy_team_players").insert(restoredRows);
+        await supabase.from("fantasy_free_hit_snapshots").update({ restored: true }).eq("id", snapshot.id);
+      }
+    }
   }
 
   teamResults.sort((a, b) => b.points - a.points);

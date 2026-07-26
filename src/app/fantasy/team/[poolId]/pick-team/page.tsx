@@ -47,7 +47,11 @@ export default function PickTeam() {
   const [teamShortNames, setTeamShortNames] = useState<Record<string, string>>({});
   const [upcomingFixtures, setUpcomingFixtures] = useState<any[]>([]);
   const [upcomingGwNumber, setUpcomingGwNumber] = useState<number | null>(null);
+  const [upcomingGwId, setUpcomingGwId] = useState<string | null>(null);
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
+  const [usedChips, setUsedChips] = useState<Record<string, boolean>>({});
+  const [activeChipThisWeek, setActiveChipThisWeek] = useState<string | null>(null);
+  const [chipMessage, setChipMessage] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -132,7 +136,18 @@ export default function PickTeam() {
       const nextGw = (gws ?? []).find((g: any) => (allMatches ?? []).some((m: any) => m.gameweek_id === g.id));
       if (nextGw) {
         setUpcomingGwNumber(nextGw.number);
+        setUpcomingGwId(nextGw.id);
         setUpcomingFixtures((allMatches ?? []).filter((m: any) => m.gameweek_id === nextGw.id));
+
+        const { data: chipRows } = await supabase.from("fantasy_chip_usage").select("chip_type,gameweek_id").eq("fantasy_team_id", team.id);
+        const used: Record<string, boolean> = {};
+        let activeThisWeek: string | null = null;
+        (chipRows ?? []).forEach((r: any) => {
+          used[r.chip_type] = true;
+          if (r.gameweek_id === nextGw.id) activeThisWeek = r.chip_type;
+        });
+        setUsedChips(used);
+        setActiveChipThisWeek(activeThisWeek);
       }
 
       const lu: Record<string, LineupEntry> = {};
@@ -279,6 +294,45 @@ export default function PickTeam() {
     setSaved(true);
   }
 
+  async function playChip(chip: "bench_boost" | "triple_captain" | "free_hit") {
+    if (!teamId || !upcomingGwId || isLocked) return;
+    if (usedChips[chip]) return;
+    if (activeChipThisWeek) {
+      setChipMessage("Only one chip can be active per match week.");
+      return;
+    }
+    if (chip === "free_hit" && upcomingGwNumber === 1) {
+      setChipMessage("Free Hit unlocks from Match Week 2 onward.");
+      return;
+    }
+
+    if (chip === "free_hit") {
+      const { data: currentSquad } = await supabase
+        .from("fantasy_team_players")
+        .select("player_id,is_starting,is_captain,is_vice_captain,bench_order")
+        .eq("fantasy_team_id", teamId);
+      await supabase.from("fantasy_free_hit_snapshots").upsert(
+        { fantasy_team_id: teamId, gameweek_id: upcomingGwId, squad: currentSquad ?? [], restored: false },
+        { onConflict: "fantasy_team_id" }
+      );
+    }
+
+    const { error } = await supabase.from("fantasy_chip_usage").insert({ fantasy_team_id: teamId, gameweek_id: upcomingGwId, chip_type: chip });
+    if (error) {
+      setChipMessage(error.message);
+      return;
+    }
+    setUsedChips((prev) => ({ ...prev, [chip]: true }));
+    setActiveChipThisWeek(chip);
+    setChipMessage(
+      chip === "bench_boost"
+        ? "Bench Boost active — your bench's points will count this match week too."
+        : chip === "triple_captain"
+        ? "Triple Captain active — your captain scores 3x this match week."
+        : "Free Hit active — make unlimited free changes this week. Your squad reverts automatically afterwards."
+    );
+  }
+
   if (loading || !settings) {
     return (
       <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
@@ -342,6 +396,34 @@ export default function PickTeam() {
           </div>
           <a href={`/fantasy/team/${poolId}`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← Edit Squad</a>
         </div>
+
+        <div className="flex flex-wrap gap-2 mb-2">
+          {([
+            { key: "bench_boost", label: "Bench Boost" },
+            { key: "triple_captain", label: "Triple Captain" },
+            { key: "free_hit", label: "Free Hit" },
+          ] as const).map((c) => {
+            const used = usedChips[c.key];
+            const isActive = activeChipThisWeek === c.key;
+            const lockedByWeek = c.key === "free_hit" && upcomingGwNumber === 1;
+            const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
+            return (
+              <button
+                key={c.key}
+                onClick={() => playChip(c.key)}
+                disabled={disabled}
+                className={`text-xs font-semibold px-3 py-2 rounded-lg border transition-colors disabled:opacity-40 ${
+                  isActive
+                    ? "bg-[#F4B400] border-[#F4B400] text-[#0B3363]"
+                    : "border-[#0B3363]/15 dark:border-white/15 hover:bg-[#0B3363]/5 dark:hover:bg-white/5"
+                }`}
+              >
+                {c.label} {used ? (isActive ? "· Active" : "· Used") : lockedByWeek ? "· From MW2" : ""}
+              </button>
+            );
+          })}
+        </div>
+        {chipMessage && <div className="text-xs text-[#0B3363]/60 dark:text-white/60 mb-4">{chipMessage}</div>}
 
         <div className="grid lg:grid-cols-[280px_1fr] gap-6 min-w-0">
           {/* Left: Fixtures (desktop only) */}

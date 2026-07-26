@@ -71,9 +71,9 @@ export default function PlayerJerseyCard({
             TSH {price.toFixed(1)}m
           </div>
         )}
-        <div className="w-12 h-12 sm:w-14 sm:h-14 mb-1">
+        <div className="w-14 h-14 sm:w-16 sm:h-16 mb-1 drop-shadow-sm">
           {teamSlug ? (
-            <img src={`/jerseys/${teamSlug}-home.jpg`} alt={name} className="w-full h-full object-contain rounded" />
+            <img src={`/jerseys/${teamSlug}-home.jpg`} alt={name} className="w-full h-full object-contain" />
           ) : (
             <GenericShirt className="w-full h-full" />
           )}

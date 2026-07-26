@@ -54,6 +54,7 @@ export default function SquadBuilder() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [continuing, setContinuing] = useState(false);
+  const [teamLimitAlert, setTeamLimitAlert] = useState("");
 
   const [upcomingFixtures, setUpcomingFixtures] = useState<any[]>([]);
   const [upcomingGwNumber, setUpcomingGwNumber] = useState<number | null>(null);
@@ -201,10 +202,17 @@ export default function SquadBuilder() {
     if (selected.size >= (settings?.squad_size ?? 12)) return;
     if (countByPos(p.position) >= requiredByPosition[p.position]) return;
     if (p.price > remaining) return;
+    const fromSameTeam = selectedPlayers.filter((sp) => sp.team_id === p.team_id).length;
+    if (fromSameTeam >= 2) {
+      setTeamLimitAlert(`Max 2 players from ${p.teamName}.`);
+      return;
+    }
+    setTeamLimitAlert("");
     setSelected((prev) => new Set(prev).add(p.id));
   }
 
   function removePlayer(p: Player) {
+    setTeamLimitAlert("");
     setSelected((prev) => {
       const next = new Set(prev);
       next.delete(p.id);
@@ -220,6 +228,10 @@ export default function SquadBuilder() {
   function autoPick() {
     let remainingBudget = remaining;
     const nextSelected = new Set(selected);
+    const teamCounts: Record<string, number> = {};
+    players.forEach((p) => {
+      if (nextSelected.has(p.id)) teamCounts[p.team_id] = (teamCounts[p.team_id] ?? 0) + 1;
+    });
     for (const pos of POSITIONS) {
       const need = requiredByPosition[pos] - countByPos(pos);
       if (need <= 0) continue;
@@ -228,7 +240,9 @@ export default function SquadBuilder() {
       for (const c of candidates) {
         if (filled >= need) break;
         if (c.price > remainingBudget) continue;
+        if ((teamCounts[c.team_id] ?? 0) >= 2) continue;
         nextSelected.add(c.id);
+        teamCounts[c.team_id] = (teamCounts[c.team_id] ?? 0) + 1;
         remainingBudget = Math.round((remainingBudget - c.price) * 10) / 10;
         filled++;
       }
@@ -479,6 +493,7 @@ export default function SquadBuilder() {
               <button onClick={autoPick} disabled={squadFull || isLocked} className="admin-btn admin-btn-gold text-xs sm:text-sm">Auto Pick</button>
               <span className="text-xs text-[#0B3363]/40 dark:text-white/40">Fills any empty slots within budget.</span>
             </div>
+            {teamLimitAlert && <div className="rounded-lg bg-amber-50 text-amber-800 text-xs px-3 py-2 mb-3">{teamLimitAlert}</div>}
 
             <PitchBackground>
               <div className="flex flex-col gap-4">
