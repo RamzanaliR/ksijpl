@@ -19,7 +19,6 @@ export default function PlayerJerseyCard({
   teamSlug,
   opponentCode,
   opponentIsHome,
-  badge,
   onRemove,
   onClick,
   onSubClick,
@@ -27,13 +26,17 @@ export default function PlayerJerseyCard({
   dimmed,
   selected,
   highlighted,
+  isCaptain,
+  isViceCaptain,
+  onSetCaptain,
+  onSetVice,
+  points,
 }: {
   name: string;
   price?: number;
   teamSlug?: string | null;
   opponentCode?: string | null;
   opponentIsHome?: boolean | null;
-  badge?: "C" | "V" | null;
   onRemove?: () => void;
   onClick?: () => void;
   onSubClick?: () => void;
@@ -41,11 +44,16 @@ export default function PlayerJerseyCard({
   dimmed?: boolean;
   selected?: boolean;
   highlighted?: boolean;
+  isCaptain?: boolean;
+  isViceCaptain?: boolean;
+  onSetCaptain?: () => void;
+  onSetVice?: () => void;
+  points?: number;
 }) {
   const Wrapper = onClick ? "button" : "div";
   return (
     <div
-      className={`relative w-20 sm:w-24 flex-shrink-0 text-center transition-all ${dimmed ? "opacity-40" : ""} ${
+      className={`relative w-24 sm:w-28 flex-shrink-0 text-center transition-all ${dimmed ? "opacity-40" : ""} ${
         selected ? "ring-2 ring-[#F4B400] rounded-xl" : ""
       } ${highlighted ? "ring-2 ring-[#3EA0D9] rounded-xl scale-105" : ""}`}
     >
@@ -74,14 +82,37 @@ export default function PlayerJerseyCard({
           </svg>
         </button>
       )}
-      {badge && (
-        <span
-          className={`absolute -top-1.5 -left-1.5 z-10 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm ${
-            badge === "C" ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#3EA0D9] text-white"
-          }`}
-        >
-          {badge}
-        </span>
+      {(onSetCaptain || onSetVice) && (
+        <div className="absolute -top-1.5 -right-1.5 z-10 flex flex-col gap-1">
+          {onSetCaptain && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetCaptain();
+              }}
+              aria-label="Set captain"
+              className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm transition-colors ${
+                isCaptain ? "bg-[#F4B400] text-[#0B3363]" : "bg-white/70 text-[#0B3363]/50 hover:bg-white"
+              }`}
+            >
+              C
+            </button>
+          )}
+          {onSetVice && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSetVice();
+              }}
+              aria-label="Set vice-captain"
+              className={`w-5 h-5 rounded-full text-[8px] font-bold flex items-center justify-center shadow-sm transition-colors ${
+                isViceCaptain ? "bg-[#3EA0D9] text-white" : "bg-white/70 text-[#0B3363]/50 hover:bg-white"
+              }`}
+            >
+              VC
+            </button>
+          )}
+        </div>
       )}
 
       <Wrapper onClick={onClick} className="w-full flex flex-col items-center">
@@ -90,7 +121,7 @@ export default function PlayerJerseyCard({
             TSH {price.toFixed(1)}m
           </div>
         )}
-        <div className="w-14 h-14 sm:w-16 sm:h-16 mb-1 drop-shadow-sm">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 mb-1 drop-shadow-sm">
           {teamSlug ? (
             <img src={`/jerseys/${teamSlug}-home.jpg`} alt={name} className="w-full h-full object-contain" />
           ) : (
@@ -104,6 +135,7 @@ export default function PlayerJerseyCard({
               {opponentCode} ({opponentIsHome ? "H" : "A"})
             </div>
           )}
+          {points !== undefined && <div className="text-[10px] font-bold text-[#3EA0D9]">{points} pts</div>}
         </div>
       </Wrapper>
     </div>

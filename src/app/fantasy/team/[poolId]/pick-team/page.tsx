@@ -404,39 +404,6 @@ export default function PickTeam() {
           <a href={`/fantasy/team/${poolId}/points`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← My Team</a>
         </div>
 
-        <h2 className="font-display font-bold text-base mb-2">Chips</h2>
-        <div className="grid sm:grid-cols-3 gap-2 mb-4">
-          {([
-            { key: "bench_boost", label: "Bench Boost", description: "Counts your 4 bench players' points this match week." },
-            { key: "triple_captain", label: "Triple Captain", description: "Your captain scores triple instead of double." },
-            { key: "free_hit", label: "Free Hit", description: "Unlimited free transfers for one match week, then reverts." },
-          ] as const).map((c) => {
-            const used = usedChips[c.key];
-            const isActive = activeChipThisWeek === c.key;
-            const lockedByWeek = c.key === "free_hit" && upcomingGwNumber === 1;
-            const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
-            return (
-              <div
-                key={c.key}
-                className={`rounded-xl border p-3 ${isActive ? "bg-[#F4B400]/10 border-[#F4B400]" : "border-[#0B3363]/15 dark:border-white/15"}`}
-              >
-                <div className="text-sm font-bold mb-1">{c.label}</div>
-                <div className="text-xs text-[#0B3363]/50 dark:text-white/50 mb-3">{c.description}</div>
-                <button
-                  onClick={() => playChip(c.key)}
-                  disabled={disabled}
-                  className={`w-full text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 ${
-                    isActive ? "bg-[#F4B400] text-[#0B3363]" : "border border-[#0B3363]/15 dark:border-white/15 hover:bg-[#0B3363]/5 dark:hover:bg-white/5"
-                  }`}
-                >
-                  {used ? (isActive ? "Active" : "Used") : lockedByWeek ? "From MW2" : "Play"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-        {chipMessage && <div className="text-xs text-[#0B3363]/60 dark:text-white/60 mb-4">{chipMessage}</div>}
-
         <div className="grid lg:grid-cols-[280px_1fr] gap-6 min-w-0">
           {/* Left: Fixtures (desktop only) */}
           <div className="hidden lg:block">{fixturesCard}</div>
@@ -469,7 +436,7 @@ export default function PickTeam() {
               </div>
             </div>
             <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">
-              Pick a formation as a shortcut, then tap the yellow icon on a starting player to sub them, then tap a bench player to bring on — {settings.starting_gk_count} GK must always start.
+              Tap the yellow icon on a starting player to sub them, tap a bench player to bring them on. Tap C / VC on the right of a player to set captain or vice-captain — {settings.starting_gk_count} GK must always start.
             </p>
             {subModeMessage && <div className="text-xs text-red-600 mb-3">{subModeMessage}</div>}
 
@@ -490,11 +457,14 @@ export default function PickTeam() {
                               teamSlug={teamSlugs[p.team_id]}
                               opponentCode={nextOpponentByTeam[p.team_id]?.code}
                               opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                              badge={captainId === p.id ? "C" : viceCaptainId === p.id ? "V" : null}
                               showSubIcon={!isLocked}
                               selected={subModeOutId === p.id}
                               dimmed={!!subModeOutId && subModeOutId !== p.id}
                               onSubClick={() => startSub(p)}
+                              isCaptain={captainId === p.id}
+                              isViceCaptain={viceCaptainId === p.id}
+                              onSetCaptain={isLocked ? undefined : () => setCaptain(p.id)}
+                              onSetVice={isLocked ? undefined : () => setVice(p.id)}
                             />
                           ))}
                         </div>
@@ -504,46 +474,34 @@ export default function PickTeam() {
                       <div className="text-center text-white/70 text-sm py-10">Pick a formation above, or tap bench players below to build your starting {settings.starting_xi_size}.</div>
                     )}
                   </div>
+
+                  {/* Substitutes — inside the pitch, matching the reference layout */}
+                  <div className="mt-6 pt-4 border-t border-white/20">
+                    <h3 className="font-display font-bold text-xs text-white/80 mb-3 text-center uppercase tracking-wide">Substitutes</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-1 min-w-0 w-full justify-center">
+                      {benchPlayers.map((p, i) => {
+                        const outfieldIndex = benchPlayers.slice(0, i).filter((q) => q.position !== "GK").length;
+                        const label = p.position === "GK" ? "GKP" : `${outfieldIndex + 1}. ${p.position}`;
+                        return (
+                          <div key={p.id} className="flex flex-col items-center gap-1">
+                            <div className="text-[9px] font-bold uppercase text-white/60 tracking-wide">{label}</div>
+                            <PlayerJerseyCard
+                              name={p.displayName}
+                              price={p.price}
+                              teamSlug={teamSlugs[p.team_id]}
+                              opponentCode={nextOpponentByTeam[p.team_id]?.code}
+                              opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
+                              highlighted={!!subModeOutId}
+                              dimmed={!subModeOutId}
+                              onClick={!isLocked && subModeOutId ? () => completeSub(subModeOutId, p) : undefined}
+                            />
+                          </div>
+                        );
+                      })}
+                      {benchPlayers.length === 0 && <div className="text-xs text-white/60 py-4">No bench players yet.</div>}
+                    </div>
+                  </div>
                 </PitchBackground>
-
-                {/* Captain / Vice quick pickers */}
-                {startingPlayers.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {startingPlayers.map((p) => (
-                      <div key={p.id} className="flex items-center gap-1 text-[10px] bg-[#0B3363]/5 dark:bg-white/10 rounded-full px-2 py-1">
-                        <span className="truncate max-w-[70px]">{p.full_name}</span>
-                        <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-4 h-4 rounded-full font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
-                        <button onClick={() => !isLocked && setVice(p.id)} className={`w-4 h-4 rounded-full font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>V</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-6">
-                  <h3 className="font-display font-bold text-sm mb-2 text-center">Substitutes</h3>
-                  <div className="flex gap-3 overflow-x-auto pb-2 min-w-0 w-full justify-center">
-                    {benchPlayers.map((p, i) => {
-                      const outfieldIndex = benchPlayers.slice(0, i).filter((q) => q.position !== "GK").length;
-                      const label = p.position === "GK" ? "GKP" : `${outfieldIndex + 1}. ${p.position}`;
-                      return (
-                        <div key={p.id} className="flex flex-col items-center gap-1">
-                          <div className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{label}</div>
-                          <PlayerJerseyCard
-                            name={p.displayName}
-                            price={p.price}
-                            teamSlug={teamSlugs[p.team_id]}
-                            opponentCode={nextOpponentByTeam[p.team_id]?.code}
-                            opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                            highlighted={!!subModeOutId}
-                            dimmed={!subModeOutId}
-                            onClick={!isLocked && subModeOutId ? () => completeSub(subModeOutId, p) : undefined}
-                          />
-                        </div>
-                      );
-                    })}
-                    {benchPlayers.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 py-4">No bench players yet.</div>}
-                  </div>
-                </div>
               </>
             ) : (
               <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
@@ -562,7 +520,7 @@ export default function PickTeam() {
                       <span className="text-[10px] font-bold text-[#3EA0D9] flex-shrink-0">{p.position}</span>
                       <span className="truncate">{p.displayName}</span>
                       {captainId === p.id && <span className="text-[9px] font-bold text-[#F4B400] flex-shrink-0">C</span>}
-                      {viceCaptainId === p.id && <span className="text-[9px] font-bold text-[#3EA0D9] flex-shrink-0">V</span>}
+                      {viceCaptainId === p.id && <span className="text-[9px] font-bold text-[#3EA0D9] flex-shrink-0">VC</span>}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {nextOpponentByTeam[p.team_id] && (
@@ -571,7 +529,7 @@ export default function PickTeam() {
                         </span>
                       )}
                       <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-5 h-5 rounded-full text-[10px] font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
-                      <button onClick={() => !isLocked && setVice(p.id)} className={`w-5 h-5 rounded-full text-[10px] font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>V</button>
+                      <button onClick={() => !isLocked && setVice(p.id)} className={`w-5 h-5 rounded-full text-[8px] font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>VC</button>
                     </div>
                   </div>
                 ))}
@@ -606,6 +564,31 @@ export default function PickTeam() {
               </div>
             )}
 
+            {/* Chips — compact, no descriptions, sitting below the team picker */}
+            <div className="flex flex-wrap gap-2 mt-4">
+              {([
+                { key: "bench_boost", label: "Bench Boost" },
+                { key: "triple_captain", label: "Triple Captain" },
+                { key: "free_hit", label: "Free Hit" },
+              ] as const).map((c) => {
+                const used = usedChips[c.key];
+                const isActive = activeChipThisWeek === c.key;
+                const lockedByWeek = c.key === "free_hit" && upcomingGwNumber === 1;
+                const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => playChip(c.key)}
+                    disabled={disabled}
+                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-[#0B3363]/15 dark:border-white/15 hover:bg-[#0B3363]/5 dark:hover:bg-white/5 transition-colors disabled:opacity-40"
+                  >
+                    {c.label} {used ? "· Used" : lockedByWeek ? "· From MW2" : "· Play"}
+                  </button>
+                );
+              })}
+            </div>
+            {chipMessage && <div className="text-xs text-[#0B3363]/60 dark:text-white/60 mt-2">{chipMessage}</div>}
+
             {/* Fixtures on mobile, below everything */}
             <div className="lg:hidden mt-6">{fixturesCard}</div>
 
@@ -617,7 +600,7 @@ export default function PickTeam() {
             </button>
             {!lineupValid && (
               <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mt-2">
-                Set exactly {settings.starting_xi_size} starters (with {settings.starting_gk_count} GK) and choose a captain (C) + vice-captain (V) to save.
+                Set exactly {settings.starting_xi_size} starters (with {settings.starting_gk_count} GK) and choose a captain (C) + vice-captain (VC) to save.
               </p>
             )}
           </div>

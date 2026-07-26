@@ -43,6 +43,7 @@ export default function TransfersPage() {
   const [upcomingGwId, setUpcomingGwId] = useState<string | null>(null);
   const [upcomingGwNumber, setUpcomingGwNumber] = useState<number | null>(null);
   const [transfersUsedThisWeek, setTransfersUsedThisWeek] = useState(0);
+  const [paidTransfersThisWeek, setPaidTransfersThisWeek] = useState(0);
   const [freeHitActive, setFreeHitActive] = useState(false);
 
   async function loadAll() {
@@ -128,6 +129,7 @@ export default function TransfersPage() {
         supabase.from("fantasy_chip_usage").select("chip_type").eq("fantasy_team_id", team.id).eq("gameweek_id", nextGw.id).maybeSingle(),
       ]);
       setTransfersUsedThisWeek((transfersThisWeek ?? []).filter((t: any) => t.was_free).length);
+      setPaidTransfersThisWeek((transfersThisWeek ?? []).filter((t: any) => !t.was_free).length);
       setFreeHitActive(chipRow?.chip_type === "free_hit");
     }
 
@@ -244,10 +246,18 @@ export default function TransfersPage() {
           </div>
         )}
 
-        <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
           <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-4 py-2.5 text-center">
-            <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">Free transfers left</div>
-            <div className="font-display font-bold text-lg text-[#0B3363]">{unlimitedWindow ? "∞" : freeTransfersLeft}</div>
+            <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">Transfers</div>
+            <div className="font-display font-bold text-lg text-[#0B3363]">
+              {unlimitedWindow ? "∞" : `${transfersUsedThisWeek}/${settings.free_transfers_per_gw}`}
+            </div>
+          </div>
+          <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-4 py-2.5 text-center">
+            <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">Cost</div>
+            <div className={`font-display font-bold text-lg ${paidTransfersThisWeek > 0 ? "text-red-600" : "text-[#0B3363]"}`}>
+              {paidTransfersThisWeek > 0 ? `-${paidTransfersThisWeek * (settings.transfer_cost_points ?? 4)} pts` : "0 pts"}
+            </div>
           </div>
           <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-4 py-2.5 text-center">
             <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">Bank</div>

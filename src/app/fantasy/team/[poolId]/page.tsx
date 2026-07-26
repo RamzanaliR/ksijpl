@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import FantasySubNav from "@/components/FantasySubNav";
+import FantasyDivisionTabs from "@/components/FantasyDivisionTabs";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
 import { computeDeadline, formatDeadline } from "@/lib/fantasy-deadline";
@@ -329,6 +330,7 @@ export default function SquadBuilder() {
         <SiteHeader active="fantasy" />
         <main className="flex-1 flex items-center justify-center px-6">
           <div className="w-full max-w-sm">
+            <FantasyDivisionTabs poolId={poolId} />
             <h1 className="font-display font-bold text-2xl mb-1">{poolLabel}</h1>
             <p className="text-[#0B3363]/60 dark:text-white/60 mb-6 text-sm">Name your fantasy team to get started.</p>
             <form onSubmit={createTeam} className="flex flex-col gap-3">

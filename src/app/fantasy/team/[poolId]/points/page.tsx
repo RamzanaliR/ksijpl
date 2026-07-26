@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import FantasySubNav from "@/components/FantasySubNav";
+import FantasyDivisionTabs from "@/components/FantasyDivisionTabs";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
 
@@ -196,6 +197,7 @@ export default function MyTeamPage() {
 
   const totalPoints = history.reduce((sum, h) => sum + h.points, 0);
   const currentGw = history.find((h) => h.gameweekId === selectedGwId);
+  const livePointsGw = history.find((h) => h.gameweekId === latestScoredGwId);
   const bank = Math.round((budget - squadValue) * 10) / 10;
   const startingOnPitch = squadBreakdown.filter((r) => r.isStarting);
   const benchOnly = squadBreakdown.filter((r) => !r.isStarting);
@@ -215,15 +217,15 @@ export default function MyTeamPage() {
       <SiteHeader active="fantasy" />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
         <FantasySubNav poolId={poolId} />
+        <FantasyDivisionTabs poolId={poolId} />
         <div className="mb-6">
-          <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9]">{poolLabel}</div>
           <h1 className="font-display font-bold text-2xl">{teamName}</h1>
         </div>
 
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 mb-8">
           {[
+            ["Live points", livePointsGw ? livePointsGw.points : "—"],
             ["Total pts", totalPoints],
-            ["Rank", rank ? `${rank}/${totalTeams}` : "—"],
             ["Team value", `TSH ${squadValue.toFixed(1)}m`],
             ["Bank", `TSH ${bank.toFixed(1)}m`],
             ["Free transfers", freeTransfers],
@@ -263,7 +265,7 @@ export default function MyTeamPage() {
                     <div key={pos} className="flex justify-center gap-3 flex-wrap">
                       {rowPlayers.map((p) => (
                         <div key={p.playerId} className="text-center">
-                          <PlayerJerseyCard name={p.name} teamSlug={p.teamSlug} badge={p.multiplier > 1 ? "C" : null} />
+                          <PlayerJerseyCard name={p.name} teamSlug={p.teamSlug} isCaptain={p.multiplier > 1} />
                           <div className="text-white font-display font-bold text-sm -mt-1">{p.points} pts</div>
                         </div>
                       ))}

@@ -2,34 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import type { User } from "@supabase/supabase-js";
 
-type Pool = {
-  id: string;
-  budget: number;
-  seasonLabel: string;
-  competitionName: string;
-  divisionLabel: string;
-  hasTeam: boolean;
-};
+const DIVISION_ORDER = ["gofiber", "Care & Cure"];
 
-const DIVISION_LABELS: Record<string, string> = {
-  gofiber: "gofiber KSIJ PL Fantasy",
-  "Care & Cure": "Care & Cure KSIJ PL Fantasy",
-};
-
-export default function FantasyDashboard() {
+export default function FantasyGateway() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [needsProfile, setNeedsProfile] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
-  const [pools, setPools] = useState<Pool[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -38,79 +22,59 @@ export default function FantasyDashboard() {
         router.push("/fantasy/login");
         return;
       }
-      setUser(data.user);
+      setUserId(data.user.id);
 
       const { data: profile } = await supabase.from("fantasy_profiles").select("id,display_name").eq("id", data.user.id).maybeSingle();
       if (!profile) {
         setNeedsProfile(true);
-        setLoading(false);
         return;
       }
 
-      await loadPools(data.user.id);
-      setLoading(false);
+      await routeToDefaultPool(data.user.id);
     })();
   }, [router]);
 
-  async function loadPools(userId: string) {
+  async function routeToDefaultPool(uid: string) {
     const { data: settings } = await supabase
       .from("fantasy_settings")
-      .select("id,budget,seasons(label,competitions(name,sponsor_name))")
+      .select("id,seasons(competitions(sponsor_name))")
       .eq("is_active", true);
 
-    const { data: teams } = await supabase.from("fantasy_teams").select("fantasy_settings_id").eq("user_id", userId);
-    const teamPoolIds = new Set((teams ?? []).map((t: any) => t.fantasy_settings_id));
+    const ordered = [...(settings ?? [])].sort(
+      (a: any, b: any) => DIVISION_ORDER.indexOf(a.seasons?.competitions?.sponsor_name) - DIVISION_ORDER.indexOf(b.seasons?.competitions?.sponsor_name)
+    );
+    const defaultPool = ordered[0];
+    if (!defaultPool) return;
 
-    const list: Pool[] = (settings ?? [])
-      .map((s: any) => ({
-        id: s.id,
-        budget: s.budget,
-        seasonLabel: s.seasons?.label ?? "",
-        competitionName: s.seasons?.competitions?.name ?? "",
-        divisionLabel: DIVISION_LABELS[s.seasons?.competitions?.sponsor_name] ?? s.seasons?.competitions?.name ?? "Fantasy",
-        hasTeam: teamPoolIds.has(s.id),
-      }))
-      .sort((a: any, b: any) => ["gofiber", "Care & Cure"].indexOf(a.divisionLabel) - ["gofiber", "Care & Cure"].indexOf(b.divisionLabel));
-    setPools(list);
+    const { data: team } = await supabase
+      .from("fantasy_teams")
+      .select("id")
+      .eq("fantasy_settings_id", defaultPool.id)
+      .eq("user_id", uid)
+      .maybeSingle();
+
+    router.push(team ? `/fantasy/team/${defaultPool.id}/points` : `/fantasy/team/${defaultPool.id}`);
   }
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || !displayName.trim()) return;
+    if (!userId || !displayName.trim()) return;
     setSavingProfile(true);
-    const { error } = await supabase.from("fantasy_profiles").insert({ id: user.id, display_name: displayName.trim() });
+    const { error } = await supabase.from("fantasy_profiles").insert({ id: userId, display_name: displayName.trim() });
     setSavingProfile(false);
     if (error) {
       alert(error.message);
       return;
     }
     setNeedsProfile(false);
-    setLoading(true);
-    await loadPools(user.id);
-    setLoading(false);
+    await routeToDefaultPool(userId);
   }
 
-  async function signOut() {
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
-  }
-
-  if (loading) {
+  if (needsProfile) {
     return (
       <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
         <SiteHeader active="fantasy" />
-        <div className="flex-1 flex items-center justify-center text-sm opacity-50">Loading…</div>
-        <SiteFooter />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
-      <SiteHeader active="fantasy" />
-      <main className="max-w-4xl mx-auto px-6 py-10 flex-1 w-full">
-        {needsProfile ? (
+        <main className="max-w-4xl mx-auto px-6 py-10 flex-1 w-full">
           <div className="max-w-sm mx-auto mt-10">
             <h1 className="font-display font-bold text-2xl mb-1">Welcome!</h1>
             <p className="text-[#0B3363]/60 dark:text-white/60 mb-6 text-sm">Pick a display name for your fantasy team leaderboard.</p>
@@ -127,42 +91,16 @@ export default function FantasyDashboard() {
               </button>
             </form>
           </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="font-display font-bold text-3xl mb-1">Fantasy</h1>
-                <p className="text-[#0B3363]/60 dark:text-white/60 text-sm">{user?.email}</p>
-              </div>
-              <button onClick={signOut} className="text-sm font-semibold text-[#3EA0D9] hover:underline">Sign out</button>
-            </div>
+        </main>
+        <SiteFooter />
+      </div>
+    );
+  }
 
-            <div className="grid sm:grid-cols-2 gap-5">
-              {pools.map((p) => (
-                <div key={p.id} className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-6">
-                  <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9] mb-1">{p.divisionLabel}</div>
-                  <div className="font-display font-bold text-lg mb-1">{p.competitionName}</div>
-                  <div className="text-sm text-[#0B3363]/50 dark:text-white/50 mb-4">{p.seasonLabel} · TSH {p.budget}m budget</div>
-                  {p.hasTeam ? (
-                    <Link href={`/fantasy/team/${p.id}/points`} className="inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#0B3363]/5 dark:bg-white/10 text-[#0B3363] dark:text-white hover:bg-[#0B3363]/10 dark:hover:bg-white/15 transition-colors">
-                      My Team
-                    </Link>
-                  ) : (
-                    <Link href={`/fantasy/team/${p.id}`} className="inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#F4B400]/20 hover:bg-[#F4B400]/30 text-[#0B3363] dark:text-white transition-colors">
-                      Create Squad
-                    </Link>
-                  )}
-                </div>
-              ))}
-              {pools.length === 0 && (
-                <div className="col-span-full text-sm text-[#0B3363]/40 dark:text-white/40 text-center py-10">
-                  No fantasy pools are open yet.
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </main>
+  return (
+    <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
+      <SiteHeader active="fantasy" />
+      <div className="flex-1 flex items-center justify-center text-sm opacity-50">Loading…</div>
       <SiteFooter />
     </div>
   );
