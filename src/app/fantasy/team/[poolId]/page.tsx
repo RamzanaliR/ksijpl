@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import PitchBackground from "@/components/PitchBackground";
+import PlayerJerseyCard from "@/components/PlayerJerseyCard";
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
 type Settings = {
@@ -54,6 +56,7 @@ export default function SquadBuilder() {
   const [upcomingGwNumber, setUpcomingGwNumber] = useState<number | null>(null);
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
   const [teamSlugs, setTeamSlugs] = useState<Record<string, string | null>>({});
+  const [teamShortNames, setTeamShortNames] = useState<Record<string, string>>({});
 
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
@@ -84,17 +87,20 @@ export default function SquadBuilder() {
 
       const divisionId = comp?.division_id;
       const [{ data: teamsRaw }, { data: prices }] = await Promise.all([
-        supabase.from("teams").select("id,name,slug").eq("division_id", divisionId),
+        supabase.from("teams").select("id,name,slug,short_name").eq("division_id", divisionId),
         supabase.from("fantasy_player_prices").select("player_id,price").eq("fantasy_settings_id", poolId),
       ]);
       const teamNameMap: Record<string, string> = {};
       const teamSlugMap: Record<string, string | null> = {};
+      const teamShortMap: Record<string, string> = {};
       (teamsRaw ?? []).forEach((t: any) => {
         teamNameMap[t.id] = t.name;
         teamSlugMap[t.id] = t.slug;
+        teamShortMap[t.id] = t.short_name || t.name.slice(0, 3).toUpperCase();
       });
       setTeamNames(teamNameMap);
       setTeamSlugs(teamSlugMap);
+      setTeamShortNames(teamShortMap);
       const priceMap: Record<string, number> = {};
       (prices ?? []).forEach((p: any) => (priceMap[p.player_id] = Number(p.price)));
 
@@ -165,6 +171,15 @@ export default function SquadBuilder() {
     }),
     [settings]
   );
+
+  const nextOpponentByTeam: Record<string, { code: string; isHome: boolean }> = useMemo(() => {
+    const map: Record<string, { code: string; isHome: boolean }> = {};
+    upcomingFixtures.forEach((m: any) => {
+      if (m.home_team_id) map[m.home_team_id] = { code: teamShortNames[m.away_team_id] ?? "—", isHome: true };
+      if (m.away_team_id) map[m.away_team_id] = { code: teamShortNames[m.home_team_id] ?? "—", isHome: false };
+    });
+    return map;
+  }, [upcomingFixtures, teamShortNames]);
 
   const selectedPlayers = players.filter((p) => selected.has(p.id));
   const countByPos = (pos: Position) => selectedPlayers.filter((p) => p.position === pos).length;
@@ -328,30 +343,38 @@ export default function SquadBuilder() {
 
         {upcomingFixtures.length > 0 && (
           <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4 mb-6">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <h2 className="font-display font-bold text-sm">Match Week {upcomingGwNumber} Fixtures</h2>
               <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40">Use this to guide your picks</span>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 min-w-0 w-full">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 min-w-0 w-full">
               {upcomingFixtures.map((m) => (
-                <div key={m.id} className="rounded-xl bg-[#0B3363]/5 dark:bg-white/5 px-3 py-2 text-xs">
-                  <div className="font-semibold flex items-center gap-1 flex-wrap">
-                    <span className="inline-flex items-center gap-1">
-                      {teamSlugs[m.home_team_id] && (
-                        <img src={`/sponsors/${teamSlugs[m.home_team_id]}.png`} alt="" className="w-4 h-4 object-contain rounded bg-white border border-[#0B3363]/10" />
-                      )}
-                      {teamNames[m.home_team_id] ?? "—"}
-                    </span>
-                    <span className="text-[#0B3363]/40 dark:text-white/40 font-normal">vs</span>
-                    <span className="inline-flex items-center gap-1">
-                      {teamSlugs[m.away_team_id] && (
-                        <img src={`/sponsors/${teamSlugs[m.away_team_id]}.png`} alt="" className="w-4 h-4 object-contain rounded bg-white border border-[#0B3363]/10" />
-                      )}
-                      {teamNames[m.away_team_id] ?? "—"}
-                    </span>
+                <div key={m.id} className="rounded-xl bg-[#0B1220] text-white px-3 py-3 text-center">
+                  <div className="text-[10px] font-semibold text-white/50 mb-1.5">
+                    {m.status === "live" ? "● Live" : m.kickoff_at ? new Date(m.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "TBD"}
                   </div>
-                  <div className="text-[#0B3363]/40 dark:text-white/40 mt-0.5">
-                    {m.status === "live" ? "● Live now" : m.kickoff_at ? new Date(m.kickoff_at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Time TBD"}
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {teamSlugs[m.home_team_id] ? (
+                          <img src={`/sponsors/${teamSlugs[m.home_team_id]}.png`} alt="" className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <span className="font-display font-bold text-[#0B3363] text-[10px]">{(teamNames[m.home_team_id] ?? "—").slice(0, 2).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold truncate w-full">{teamNames[m.home_team_id] ?? "—"}</span>
+                    </div>
+                    <span className="font-display font-extrabold text-base text-white/40 px-0.5 flex-shrink-0">VS</span>
+                    <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {teamSlugs[m.away_team_id] ? (
+                          <img src={`/sponsors/${teamSlugs[m.away_team_id]}.png`} alt="" className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <span className="font-display font-bold text-[#0B3363] text-[10px]">{(teamNames[m.away_team_id] ?? "—").slice(0, 2).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold truncate w-full">{teamNames[m.away_team_id] ?? "—"}</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -442,20 +465,23 @@ export default function SquadBuilder() {
               <span className="text-xs text-[#0B3363]/40 dark:text-white/40">Fills any empty slots within budget.</span>
             </div>
 
-            <div className="rounded-2xl p-4 sm:p-6 mb-4" style={{ background: "linear-gradient(180deg, #2f8f4e 0%, #1f6b39 100%)" }}>
+            <PitchBackground>
               <div className="flex flex-col gap-4">
                 {POSITIONS.map((pos) => (
                   <div key={pos} className="flex justify-center gap-3 flex-wrap">
                     {buildSlots(pos).map((p, i) => (
-                      <div key={p?.id ?? `${pos}-empty-${i}`} className="w-20 sm:w-24 text-center">
+                      <div key={p?.id ?? `${pos}-empty-${i}`}>
                         {p ? (
-                          <button onClick={() => removePlayer(p)} className="w-full bg-white hover:bg-white rounded-xl p-2 transition-colors shadow-sm">
-                            <div className="text-[9px] font-bold text-[#3EA0D9] uppercase">{p.position}</div>
-                            <div className="text-[11px] font-semibold text-[#0B3363] truncate">{p.full_name}</div>
-                            <div className="text-[10px] text-[#0B3363]/50">TSH {p.price.toFixed(1)}m</div>
-                          </button>
+                          <PlayerJerseyCard
+                            name={p.full_name}
+                            price={p.price}
+                            teamSlug={teamSlugs[p.team_id]}
+                            opponentCode={nextOpponentByTeam[p.team_id]?.code}
+                            opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
+                            onRemove={() => removePlayer(p)}
+                          />
                         ) : (
-                          <button onClick={() => setPosFilter(pos)} className="w-full bg-black/10 hover:bg-black/15 rounded-xl p-3 flex flex-col items-center gap-1 transition-colors">
+                          <button onClick={() => setPosFilter(pos)} className="w-20 sm:w-24 bg-black/10 hover:bg-black/15 rounded-xl p-3 flex flex-col items-center gap-1 transition-colors">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                             <span className="text-[10px] font-bold text-white uppercase">{pos}</span>
                           </button>
@@ -465,7 +491,7 @@ export default function SquadBuilder() {
                   </div>
                 ))}
               </div>
-            </div>
+            </PitchBackground>
 
             {!squadComplete ? (
               <p className="text-xs text-[#0B3363]/40 dark:text-white/40">
