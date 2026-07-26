@@ -52,6 +52,9 @@ export default function PickTeam() {
   const [usedChips, setUsedChips] = useState<Record<string, boolean>>({});
   const [activeChipThisWeek, setActiveChipThisWeek] = useState<string | null>(null);
   const [chipMessage, setChipMessage] = useState("");
+  const [viewMode, setViewMode] = useState<"pitch" | "list">("pitch");
+  const [subModeOutId, setSubModeOutId] = useState<string | null>(null);
+  const [subModeMessage, setSubModeMessage] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -200,29 +203,31 @@ export default function PickTeam() {
     startingPlayers.some((p) => p.id === captainId) &&
     startingPlayers.some((p) => p.id === viceCaptainId);
 
-  function toggleStarting(p: Player) {
+  function startSub(p: Player) {
     setSaved(false);
-    setLineup((prev) => {
-      const current = prev[p.id];
-      if (!current) return prev;
-      const next = { ...prev };
-      if (!current.isStarting) {
-        if (startingCount >= (settings?.starting_xi_size ?? 8)) return prev;
-        if (p.position === "GK") {
-          squadPlayers.forEach((other) => {
-            if (other.position === "GK" && other.id !== p.id && next[other.id]?.isStarting) {
-              next[other.id] = { isStarting: false };
-            }
-          });
-        }
-        next[p.id] = { isStarting: true };
-      } else {
-        next[p.id] = { isStarting: false };
-        if (captainId === p.id) setCaptainId("");
-        if (viceCaptainId === p.id) setViceCaptainId("");
-      }
-      return next;
-    });
+    setSubModeMessage("");
+    setSubModeOutId((prev) => (prev === p.id ? null : p.id));
+  }
+
+  function completeSub(outPlayerId: string, inPlayer: Player) {
+    const outPlayer = squadPlayers.find((p) => p.id === outPlayerId);
+    if (!outPlayer) return;
+    const requiredGk = settings?.starting_gk_count ?? 1;
+    const wouldBeGkCount = startingGkCount - (outPlayer.position === "GK" ? 1 : 0) + (inPlayer.position === "GK" ? 1 : 0);
+    if (wouldBeGkCount !== requiredGk) {
+      setSubModeMessage(`That swap would leave ${wouldBeGkCount} goalkeeper${wouldBeGkCount === 1 ? "" : "s"} starting — exactly ${requiredGk} is required.`);
+      return;
+    }
+    setSaved(false);
+    setSubModeMessage("");
+    setLineup((prev) => ({
+      ...prev,
+      [outPlayer.id]: { isStarting: false },
+      [inPlayer.id]: { isStarting: true },
+    }));
+    if (captainId === outPlayer.id) setCaptainId("");
+    if (viceCaptainId === outPlayer.id) setViceCaptainId("");
+    setSubModeOutId(null);
   }
 
   function applyFormationTo(players: Player[], lu: Record<string, LineupEntry>, key: string) {
@@ -247,6 +252,8 @@ export default function PickTeam() {
 
   function applyFormation(key: string) {
     setSaved(false);
+    setSubModeOutId(null);
+    setSubModeMessage("");
     setFormationKey(key);
     const next: Record<string, LineupEntry> = { ...lineup };
     applyFormationTo(squadPlayers, next, key);
@@ -433,83 +440,166 @@ export default function PickTeam() {
           <div className="min-w-0">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-display font-bold text-base">Pick Team</h2>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-[#0B3363]/50 dark:text-white/50">Formation</label>
-                <select value={formationKey} onChange={(e) => applyFormation(e.target.value)} disabled={isLocked} className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs font-semibold disabled:opacity-50">
-                  {Object.keys(FORMATIONS).map((k) => (<option key={k} value={k}>{k}</option>))}
-                </select>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center bg-[#0B3363]/5 dark:bg-white/10 rounded-lg p-0.5">
+                  <button
+                    onClick={() => setViewMode("pitch")}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "pitch" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}
+                  >
+                    Pitch
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}
+                  >
+                    List
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-[#0B3363]/50 dark:text-white/50">Formation</label>
+                  <select value={formationKey} onChange={(e) => applyFormation(e.target.value)} disabled={isLocked} className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs font-semibold disabled:opacity-50">
+                    {Object.keys(FORMATIONS).map((k) => (<option key={k} value={k}>{k}</option>))}
+                  </select>
+                </div>
               </div>
             </div>
             <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">
-              Pick a formation as a shortcut, then tap any player on the pitch or bench to move them — {settings.starting_gk_count} GK must always start.
+              Pick a formation as a shortcut, then tap the yellow icon on a starting player to sub them, then tap a bench player to bring on — {settings.starting_gk_count} GK must always start.
             </p>
+            {subModeMessage && <div className="text-xs text-red-600 mb-3">{subModeMessage}</div>}
 
-            <PitchBackground>
-              <div className="flex flex-col gap-4">
-                {POSITIONS.map((pos) => {
-                  const rowPlayers = startingPlayers.filter((p) => p.position === pos);
-                  if (rowPlayers.length === 0) return null;
-                  return (
-                    <div key={pos} className="flex justify-center gap-3 flex-wrap">
-                      {rowPlayers.map((p) => (
-                        <PlayerJerseyCard
-                          key={p.id}
-                          name={p.displayName}
-                          price={p.price}
-                          teamSlug={teamSlugs[p.team_id]}
-                          opponentCode={nextOpponentByTeam[p.team_id]?.code}
-                          opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                          badge={captainId === p.id ? "C" : viceCaptainId === p.id ? "V" : null}
-                          onClick={isLocked ? undefined : () => toggleStarting(p)}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-                {startingPlayers.length === 0 && (
-                  <div className="text-center text-white/70 text-sm py-10">Pick a formation above, or tap bench players below to build your starting {settings.starting_xi_size}.</div>
+            {viewMode === "pitch" ? (
+              <>
+                <PitchBackground>
+                  <div className="flex flex-col gap-4">
+                    {POSITIONS.map((pos) => {
+                      const rowPlayers = startingPlayers.filter((p) => p.position === pos);
+                      if (rowPlayers.length === 0) return null;
+                      return (
+                        <div key={pos} className="flex justify-center gap-3 flex-wrap">
+                          {rowPlayers.map((p) => (
+                            <PlayerJerseyCard
+                              key={p.id}
+                              name={p.displayName}
+                              price={p.price}
+                              teamSlug={teamSlugs[p.team_id]}
+                              opponentCode={nextOpponentByTeam[p.team_id]?.code}
+                              opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
+                              badge={captainId === p.id ? "C" : viceCaptainId === p.id ? "V" : null}
+                              showSubIcon={!isLocked}
+                              selected={subModeOutId === p.id}
+                              dimmed={!!subModeOutId && subModeOutId !== p.id}
+                              onSubClick={() => startSub(p)}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })}
+                    {startingPlayers.length === 0 && (
+                      <div className="text-center text-white/70 text-sm py-10">Pick a formation above, or tap bench players below to build your starting {settings.starting_xi_size}.</div>
+                    )}
+                  </div>
+                </PitchBackground>
+
+                {/* Captain / Vice quick pickers */}
+                {startingPlayers.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {startingPlayers.map((p) => (
+                      <div key={p.id} className="flex items-center gap-1 text-[10px] bg-[#0B3363]/5 dark:bg-white/10 rounded-full px-2 py-1">
+                        <span className="truncate max-w-[70px]">{p.full_name}</span>
+                        <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-4 h-4 rounded-full font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
+                        <button onClick={() => !isLocked && setVice(p.id)} className={`w-4 h-4 rounded-full font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>V</button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </div>
-            </PitchBackground>
 
-            {/* Captain / Vice quick pickers, since cards are tap-to-toggle-starting now */}
-            {startingPlayers.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
+                <div className="mt-6">
+                  <h3 className="font-display font-bold text-sm mb-2 text-center">Substitutes</h3>
+                  <div className="flex gap-3 overflow-x-auto pb-2 min-w-0 w-full justify-center">
+                    {benchPlayers.map((p, i) => {
+                      const outfieldIndex = benchPlayers.slice(0, i).filter((q) => q.position !== "GK").length;
+                      const label = p.position === "GK" ? "GKP" : `${outfieldIndex + 1}. ${p.position}`;
+                      return (
+                        <div key={p.id} className="flex flex-col items-center gap-1">
+                          <div className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{label}</div>
+                          <PlayerJerseyCard
+                            name={p.displayName}
+                            price={p.price}
+                            teamSlug={teamSlugs[p.team_id]}
+                            opponentCode={nextOpponentByTeam[p.team_id]?.code}
+                            opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
+                            highlighted={!!subModeOutId}
+                            dimmed={!subModeOutId}
+                            onClick={!isLocked && subModeOutId ? () => completeSub(subModeOutId, p) : undefined}
+                          />
+                        </div>
+                      );
+                    })}
+                    {benchPlayers.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 py-4">No bench players yet.</div>}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
+                <div className="px-4 py-2 bg-[#0B3363]/5 dark:bg-white/5 text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Starting {settings.starting_xi_size}</div>
                 {startingPlayers.map((p) => (
-                  <div key={p.id} className="flex items-center gap-1 text-[10px] bg-[#0B3363]/5 dark:bg-white/10 rounded-full px-2 py-1">
-                    <span className="truncate max-w-[70px]">{p.full_name}</span>
-                    <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-4 h-4 rounded-full font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
-                    <button onClick={() => !isLocked && setVice(p.id)} className={`w-4 h-4 rounded-full font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>V</button>
+                  <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm border-b border-[#0B3363]/5 dark:border-white/5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <button
+                        onClick={() => !isLocked && startSub(p)}
+                        className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${subModeOutId === p.id ? "bg-red-500 text-white" : "bg-[#F4B400] text-[#0B3363]"}`}
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          {subModeOutId === p.id ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />}
+                        </svg>
+                      </button>
+                      <span className="text-[10px] font-bold text-[#3EA0D9] flex-shrink-0">{p.position}</span>
+                      <span className="truncate">{p.displayName}</span>
+                      {captainId === p.id && <span className="text-[9px] font-bold text-[#F4B400] flex-shrink-0">C</span>}
+                      {viceCaptainId === p.id && <span className="text-[9px] font-bold text-[#3EA0D9] flex-shrink-0">V</span>}
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {nextOpponentByTeam[p.team_id] && (
+                        <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40">
+                          {nextOpponentByTeam[p.team_id].code} ({nextOpponentByTeam[p.team_id].isHome ? "H" : "A"})
+                        </span>
+                      )}
+                      <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-5 h-5 rounded-full text-[10px] font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
+                      <button onClick={() => !isLocked && setVice(p.id)} className={`w-5 h-5 rounded-full text-[10px] font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>V</button>
+                    </div>
                   </div>
                 ))}
-              </div>
-            )}
 
-            <div className="mt-6">
-              <h3 className="font-display font-bold text-sm mb-2 text-center">Substitutes</h3>
-              <div className="flex gap-3 overflow-x-auto pb-2 min-w-0 w-full justify-center">
+                <div className="px-4 py-2 bg-[#0B3363]/5 dark:bg-white/5 text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Substitutes</div>
                 {benchPlayers.map((p, i) => {
                   const outfieldIndex = benchPlayers.slice(0, i).filter((q) => q.position !== "GK").length;
-                  const label = p.position === "GK" ? "GKP" : `${outfieldIndex + 1}. ${p.position}`;
+                  const label = p.position === "GK" ? "GKP" : `Sub ${outfieldIndex + 1}`;
                   return (
-                    <div key={p.id} className="flex flex-col items-center gap-1">
-                      <div className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{label}</div>
-                      <PlayerJerseyCard
-                        name={p.displayName}
-                        price={p.price}
-                        teamSlug={teamSlugs[p.team_id]}
-                        opponentCode={nextOpponentByTeam[p.team_id]?.code}
-                        opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                        showSubIcon
-                        dimmed
-                        onClick={isLocked ? undefined : () => toggleStarting(p)}
-                      />
-                    </div>
+                    <button
+                      key={p.id}
+                      onClick={() => !isLocked && subModeOutId && completeSub(subModeOutId, p)}
+                      disabled={!subModeOutId}
+                      className={`w-full flex items-center justify-between px-4 py-2.5 text-sm border-b border-[#0B3363]/5 dark:border-white/5 last:border-0 text-left transition-colors ${
+                        subModeOutId ? "hover:bg-[#3EA0D9]/10" : "opacity-60"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-[9px] font-bold text-[#0B3363]/40 dark:text-white/40 flex-shrink-0 w-10">{label}</span>
+                        <span className="text-[10px] font-bold text-[#3EA0D9] flex-shrink-0">{p.position}</span>
+                        <span className="truncate">{p.displayName}</span>
+                      </div>
+                      {nextOpponentByTeam[p.team_id] && (
+                        <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40 flex-shrink-0">
+                          {nextOpponentByTeam[p.team_id].code} ({nextOpponentByTeam[p.team_id].isHome ? "H" : "A"})
+                        </span>
+                      )}
+                    </button>
                   );
                 })}
-                {benchPlayers.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 py-4">No bench players yet.</div>}
+                {squadPlayers.length === 0 && <div className="admin-empty">No squad loaded.</div>}
               </div>
-            </div>
+            )}
 
             {/* Fixtures on mobile, below everything */}
             <div className="lg:hidden mt-6">{fixturesCard}</div>

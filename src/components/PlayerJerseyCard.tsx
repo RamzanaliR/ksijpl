@@ -22,8 +22,11 @@ export default function PlayerJerseyCard({
   badge,
   onRemove,
   onClick,
+  onSubClick,
   showSubIcon,
   dimmed,
+  selected,
+  highlighted,
 }: {
   name: string;
   price?: number;
@@ -33,12 +36,19 @@ export default function PlayerJerseyCard({
   badge?: "C" | "V" | null;
   onRemove?: () => void;
   onClick?: () => void;
+  onSubClick?: () => void;
   showSubIcon?: boolean;
   dimmed?: boolean;
+  selected?: boolean;
+  highlighted?: boolean;
 }) {
   const Wrapper = onClick ? "button" : "div";
   return (
-    <div className={`relative w-20 sm:w-24 flex-shrink-0 text-center ${dimmed ? "opacity-60" : ""}`}>
+    <div
+      className={`relative w-20 sm:w-24 flex-shrink-0 text-center transition-all ${dimmed ? "opacity-40" : ""} ${
+        selected ? "ring-2 ring-[#F4B400] rounded-xl" : ""
+      } ${highlighted ? "ring-2 ring-[#3EA0D9] rounded-xl scale-105" : ""}`}
+    >
       {onRemove && (
         <button
           onClick={onRemove}
@@ -49,11 +59,20 @@ export default function PlayerJerseyCard({
         </button>
       )}
       {showSubIcon && (
-        <span className="absolute -top-1.5 -left-1.5 z-10 w-5 h-5 rounded-full bg-[#F4B400] text-[#0B3363] flex items-center justify-center shadow-sm">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onSubClick?.();
+          }}
+          aria-label="Substitute"
+          className={`absolute -top-1.5 -left-1.5 z-10 w-5 h-5 rounded-full flex items-center justify-center shadow-sm ${
+            selected ? "bg-red-500 text-white" : "bg-[#F4B400] text-[#0B3363]"
+          }`}
+        >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />
+            {selected ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />}
           </svg>
-        </span>
+        </button>
       )}
       {badge && (
         <span
