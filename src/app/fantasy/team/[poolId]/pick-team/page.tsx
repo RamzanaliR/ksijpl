@@ -401,32 +401,37 @@ export default function PickTeam() {
               </div>
             )}
           </div>
-          <a href={`/fantasy/team/${poolId}`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← Edit Squad</a>
+          <a href={`/fantasy/team/${poolId}/points`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← My Team</a>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-2">
+        <h2 className="font-display font-bold text-base mb-2">Chips</h2>
+        <div className="grid sm:grid-cols-3 gap-2 mb-4">
           {([
-            { key: "bench_boost", label: "Bench Boost" },
-            { key: "triple_captain", label: "Triple Captain" },
-            { key: "free_hit", label: "Free Hit" },
+            { key: "bench_boost", label: "Bench Boost", description: "Counts your 4 bench players' points this match week." },
+            { key: "triple_captain", label: "Triple Captain", description: "Your captain scores triple instead of double." },
+            { key: "free_hit", label: "Free Hit", description: "Unlimited free transfers for one match week, then reverts." },
           ] as const).map((c) => {
             const used = usedChips[c.key];
             const isActive = activeChipThisWeek === c.key;
             const lockedByWeek = c.key === "free_hit" && upcomingGwNumber === 1;
             const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
             return (
-              <button
+              <div
                 key={c.key}
-                onClick={() => playChip(c.key)}
-                disabled={disabled}
-                className={`text-xs font-semibold px-3 py-2 rounded-lg border transition-colors disabled:opacity-40 ${
-                  isActive
-                    ? "bg-[#F4B400] border-[#F4B400] text-[#0B3363]"
-                    : "border-[#0B3363]/15 dark:border-white/15 hover:bg-[#0B3363]/5 dark:hover:bg-white/5"
-                }`}
+                className={`rounded-xl border p-3 ${isActive ? "bg-[#F4B400]/10 border-[#F4B400]" : "border-[#0B3363]/15 dark:border-white/15"}`}
               >
-                {c.label} {used ? (isActive ? "· Active" : "· Used") : lockedByWeek ? "· From MW2" : ""}
-              </button>
+                <div className="text-sm font-bold mb-1">{c.label}</div>
+                <div className="text-xs text-[#0B3363]/50 dark:text-white/50 mb-3">{c.description}</div>
+                <button
+                  onClick={() => playChip(c.key)}
+                  disabled={disabled}
+                  className={`w-full text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+                    isActive ? "bg-[#F4B400] text-[#0B3363]" : "border border-[#0B3363]/15 dark:border-white/15 hover:bg-[#0B3363]/5 dark:hover:bg-white/5"
+                  }`}
+                >
+                  {used ? (isActive ? "Active" : "Used") : lockedByWeek ? "From MW2" : "Play"}
+                </button>
+              </div>
             );
           })}
         </div>

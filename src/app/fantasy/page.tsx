@@ -142,10 +142,10 @@ export default function FantasyDashboard() {
                 <div key={p.id} className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-6">
                   <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9] mb-1">{p.divisionLabel}</div>
                   <div className="font-display font-bold text-lg mb-1">{p.competitionName}</div>
-                  <div className="text-sm text-[#0B3363]/50 dark:text-white/50 mb-4">{p.seasonLabel} · £{p.budget}m budget</div>
+                  <div className="text-sm text-[#0B3363]/50 dark:text-white/50 mb-4">{p.seasonLabel} · TSH {p.budget}m budget</div>
                   {p.hasTeam ? (
-                    <Link href={`/fantasy/team/${p.id}`} className="inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#0B3363]/5 dark:bg-white/10 text-[#0B3363] dark:text-white hover:bg-[#0B3363]/10 dark:hover:bg-white/15 transition-colors">
-                      Edit Squad
+                    <Link href={`/fantasy/team/${p.id}/points`} className="inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#0B3363]/5 dark:bg-white/10 text-[#0B3363] dark:text-white hover:bg-[#0B3363]/10 dark:hover:bg-white/15 transition-colors">
+                      My Team
                     </Link>
                   ) : (
                     <Link href={`/fantasy/team/${p.id}`} className="inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-[#F4B400]/20 hover:bg-[#F4B400]/30 text-[#0B3363] dark:text-white transition-colors">

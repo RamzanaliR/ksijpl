@@ -150,14 +150,19 @@ export default function SquadBuilder() {
         .maybeSingle();
 
       if (existingTeam) {
-        setTeamId(existingTeam.id);
-        setTeamName(existingTeam.team_name);
-
         const { data: squadRows } = await supabase
           .from("fantasy_team_players")
-          .select("player_id")
+          .select("player_id,is_starting")
           .eq("fantasy_team_id", existingTeam.id);
 
+        const alreadyPickedTeam = (squadRows ?? []).some((r: any) => r.is_starting);
+        if (alreadyPickedTeam) {
+          router.push(`/fantasy/team/${poolId}/points`);
+          return;
+        }
+
+        setTeamId(existingTeam.id);
+        setTeamName(existingTeam.team_name);
         if (squadRows && squadRows.length) {
           setSelected(new Set(squadRows.map((r: any) => r.player_id)));
         }
