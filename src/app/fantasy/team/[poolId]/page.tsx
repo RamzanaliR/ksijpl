@@ -24,6 +24,7 @@ type Settings = {
 type Player = {
   id: string;
   full_name: string;
+  displayName: string;
   position: Position;
   team_id: string;
   teamName: string;
@@ -121,7 +122,7 @@ export default function SquadBuilder() {
       const teamIds = (teamsRaw ?? []).map((t: any) => t.id);
       const { data: playersRaw } = await supabase
         .from("players")
-        .select("id,full_name,position,team_id")
+        .select("id,full_name,nickname,fpl_name,position,team_id")
         .in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"])
         .not("position", "is", null);
 
@@ -130,6 +131,7 @@ export default function SquadBuilder() {
         .map((p: any) => ({
           id: p.id,
           full_name: p.full_name,
+          displayName: p.fpl_name || p.nickname || p.full_name,
           position: p.position,
           team_id: p.team_id,
           teamName: teamNameMap[p.team_id] ?? "—",
@@ -473,7 +475,7 @@ export default function SquadBuilder() {
                       <div key={p?.id ?? `${pos}-empty-${i}`}>
                         {p ? (
                           <PlayerJerseyCard
-                            name={p.full_name}
+                            name={p.displayName}
                             price={p.price}
                             teamSlug={teamSlugs[p.team_id]}
                             opponentCode={nextOpponentByTeam[p.team_id]?.code}

@@ -57,7 +57,7 @@ export default function PlayerJerseyCard({
       )}
       {badge && (
         <span
-          className={`absolute -top-1.5 right-4 z-10 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm ${
+          className={`absolute -top-1.5 -left-1.5 z-10 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shadow-sm ${
             badge === "C" ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#3EA0D9] text-white"
           }`}
         >

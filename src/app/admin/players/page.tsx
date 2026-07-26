@@ -6,7 +6,7 @@ import Modal from "@/components/admin/Modal";
 
 type Division = { id: string; name: string; slug: string };
 type Team = { id: string; name: string; division_id: string };
-type Player = { id: string; full_name: string; position: string | null; squad_number: number | null; team_id: string };
+type Player = { id: string; full_name: string; position: string | null; squad_number: number | null; team_id: string; fpl_name: string | null };
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"];
 
@@ -36,6 +36,7 @@ export default function PlayersAdmin() {
   const [addOpen, setAddOpen] = useState(false);
   const [addTeamId, setAddTeamId] = useState("");
   const [name, setName] = useState("");
+  const [fplName, setFplName] = useState("");
   const [position, setPosition] = useState("MID");
   const [number, setNumber] = useState("");
   const [saving, setSaving] = useState(false);
@@ -66,7 +67,7 @@ export default function PlayersAdmin() {
   async function loadPlayers(teamId: string) {
     const { data } = await supabase
       .from("players")
-      .select("id,full_name,position,squad_number,team_id")
+      .select("id,full_name,position,squad_number,team_id,fpl_name")
       .eq("team_id", teamId)
       .order("squad_number");
     setPlayersByTeam((prev) => ({ ...prev, [teamId]: data ?? [] }));
@@ -88,6 +89,7 @@ export default function PlayersAdmin() {
     setSaving(true);
     const { error } = await supabase.from("players").insert({
       full_name: name,
+      fpl_name: fplName || null,
       position,
       squad_number: number ? Number(number) : null,
       team_id: addTeamId,
@@ -95,6 +97,7 @@ export default function PlayersAdmin() {
     setSaving(false);
     if (!error) {
       setName("");
+      setFplName("");
       setNumber("");
       setAddOpen(false);
       loadPlayers(addTeamId);
@@ -112,6 +115,10 @@ export default function PlayersAdmin() {
   async function updatePosition(teamId: string, id: string, newPosition: string) {
     await supabase.from("players").update({ position: newPosition || null }).eq("id", id);
     loadPlayers(teamId);
+  }
+
+  async function updateFplName(teamId: string, id: string, value: string) {
+    await supabase.from("players").update({ fpl_name: value || null }).eq("id", id);
   }
 
   return (
@@ -163,6 +170,7 @@ export default function PlayersAdmin() {
                     <tr>
                       <th>#</th>
                       <th>Name</th>
+                      <th>FPL Name</th>
                       <th>Pos</th>
                       <th className="text-right">Actions</th>
                     </tr>
@@ -172,6 +180,14 @@ export default function PlayersAdmin() {
                       <tr key={p.id}>
                         <td className="text-slate-400 w-10">{p.squad_number ?? "—"}</td>
                         <td>{p.full_name}</td>
+                        <td>
+                          <input
+                            defaultValue={p.fpl_name ?? ""}
+                            onBlur={(e) => updateFplName(selectedTeam, p.id, e.target.value)}
+                            placeholder="e.g. Salah"
+                            className="text-xs border border-slate-200 rounded-lg px-1.5 py-1 w-24 outline-none text-[#0B3363]"
+                          />
+                        </td>
                         <td>
                           <select
                             value={p.position ?? ""}
@@ -234,6 +250,15 @@ export default function PlayersAdmin() {
               onChange={(e) => setName(e.target.value)}
               className="admin-input"
               placeholder="e.g. John Mushi"
+            />
+          </div>
+          <div>
+            <label className="admin-label">FPL Name (short, shown on fantasy jersey cards)</label>
+            <input
+              value={fplName}
+              onChange={(e) => setFplName(e.target.value)}
+              className="admin-input"
+              placeholder="e.g. Mushi"
             />
           </div>
           <div className="flex gap-3">

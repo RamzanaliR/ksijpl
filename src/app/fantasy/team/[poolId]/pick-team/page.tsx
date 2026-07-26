@@ -10,7 +10,7 @@ import PlayerJerseyCard from "@/components/PlayerJerseyCard";
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
 type Settings = { id: string; season_id: string; squad_size: number; starting_xi_size: number; starting_gk_count: number };
-type Player = { id: string; full_name: string; position: Position; price: number; team_id: string };
+type Player = { id: string; full_name: string; displayName: string; position: Position; price: number; team_id: string };
 type LineupEntry = { isStarting: boolean };
 
 const POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
@@ -83,7 +83,7 @@ export default function PickTeam() {
 
       const { data: squadRows } = await supabase
         .from("fantasy_team_players")
-        .select("player_id,is_starting,is_captain,is_vice_captain,players(id,full_name,position,team_id)")
+        .select("player_id,is_starting,is_captain,is_vice_captain,players(id,full_name,nickname,fpl_name,position,team_id)")
         .eq("fantasy_team_id", team.id);
 
       if (!squadRows || squadRows.length < (settingsRow as any).squad_size) {
@@ -98,6 +98,7 @@ export default function PickTeam() {
       const pls: Player[] = squadRows.map((r: any) => ({
         id: r.players.id,
         full_name: r.players.full_name,
+        displayName: r.players.fpl_name || r.players.nickname || r.players.full_name,
         position: r.players.position,
         team_id: r.players.team_id,
         price: priceMap[r.players.id] ?? 0,
@@ -284,24 +285,36 @@ export default function PickTeam() {
   }
 
   const fixturesCard = (
-    <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-display font-bold text-sm">Match Week {upcomingGwNumber} Fixtures</h2>
+    <div className="rounded-2xl bg-[#0B1220] text-white p-5">
+      <h2 className="font-display font-bold text-lg mb-3">Fixtures</h2>
+      <div className="text-center mb-3">
+        <div className="font-bold text-sm">Match Week {upcomingGwNumber}</div>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="divide-y divide-white/10">
         {upcomingFixtures.map((m) => (
-          <div key={m.id} className="rounded-xl bg-[#0B1220] text-white px-3 py-2.5 text-center">
-            <div className="text-[10px] font-semibold text-white/50 mb-1">
+          <div key={m.id} className="flex items-center py-2.5 text-xs">
+            <span className="flex-1 text-right font-semibold truncate pr-2">{teamNames[m.home_team_id] ?? "—"}</span>
+            <div className="w-5 h-5 flex-shrink-0 rounded bg-white flex items-center justify-center overflow-hidden mx-1">
+              {teamSlugs[m.home_team_id] ? (
+                <img src={`/sponsors/${teamSlugs[m.home_team_id]}.png`} alt="" className="w-full h-full object-contain p-0.5" />
+              ) : (
+                <span className="text-[7px] font-bold text-[#0B3363]">{(teamNames[m.home_team_id] ?? "—").slice(0, 2).toUpperCase()}</span>
+              )}
+            </div>
+            <span className="font-bold flex-shrink-0 px-1 w-12 text-center">
               {m.status === "live" ? "● Live" : m.kickoff_at ? new Date(m.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "TBD"}
+            </span>
+            <div className="w-5 h-5 flex-shrink-0 rounded bg-white flex items-center justify-center overflow-hidden mx-1">
+              {teamSlugs[m.away_team_id] ? (
+                <img src={`/sponsors/${teamSlugs[m.away_team_id]}.png`} alt="" className="w-full h-full object-contain p-0.5" />
+              ) : (
+                <span className="text-[7px] font-bold text-[#0B3363]">{(teamNames[m.away_team_id] ?? "—").slice(0, 2).toUpperCase()}</span>
+              )}
             </div>
-            <div className="flex items-center justify-center gap-2 text-xs font-bold">
-              <span className="flex-1 truncate text-right">{teamNames[m.home_team_id] ?? "—"}</span>
-              <span className="text-white/40 flex-shrink-0">vs</span>
-              <span className="flex-1 truncate text-left">{teamNames[m.away_team_id] ?? "—"}</span>
-            </div>
+            <span className="flex-1 text-left font-semibold truncate pl-2">{teamNames[m.away_team_id] ?? "—"}</span>
           </div>
         ))}
-        {upcomingFixtures.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 text-center py-4">No fixtures scheduled.</div>}
+        {upcomingFixtures.length === 0 && <div className="text-xs text-white/40 text-center py-4">No fixtures scheduled.</div>}
       </div>
     </div>
   );
@@ -347,7 +360,7 @@ export default function PickTeam() {
                       {rowPlayers.map((p) => (
                         <PlayerJerseyCard
                           key={p.id}
-                          name={p.full_name}
+                          name={p.displayName}
                           price={p.price}
                           teamSlug={teamSlugs[p.team_id]}
                           opponentCode={nextOpponentByTeam[p.team_id]?.code}
@@ -379,23 +392,27 @@ export default function PickTeam() {
             )}
 
             <div className="mt-6">
-              <h3 className="font-display font-bold text-sm mb-2">
-                Bench ({benchPlayers.length}/{settings.squad_size - settings.starting_xi_size}) — GK · DEF · MID · FWD
-              </h3>
-              <div className="flex gap-3 overflow-x-auto pb-2 min-w-0 w-full">
-                {benchPlayers.map((p) => (
-                  <PlayerJerseyCard
-                    key={p.id}
-                    name={p.full_name}
-                    price={p.price}
-                    teamSlug={teamSlugs[p.team_id]}
-                    opponentCode={nextOpponentByTeam[p.team_id]?.code}
-                    opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                    showSubIcon
-                    dimmed
-                    onClick={() => toggleStarting(p)}
-                  />
-                ))}
+              <h3 className="font-display font-bold text-sm mb-2 text-center">Substitutes</h3>
+              <div className="flex gap-3 overflow-x-auto pb-2 min-w-0 w-full justify-center">
+                {benchPlayers.map((p, i) => {
+                  const outfieldIndex = benchPlayers.slice(0, i).filter((q) => q.position !== "GK").length;
+                  const label = p.position === "GK" ? "GKP" : `${outfieldIndex + 1}. ${p.position}`;
+                  return (
+                    <div key={p.id} className="flex flex-col items-center gap-1">
+                      <div className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{label}</div>
+                      <PlayerJerseyCard
+                        name={p.displayName}
+                        price={p.price}
+                        teamSlug={teamSlugs[p.team_id]}
+                        opponentCode={nextOpponentByTeam[p.team_id]?.code}
+                        opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
+                        showSubIcon
+                        dimmed
+                        onClick={() => toggleStarting(p)}
+                      />
+                    </div>
+                  );
+                })}
                 {benchPlayers.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 py-4">No bench players yet.</div>}
               </div>
             </div>
