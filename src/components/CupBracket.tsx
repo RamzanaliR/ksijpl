@@ -43,32 +43,86 @@ function buildTree(matches: Match[]): TreeNode | null {
   return build(finalMatch);
 }
 
-function MatchBox({ match, teamMap, teamSlugs }: { match: Match; teamMap: Record<string, string>; teamSlugs: Record<string, string | null> }) {
+function TeamSlot({
+  name,
+  slug,
+  score,
+}: {
+  name: string | null;
+  slug: string | null;
+  score: number | null;
+}) {
+  return (
+    <div className="flex flex-col items-center text-center gap-1 w-16 flex-shrink-0">
+      <div className="w-10 h-10 rounded-lg bg-white border border-[#0B3363]/15 flex items-center justify-center overflow-hidden flex-shrink-0">
+        {name && slug ? (
+          <img src={`/sponsors/${slug}.png`} alt={name} className="w-full h-full object-contain p-0.5" />
+        ) : name ? (
+          <span className="font-display font-bold text-[#0B3363] text-[10px]">{name.slice(0, 2).toUpperCase()}</span>
+        ) : (
+          <span className="text-[#0B3363]/20 text-[10px]">?</span>
+        )}
+      </div>
+      <span className="text-[9px] leading-tight text-[#0B3363] dark:text-white/80 line-clamp-2 w-full">
+        {name ?? "TBD"}
+      </span>
+      {score !== null && <span className="text-[9px] font-display font-bold text-[#0B3363] dark:text-white">{score}</span>}
+    </div>
+  );
+}
+
+function MatchBox({
+  match,
+  teamMap,
+  teamSlugs,
+  compact,
+}: {
+  match: Match;
+  teamMap: Record<string, string>;
+  teamSlugs: Record<string, string | null>;
+  compact?: boolean;
+}) {
   const homeName = match.home_team_id ? teamMap[match.home_team_id] : null;
   const awayName = match.away_team_id ? teamMap[match.away_team_id] : null;
+  const showScores = match.status === "completed";
+
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+        <TeamSlot name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} score={showScores ? match.home_score : null} />
+        <div className="w-4 h-px bg-[#0B3363]/20 dark:bg-white/20" />
+        <TeamSlot name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} score={showScores ? match.away_score : null} />
+      </div>
+    );
+  }
+
   return (
     <div className="w-52 flex-shrink-0 rounded-xl border border-[#0B3363]/10 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-2.5">
       <div className="flex items-center justify-between text-sm mb-1">
         {homeName ? (
-          <TeamBadge name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} size={18} className="min-w-0" />
+          <TeamBadge name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} size={18} className="min-w-0 text-[#0B3363]" />
         ) : (
           <span className="italic text-[#0B3363]/30 dark:text-white/30 text-xs">TBD</span>
         )}
-        {match.status === "completed" && (
-          <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">{match.home_score}</span>
+        {showScores && (
+          <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2 flex-shrink-0 text-[#0B3363] dark:text-white">
+            {match.home_score}
+          </span>
         )}
       </div>
       <div className="flex items-center justify-between text-sm">
         {awayName ? (
-          <TeamBadge name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} size={18} className="min-w-0" />
+          <TeamBadge name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} size={18} className="min-w-0 text-[#0B3363]" />
         ) : (
           <span className="italic text-[#0B3363]/30 dark:text-white/30 text-xs">TBD</span>
         )}
-        {match.status === "completed" && (
-          <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">{match.away_score}</span>
+        {showScores && (
+          <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2 flex-shrink-0 text-[#0B3363] dark:text-white">
+            {match.away_score}
+          </span>
         )}
       </div>
-      {match.status === "completed" && match.home_score === match.away_score && match.home_pens !== null && (
+      {showScores && match.home_score === match.away_score && match.home_pens !== null && (
         <div className="text-[10px] opacity-50 mt-1 text-center">Pens {match.home_pens}–{match.away_pens}</div>
       )}
     </div>
@@ -80,71 +134,48 @@ function BracketBranch({
   side,
   teamMap,
   teamSlugs,
+  compact,
 }: {
   node: TreeNode;
   side: "left" | "right";
   teamMap: Record<string, string>;
   teamSlugs: Record<string, string | null>;
+  compact?: boolean;
 }) {
   const hasChildren = !!(node.home || node.away);
+  const gap = compact ? "gap-3" : "gap-6";
+  const pad = compact ? (side === "left" ? "pr-2" : "pl-2") : side === "left" ? "pr-4" : "pl-4";
   const children = (
-    <div className={`flex flex-col gap-6 ${side === "left" ? "border-r-2 pr-4" : "border-l-2 pl-4"} border-[#0B3363]/15 dark:border-white/15`}>
-      {node.home && <BracketBranch node={node.home} side={side} teamMap={teamMap} teamSlugs={teamSlugs} />}
-      {node.away && <BracketBranch node={node.away} side={side} teamMap={teamMap} teamSlugs={teamSlugs} />}
+    <div className={`flex flex-col ${gap} ${side === "left" ? "border-r-2" : "border-l-2"} ${pad} border-[#0B3363]/15 dark:border-white/15`}>
+      {node.home && <BracketBranch node={node.home} side={side} teamMap={teamMap} teamSlugs={teamSlugs} compact={compact} />}
+      {node.away && <BracketBranch node={node.away} side={side} teamMap={teamMap} teamSlugs={teamSlugs} compact={compact} />}
     </div>
   );
-  const box = <MatchBox match={node.match} teamMap={teamMap} teamSlugs={teamSlugs} />;
+  const box = <MatchBox match={node.match} teamMap={teamMap} teamSlugs={teamSlugs} compact={compact} />;
   return (
-    <div className={`flex items-center gap-4 ${side === "right" ? "flex-row-reverse" : ""}`}>
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-4"} ${side === "right" ? "flex-row-reverse" : ""}`}>
       {hasChildren && children}
       {box}
     </div>
   );
 }
 
-function DesktopBracket({ cup, champion }: { cup: CupData; champion: string | null }) {
+function BracketTree({ cup, champion, compact }: { cup: CupData; champion: string | null; compact?: boolean }) {
   const tree = buildTree(cup.matches);
   if (!tree) {
     return <div className="text-sm text-[#0B3363]/40 dark:text-white/40 p-8 text-center">The bracket hasn't been set yet.</div>;
   }
   return (
     <div className="overflow-x-auto pb-4">
-      <div className="flex items-center justify-center gap-6 min-w-max px-4 py-6">
-        {tree.home && <BracketBranch node={tree.home} side="left" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />}
+      <div className={`flex items-center justify-center ${compact ? "gap-3" : "gap-6"} min-w-max px-4 py-6`}>
+        {tree.home && <BracketBranch node={tree.home} side="left" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} compact={compact} />}
         <div className="flex flex-col items-center gap-2 flex-shrink-0">
-          {champion && <span className="text-2xl">🏆</span>}
-          <MatchBox match={tree.match} teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />
-          <span className="text-[10px] font-bold uppercase text-[#3EA0D9]">Final</span>
+          {champion && <span className={compact ? "text-lg" : "text-2xl"}>🏆</span>}
+          <MatchBox match={tree.match} teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} compact={compact} />
+          <span className="text-[9px] font-bold uppercase text-[#3EA0D9]">Final</span>
         </div>
-        {tree.away && <BracketBranch node={tree.away} side="right" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />}
+        {tree.away && <BracketBranch node={tree.away} side="right" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} compact={compact} />}
       </div>
-    </div>
-  );
-}
-
-function MobileBracket({ cup }: { cup: CupData }) {
-  return (
-    <div className="flex gap-6 overflow-x-auto pb-2">
-      {cup.gameweeks
-        .slice()
-        .sort((a, b) => a.number - b.number)
-        .map((gw) => (
-          <div key={gw.id} className="w-56 flex-shrink-0">
-            <h2 className="font-display font-bold text-sm mb-3">{gw.round_name ?? `Round ${gw.number}`}</h2>
-            <div className="flex flex-col gap-4">
-              {cup.matches
-                .filter((m) => m.gameweek_id === gw.id)
-                .map((m) => (
-                  <MatchBox key={m.id} match={m} teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />
-                ))}
-            </div>
-          </div>
-        ))}
-      {cup.gameweeks.length === 0 && (
-        <div className="text-sm text-[#0B3363]/40 dark:text-white/40 rounded-2xl border border-dashed border-[#0B3363]/15 dark:border-white/15 p-8 text-center w-full">
-          The bracket hasn't been set yet.
-        </div>
-      )}
     </div>
   );
 }
@@ -201,11 +232,12 @@ export default function CupBracket({ cups }: { cups: CupData[] }) {
             </div>
           )}
 
+          {/* Same tree structure on both — just a smaller, crest-forward layout on mobile */}
           <div className="hidden md:block">
-            <DesktopBracket cup={cup} champion={champion} />
+            <BracketTree cup={cup} champion={champion} />
           </div>
           <div className="md:hidden">
-            <MobileBracket cup={cup} />
+            <BracketTree cup={cup} champion={champion} compact />
           </div>
         </>
       )}

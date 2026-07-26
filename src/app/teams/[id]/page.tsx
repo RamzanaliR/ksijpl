@@ -152,12 +152,12 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
         </div>
 
         {/* 3-column layout: Kit | Squad + Stats | Last Result + Upcoming */}
-        <div className="grid lg:grid-cols-[180px_1fr_300px] gap-8">
+        <div className="grid lg:grid-cols-[180px_1fr_300px] gap-8 min-w-0">
           {/* Left: Kit */}
-          <section>
+          <section className="min-w-0">
             <h2 className="font-display font-bold text-lg mb-4">Kit</h2>
             {team.slug ? (
-              <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
                 <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-3 text-center">
                   <Image
                     src={`/jerseys/${team.slug}-home.jpg`}
@@ -187,7 +187,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
           </section>
 
           {/* Middle: Squad + Stats — one table */}
-          <section>
+          <section className="min-w-0">
             <h2 className="font-display font-bold text-lg mb-4">Squad &amp; Stats</h2>
 
             {/* Season stats row — white boxes */}
@@ -257,7 +257,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
           </section>
 
           {/* Right: Last Result (small) + Upcoming Fixtures — white boxes */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-6 min-w-0">
             <section>
               <h2 className="font-display font-bold text-base mb-3">Last Result</h2>
               {lastResult ? (
@@ -268,7 +268,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
                     : r.outcome === "L" ? "bg-red-500/15 text-red-600"
                     : "bg-slate-500/15 text-slate-500";
                   return (
-                    <div className="rounded-2xl bg-white border border-[#0B3363]/10 shadow-sm px-4 py-4 flex items-center justify-between text-sm">
+                    <div className="rounded-2xl bg-white text-[#0B3363] border border-[#0B3363]/10 shadow-sm px-4 py-4 flex items-center justify-between text-sm">
                       <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${badgeColor}`}>
                         {r.outcome}
                       </span>
@@ -290,7 +290,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
 
             <section>
               <h2 className="font-display font-bold text-base mb-3">Upcoming Fixtures</h2>
-              <div className="rounded-2xl bg-white border border-[#0B3363]/10 shadow-sm divide-y divide-[#0B3363]/5">
+              <div className="rounded-2xl bg-white text-[#0B3363] border border-[#0B3363]/10 shadow-sm divide-y divide-[#0B3363]/5">
                 {nextFixtures.map((m) => {
                   const isHome = m.home_team_id === id;
                   const opponentId = isHome ? m.away_team_id : m.home_team_id;
