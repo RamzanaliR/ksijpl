@@ -7,6 +7,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
+import { computeDeadline, formatDeadline } from "@/lib/fantasy-deadline";
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
 type Settings = { id: string; season_id: string; squad_size: number; starting_xi_size: number; starting_gk_count: number };
@@ -161,6 +162,9 @@ export default function PickTeam() {
     });
     return map;
   }, [upcomingFixtures, teamShortNames]);
+
+  const deadline = useMemo(() => computeDeadline(upcomingFixtures), [upcomingFixtures]);
+  const isLocked = !!deadline && new Date() > deadline;
 
   const startingCount = squadPlayers.filter((p) => lineup[p.id]?.isStarting).length;
   const startingGkCount = squadPlayers.filter((p) => p.position === "GK" && lineup[p.id]?.isStarting).length;
@@ -327,6 +331,12 @@ export default function PickTeam() {
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9]">{poolLabel}</div>
             <h1 className="font-display font-bold text-2xl">{teamName}</h1>
+            {deadline && (
+              <div className={`text-xs mt-1 ${isLocked ? "text-red-600 font-semibold" : "text-[#0B3363]/50 dark:text-white/50"}`}>
+                Match Week {upcomingGwNumber} · Deadline: {formatDeadline(deadline)}
+                {isLocked && " — locked, changes will apply from next match week"}
+              </div>
+            )}
           </div>
           <a href={`/fantasy/team/${poolId}`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← Edit Squad</a>
         </div>
@@ -341,7 +351,7 @@ export default function PickTeam() {
               <h2 className="font-display font-bold text-base">Pick Team</h2>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-[#0B3363]/50 dark:text-white/50">Formation</label>
-                <select value={formationKey} onChange={(e) => applyFormation(e.target.value)} className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs font-semibold">
+                <select value={formationKey} onChange={(e) => applyFormation(e.target.value)} disabled={isLocked} className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs font-semibold disabled:opacity-50">
                   {Object.keys(FORMATIONS).map((k) => (<option key={k} value={k}>{k}</option>))}
                 </select>
               </div>
@@ -366,7 +376,7 @@ export default function PickTeam() {
                           opponentCode={nextOpponentByTeam[p.team_id]?.code}
                           opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
                           badge={captainId === p.id ? "C" : viceCaptainId === p.id ? "V" : null}
-                          onClick={() => toggleStarting(p)}
+                          onClick={isLocked ? undefined : () => toggleStarting(p)}
                         />
                       ))}
                     </div>
@@ -384,8 +394,8 @@ export default function PickTeam() {
                 {startingPlayers.map((p) => (
                   <div key={p.id} className="flex items-center gap-1 text-[10px] bg-[#0B3363]/5 dark:bg-white/10 rounded-full px-2 py-1">
                     <span className="truncate max-w-[70px]">{p.full_name}</span>
-                    <button onClick={() => setCaptain(p.id)} className={`w-4 h-4 rounded-full font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
-                    <button onClick={() => setVice(p.id)} className={`w-4 h-4 rounded-full font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>V</button>
+                    <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-4 h-4 rounded-full font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
+                    <button onClick={() => !isLocked && setVice(p.id)} className={`w-4 h-4 rounded-full font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>V</button>
                   </div>
                 ))}
               </div>
@@ -408,7 +418,7 @@ export default function PickTeam() {
                         opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
                         showSubIcon
                         dimmed
-                        onClick={() => toggleStarting(p)}
+                        onClick={isLocked ? undefined : () => toggleStarting(p)}
                       />
                     </div>
                   );
@@ -423,7 +433,7 @@ export default function PickTeam() {
             {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2 mt-4">{error}</div>}
             {saved && <div className="rounded-lg bg-green-50 text-green-700 text-sm px-3 py-2 mt-4">Squad saved!</div>}
 
-            <button onClick={saveSquad} disabled={!lineupValid || saving} className="w-full mt-4 py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9] font-semibold text-sm disabled:opacity-40">
+            <button onClick={saveSquad} disabled={!lineupValid || saving || isLocked} className="w-full mt-4 py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9] font-semibold text-sm disabled:opacity-40">
               {saving ? "Saving…" : "Save Squad"}
             </button>
             {!lineupValid && (

@@ -7,6 +7,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
+import { computeDeadline, formatDeadline } from "@/lib/fantasy-deadline";
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
 type Settings = {
@@ -183,6 +184,9 @@ export default function SquadBuilder() {
     return map;
   }, [upcomingFixtures, teamShortNames]);
 
+  const deadline = useMemo(() => computeDeadline(upcomingFixtures), [upcomingFixtures]);
+  const isLocked = !!deadline && new Date() > deadline;
+
   const selectedPlayers = players.filter((p) => selected.has(p.id));
   const countByPos = (pos: Position) => selectedPlayers.filter((p) => p.position === pos).length;
   const spent = selectedPlayers.reduce((sum, p) => sum + p.price, 0);
@@ -341,6 +345,12 @@ export default function SquadBuilder() {
         <div className="mb-4">
           <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9]">{poolLabel}</div>
           <h1 className="font-display font-bold text-2xl">{teamName}</h1>
+          {deadline && (
+            <div className={`text-xs mt-1 ${isLocked ? "text-red-600 font-semibold" : "text-[#0B3363]/50 dark:text-white/50"}`}>
+              Match Week {upcomingGwNumber} · Deadline: {formatDeadline(deadline)}
+              {isLocked && " — locked, changes will apply from next match week"}
+            </div>
+          )}
         </div>
 
         {upcomingFixtures.length > 0 && (
@@ -416,7 +426,8 @@ export default function SquadBuilder() {
                 const isSel = selected.has(p.id);
                 const disabled =
                   !isSel &&
-                  (selected.size >= settings.squad_size ||
+                  (isLocked ||
+                    selected.size >= settings.squad_size ||
                     countByPos(p.position) >= requiredByPosition[p.position] ||
                     p.price > remaining);
                 return (
@@ -463,7 +474,7 @@ export default function SquadBuilder() {
             </div>
 
             <div className="flex items-center gap-2 mb-4">
-              <button onClick={autoPick} disabled={squadFull} className="admin-btn admin-btn-gold text-xs sm:text-sm">Auto Pick</button>
+              <button onClick={autoPick} disabled={squadFull || isLocked} className="admin-btn admin-btn-gold text-xs sm:text-sm">Auto Pick</button>
               <span className="text-xs text-[#0B3363]/40 dark:text-white/40">Fills any empty slots within budget.</span>
             </div>
 
@@ -480,7 +491,7 @@ export default function SquadBuilder() {
                             teamSlug={teamSlugs[p.team_id]}
                             opponentCode={nextOpponentByTeam[p.team_id]?.code}
                             opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                            onRemove={() => removePlayer(p)}
+                            onRemove={isLocked ? undefined : () => removePlayer(p)}
                           />
                         ) : (
                           <button onClick={() => setPosFilter(pos)} className="w-20 sm:w-24 bg-black/10 hover:bg-black/15 rounded-xl p-3 flex flex-col items-center gap-1 transition-colors">
@@ -502,7 +513,7 @@ export default function SquadBuilder() {
             ) : (
               <button
                 onClick={continueToPickTeam}
-                disabled={continuing}
+                disabled={continuing || isLocked}
                 className="w-full py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9] font-semibold text-sm disabled:opacity-40"
               >
                 {continuing ? "Saving…" : "Continue to Pick Team →"}
