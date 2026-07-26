@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { computeGameweekPoints, type ComputeResult } from "@/lib/fantasy-compute";
 
 type Settings = {
   id: string;
+  season_id: string;
   budget: number;
   squad_size: number;
   starting_xi_size: number;
@@ -16,6 +18,7 @@ type Settings = {
   seasons: { label: string; competitions: { name: string; sponsor_name: string; division_id: string } } | null;
 };
 type Player = { id: string; full_name: string; nickname: string | null; position: string; team_id: string; teamName: string };
+type Gameweek = { id: string; number: number; round_name: string | null; total: number; completed: number };
 
 const DIVISION_LABELS: Record<string, string> = {
   gofiber: "gofiber KSIJ PL Fantasy",
@@ -32,11 +35,17 @@ export default function FantasyAdmin() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  const [gameweeks, setGameweeks] = useState<Gameweek[]>([]);
+  const [selectedGwId, setSelectedGwId] = useState("");
+  const [computing, setComputing] = useState(false);
+  const [computeError, setComputeError] = useState("");
+  const [computeResult, setComputeResult] = useState<ComputeResult | null>(null);
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from("fantasy_settings")
-        .select("id,budget,squad_size,starting_xi_size,min_gk,min_def,min_mid,min_fwd,starting_gk_count,seasons(label,competitions(name,sponsor_name,division_id))")
+        .select("id,season_id,budget,squad_size,starting_xi_size,min_gk,min_def,min_mid,min_fwd,starting_gk_count,seasons(label,competitions(name,sponsor_name,division_id))")
         .order("id");
       const ordered = [...((data as any) ?? [])].sort(
         (a: any, b: any) =>
@@ -84,6 +93,31 @@ export default function FantasyAdmin() {
     const priceMap: Record<string, number> = {};
     (priceRows ?? []).forEach((p: any) => (priceMap[p.player_id] = Number(p.price)));
     setPrices(priceMap);
+
+    const { data: gws } = await supabase.from("gameweeks").select("id,number,round_name").eq("season_id", pool.season_id).order("number");
+    const { data: allMatches } = await supabase.from("matches").select("id,gameweek_id,status").eq("season_id", pool.season_id);
+    const gwList: Gameweek[] = (gws ?? []).map((g: any) => {
+      const ms = (allMatches ?? []).filter((m: any) => m.gameweek_id === g.id);
+      return { id: g.id, number: g.number, round_name: g.round_name, total: ms.length, completed: ms.filter((m: any) => m.status === "completed").length };
+    });
+    setGameweeks(gwList);
+    if (gwList.length && !selectedGwId) setSelectedGwId(gwList[0].id);
+    setComputeResult(null);
+    setComputeError("");
+  }
+
+  async function runCompute() {
+    if (!selectedGwId) return;
+    setComputing(true);
+    setComputeError("");
+    setComputeResult(null);
+    try {
+      const result = await computeGameweekPoints(selectedPoolId, selectedGwId);
+      setComputeResult(result);
+    } catch (e: any) {
+      setComputeError(e.message ?? "Something went wrong");
+    }
+    setComputing(false);
   }
 
   async function savePrice(playerId: string, value: string) {
@@ -123,7 +157,7 @@ export default function FantasyAdmin() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           <div className="admin-stat-card">
             <div className="admin-stat-label">Budget</div>
-            <div className="admin-stat-value">£{pool.budget}m</div>
+            <div className="admin-stat-value">TSH {pool.budget}m</div>
           </div>
           <div className="admin-stat-card">
             <div className="admin-stat-label">Squad</div>
@@ -140,6 +174,54 @@ export default function FantasyAdmin() {
         </div>
       )}
 
+      <div className="admin-stat-label mb-3">Gameweek Points</div>
+      <div className="admin-card p-5 mb-8">
+        <div className="flex items-end gap-3 flex-wrap mb-3">
+          <div>
+            <label className="admin-label">Match week</label>
+            <select value={selectedGwId} onChange={(e) => { setSelectedGwId(e.target.value); setComputeResult(null); setComputeError(""); }} className="admin-select">
+              {gameweeks.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.round_name ?? `Match Week ${g.number}`} — {g.completed}/{g.total} completed
+                </option>
+              ))}
+            </select>
+          </div>
+          <button onClick={runCompute} disabled={computing || !selectedGwId} className="admin-btn admin-btn-primary">
+            {computing ? "Computing…" : "Compute Points"}
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mb-3">
+          Scores every player from this match week's completed matches, applies auto-subs and captain doubling for each fantasy team, and updates the leaderboard. Safe to re-run if you correct a score afterwards.
+        </p>
+
+        {computeError && <div className="admin-alert admin-alert-error mb-3">{computeError}</div>}
+
+        {computeResult && (
+          <div>
+            <div className="text-xs text-slate-500 mb-2">
+              Scored {computeResult.playersScored} players across {computeResult.teamsScored} fantasy teams.
+            </div>
+            <div className="admin-card overflow-hidden">
+              <table className="admin-table">
+                <thead><tr><th>Team</th><th className="text-right">Points</th></tr></thead>
+                <tbody>
+                  {computeResult.teamResults.map((t, i) => (
+                    <tr key={t.teamId}>
+                      <td>{i + 1}. {t.teamName}</td>
+                      <td className="text-right font-bold">{t.points}</td>
+                    </tr>
+                  ))}
+                  {computeResult.teamResults.length === 0 && (
+                    <tr><td colSpan={2} className="admin-empty">No fantasy teams entered yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="admin-stat-label mb-3">Player Prices</div>
       <div className="space-y-8">
         {POSITIONS.map((pos) => (
@@ -149,7 +231,7 @@ export default function FantasyAdmin() {
               <div className="overflow-x-auto">
                 <table className="admin-table">
                   <thead>
-                    <tr><th>Player</th><th>Team</th><th className="text-right">Price (£m)</th></tr>
+                    <tr><th>Player</th><th>Team</th><th className="text-right">Price (TSH m)</th></tr>
                   </thead>
                   <tbody>
                     {players
