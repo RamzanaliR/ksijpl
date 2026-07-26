@@ -19,11 +19,26 @@ const NAV_ITEMS: { key: "seasons" | "teams" | "cup" | "stats" | "news" | "fantas
 export default function SiteHeader({ active }: { active?: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy" }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => setSignedIn(!!session?.user));
+    async function checkAdmin(userId: string | undefined) {
+      if (!userId) {
+        setIsAdmin(false);
+        return;
+      }
+      const { data } = await supabase.from("admin_users").select("id").eq("id", userId).maybeSingle();
+      setIsAdmin(!!data);
+    }
+    supabase.auth.getUser().then(({ data }) => {
+      setSignedIn(!!data.user);
+      checkAdmin(data.user?.id);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(!!session?.user);
+      checkAdmin(session?.user?.id);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -69,6 +84,11 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
           </ul>
           <div className="flex items-center gap-3">
             <ThemeToggle />
+            {isAdmin && (
+              <Link href="/admin" className="hidden sm:inline-block text-sm font-semibold px-4 py-2 rounded-lg border border-[#0B3363]/20 dark:border-white/20 text-[#0B3363] dark:text-white hover:bg-[#0B3363]/5 dark:hover:bg-white/10">
+                Admin
+              </Link>
+            )}
             {signedIn ? (
               <button
                 onClick={handleSignOut}
@@ -112,6 +132,15 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
                 </li>
               ))}
               <li className="sm:hidden pt-1">
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMenuOpen(false)}
+                    className="block text-center py-2.5 rounded-lg border border-[#0B3363]/20 dark:border-white/20 mb-2"
+                  >
+                    Admin
+                  </Link>
+                )}
                 {signedIn ? (
                   <button
                     onClick={handleSignOut}
