@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import TeamBadge from "@/components/TeamBadge";
 
 export type DivisionPanelData = {
   key: string;
@@ -11,6 +12,7 @@ export type DivisionPanelData = {
   seasonLabel: string;
   standings: any[];
   teamMap: Record<string, string>;
+  teamSlugs: Record<string, string | null>;
   results: any[];
   fixtures: any[];
   matchWeekInProgress: boolean;
@@ -57,15 +59,8 @@ function Carousel<T>({
 
   return (
     <div>
-      <div
-        className="overflow-hidden w-full min-w-0"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        <div
-          className="flex transition-transform duration-300 ease-out"
-          style={{ transform: `translateX(-${page * 100}%)` }}
-        >
+      <div className="overflow-hidden w-full min-w-0" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${page * 100}%)` }}>
           {pages.map((pageItems, i) => (
             <div key={i} className="w-full flex-shrink-0 space-y-1">
               {pageItems.map((item) => renderItem(item))}
@@ -89,9 +84,7 @@ function Carousel<T>({
                 key={i}
                 onClick={() => setPage(i)}
                 aria-label={`Page ${i + 1}`}
-                className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                  i === page ? "bg-[#3EA0D9]" : "bg-[#0B3363]/15 dark:bg-white/20"
-                }`}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${i === page ? "bg-[#3EA0D9]" : "bg-[#0B3363]/15 dark:bg-white/20"}`}
               />
             ))}
           </div>
@@ -133,6 +126,14 @@ function ResponsiveList<T>({
   );
 }
 
+function CardTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="inline-block bg-white text-[#0B3363] font-display font-bold text-sm px-3 py-1.5 rounded-lg mb-4">
+      {children}
+    </div>
+  );
+}
+
 export default function LeagueDivisionPanel({ divisions }: { divisions: DivisionPanelData[] }) {
   const [active, setActive] = useState(0);
   const router = useRouter();
@@ -166,20 +167,19 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         ))}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5">
+      <div className="grid md:grid-cols-3 gap-5 items-stretch">
         {/* Table */}
-        <div className="rounded-2xl p-5 bg-[#0B3363] text-white dark:bg-white dark:text-[#0B3363]">
-          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-80">
-            Table — {d.competitionName}
-          </h3>
-          <div className="max-h-[420px] overflow-y-auto">
+        <div className="rounded-2xl p-5 bg-[#0B3363] text-white dark:bg-white dark:text-[#0B3363] flex flex-col">
+          <CardTitle>League Table</CardTitle>
+          <div className="max-h-[420px] overflow-y-auto flex-1">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs uppercase opacity-60">
                   <th className="text-left pb-2">#</th>
                   <th className="text-left pb-2">Team</th>
-                  <th className="text-right pb-2">P</th>
-                  <th className="text-right pb-2">Pts</th>
+                  <th className="text-right pb-2">GP</th>
+                  <th className="text-right pb-2">W</th>
+                  <th className="text-right pb-2">PTS</th>
                 </tr>
               </thead>
               <tbody>
@@ -188,15 +188,16 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
                     <td className="py-1.5">{i + 1}</td>
                     <td className="py-1.5">
                       <Link href={`/teams/${row.team_id}`} className="hover:text-[#F4B400] transition-colors">
-                        {d.teamMap[row.team_id]}
+                        <TeamBadge name={d.teamMap[row.team_id]} slug={d.teamSlugs[row.team_id]} size={20} />
                       </Link>
                     </td>
                     <td className="py-1.5 text-right opacity-70">{row.played}</td>
+                    <td className="py-1.5 text-right opacity-70">{row.won}</td>
                     <td className="py-1.5 text-right font-bold text-[#F4B400]">{row.points}</td>
                   </tr>
                 ))}
                 {d.standings.length === 0 && (
-                  <tr><td colSpan={4} className="py-4 text-center opacity-60 text-xs">No completed matches yet</td></tr>
+                  <tr><td colSpan={5} className="py-4 text-center opacity-60 text-xs">No completed matches yet</td></tr>
                 )}
               </tbody>
             </table>
@@ -204,63 +205,65 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         </div>
 
         {/* Results */}
-        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0">
-          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70 flex items-center gap-2">
+        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0 flex flex-col">
+          <CardTitle>
             {d.matchWeekInProgress ? (
-              <>
+              <span className="flex items-center gap-2 text-red-600">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-red-600 dark:text-red-400">Live Results</span>
-              </>
+                Live Results
+              </span>
             ) : (
               "Latest Results"
             )}
-          </h3>
-          <ResponsiveList
-            items={d.results}
-            pageSize={5}
-            emptyText="No results yet"
-            renderItem={(m: any) => (
-              <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
-                <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2.5 py-1 rounded">
-                  {m.home_score}–{m.away_score}
-                </span>
-                <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
-              </div>
-            )}
-          />
+          </CardTitle>
+          <div className="flex-1">
+            <ResponsiveList
+              items={d.results}
+              pageSize={5}
+              emptyText="No results yet"
+              renderItem={(m: any) => (
+                <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
+                  <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={20} className="w-2/5" />
+                  <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2.5 py-1 rounded flex-shrink-0">
+                    {m.home_score}–{m.away_score}
+                  </span>
+                  <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={20} className="w-2/5 flex-row-reverse text-right" />
+                </div>
+              )}
+            />
+          </div>
         </div>
 
         {/* Fixtures */}
-        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0">
-          <h3 className="font-display font-bold text-sm uppercase tracking-wide mb-4 opacity-70">Upcoming Fixtures</h3>
-          <ResponsiveList
-            items={d.fixtures}
-            pageSize={5}
-            emptyText="No fixtures scheduled"
-            renderItem={(m: any) =>
-              m.status === "live" ? (
-                <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                  <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="font-display font-bold text-xs bg-red-500/10 text-red-600 px-2.5 py-1 rounded flex items-center gap-1">
+        <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0 flex flex-col">
+          <CardTitle>Upcoming Fixtures</CardTitle>
+          <div className="flex-1">
+            <ResponsiveList
+              items={d.fixtures}
+              pageSize={5}
+              emptyText="No fixtures scheduled"
+              renderItem={(m: any) =>
+                m.status === "live" ? (
+                  <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
+                    <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={20} className="w-2/5" />
+                    <span className="font-display font-bold text-xs bg-red-500/10 text-red-600 px-2.5 py-1 rounded flex items-center gap-1 flex-shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                       {m.home_score ?? 0}–{m.away_score ?? 0}
                     </span>
-                  </span>
-                  <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
-                </div>
-              ) : (
-                <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                  <span className="w-2/5 truncate">{d.teamMap[m.home_team_id]}</span>
-                  <span className="text-[10px] opacity-50 text-center w-1/5">
-                    {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
-                  </span>
-                  <span className="w-2/5 truncate text-right">{d.teamMap[m.away_team_id]}</span>
-                </div>
-              )
-            }
-          />
+                    <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={20} className="w-2/5 flex-row-reverse text-right" />
+                  </div>
+                ) : (
+                  <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
+                    <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={20} className="w-2/5" />
+                    <span className="text-[10px] opacity-50 text-center w-1/5 flex-shrink-0">
+                      {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
+                    </span>
+                    <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={20} className="w-2/5 flex-row-reverse text-right" />
+                  </div>
+                )
+              }
+            />
+          </div>
         </div>
       </div>
     </section>

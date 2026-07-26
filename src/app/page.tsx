@@ -37,10 +37,14 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
         supabase.from("standings").select("*").eq("season_id", s.id)
           .order("points", { ascending: false }).order("goal_difference", { ascending: false }),
         supabase.from("matches").select("*").eq("season_id", s.id).order("kickoff_at", { ascending: true }),
-        supabase.from("teams").select("id,name").eq("division_id", s.competitions?.division_id),
+        supabase.from("teams").select("id,name,slug").eq("division_id", s.competitions?.division_id),
       ]);
       const teamMap: Record<string, string> = {};
-      (teams ?? []).forEach((t: any) => (teamMap[t.id] = t.name));
+      const teamSlugs: Record<string, string | null> = {};
+      (teams ?? []).forEach((t: any) => {
+        teamMap[t.id] = t.name;
+        teamSlugs[t.id] = t.slug;
+      });
       const results = (matches ?? []).filter((m: any) => m.status === "completed").slice(-10).reverse();
       const live = (matches ?? []).filter((m: any) => m.status === "live");
       const scheduled = (matches ?? []).filter((m: any) => m.status === "scheduled").slice(0, 10 - live.length);
@@ -65,6 +69,7 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
         seasonLabel: s.label,
         standings: standings ?? [],
         teamMap,
+        teamSlugs,
         results,
         fixtures,
         matchWeekInProgress,
@@ -106,31 +111,25 @@ export default async function Home() {
       {/* Table / Results / Fixtures */}
       <LeagueDivisionPanel divisions={seasonData} />
 
-      {/* News (placeholder) */}
-      <section className="max-w-6xl mx-auto px-6 pb-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display font-bold text-xl">Latest News</h2>
-          <Link href="#" className="text-xs font-bold uppercase text-[#3EA0D9]">View all →</Link>
-        </div>
-        <div className="grid md:grid-cols-3 gap-5">
-          {[
-            { tag: "Match Report", title: "Season 03 kicks off with five-goal thriller" },
-            { tag: "Fantasy", title: "Fantasy League launching soon — get ready" },
-            { tag: "Juniors", title: "Care & Cure Juniors PL: season preview" },
-          ].map((n, i) => (
-            <div key={i} className="rounded-2xl overflow-hidden border border-[#0B3363]/10 dark:border-white/10">
-              <div className="h-32 bg-gradient-to-br from-[#3EA0D9]/20 to-[#0B3363]/10" />
-              <div className="p-4">
-                <div className="text-[10px] font-bold uppercase text-[#3EA0D9]">{n.tag}</div>
-                <div className="font-semibold text-sm mt-1.5 leading-snug">{n.title}</div>
-              </div>
+      {/* Sponsor scroller — all team sponsors, auto-scrolling */}
+      <section className="border-y border-[#0B3363]/10 dark:border-white/10 bg-[#3EA0D9]/5 dark:bg-white/5 py-8 overflow-hidden">
+        <div className="flex gap-6 w-max animate-scroll-x">
+          {[...SPONSOR_SLUGS, ...SPONSOR_SLUGS].map((slug, i) => (
+            <div key={i} className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-3">
+              <Image
+                src={`/sponsors/${slug}.png`}
+                alt={slug.replace(/-/g, " ")}
+                width={140}
+                height={80}
+                className="object-contain w-full h-full"
+              />
             </div>
           ))}
         </div>
       </section>
 
       {/* Fantasy CTA */}
-      <section className="max-w-6xl mx-auto px-6 pb-10">
+      <section className="max-w-6xl mx-auto px-6 py-10">
         <div className="rounded-2xl p-6 bg-[#0B3363] dark:bg-white text-white dark:text-[#0B3363] flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-[#F4B400] flex items-center justify-center text-xl">⚽</div>
@@ -143,69 +142,20 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Sponsor scroller */}
-      <section className="border-y border-[#0B3363]/10 dark:border-white/10 bg-[#3EA0D9]/5 dark:bg-white/5 py-6 overflow-hidden">
-        <div className="flex gap-6 w-max animate-scroll-x">
-          {[...SPONSOR_SLUGS, ...SPONSOR_SLUGS].map((slug, i) => (
-            <div key={i} className="w-28 h-16 bg-white rounded-lg border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-2">
-              <Image
-                src={`/sponsors/${slug}.png`}
-                alt={slug.replace(/-/g, " ")}
-                width={96}
-                height={48}
-                className="object-contain w-full h-full"
-              />
-            </div>
-          ))}
+      {/* Partners — league-level sponsors, static, no scroll */}
+      <section className="max-w-6xl mx-auto px-6 pb-10">
+        <h2 className="font-display font-bold text-xl mb-4">Our Partners</h2>
+        <div className="flex flex-wrap gap-6">
+          <div className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center p-3">
+            <Image src="/logos/gofiber-pl-badge.png" alt="gofiber" width={140} height={80} className="object-contain w-full h-full" />
+          </div>
+          <div className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center p-3">
+            <Image src="/logos/care-cure-pl-badge.png" alt="Care & Cure" width={140} height={80} className="object-contain w-full h-full" />
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="mt-auto bg-[#0B3363] dark:bg-[#060B14] text-white">
-        <div className="max-w-6xl mx-auto px-6 py-10 grid md:grid-cols-3 gap-8">
-          <div>
-            <h5 className="font-display font-bold text-xs uppercase tracking-wide mb-3 opacity-70">League</h5>
-            <div className="space-y-2 text-sm">
-              <Link href="#" className="block hover:text-[#F4B400]">Seasons</Link>
-              <Link href="#" className="block hover:text-[#F4B400]">Table</Link>
-              <Link href="#" className="block hover:text-[#F4B400]">Fixtures &amp; Results</Link>
-              <Link href="#" className="block hover:text-[#F4B400]">Stats</Link>
-            </div>
-          </div>
-          <div>
-            <h5 className="font-display font-bold text-xs uppercase tracking-wide mb-3 opacity-70">Fantasy</h5>
-            <div className="space-y-2 text-sm">
-              <Link href="#" className="block hover:text-[#F4B400]">Create Squad</Link>
-              <Link href="#" className="block hover:text-[#F4B400]">Leaderboard</Link>
-              <Link href="#" className="block hover:text-[#F4B400]">Rules</Link>
-            </div>
-          </div>
-          <div>
-            <h5 className="font-display font-bold text-xs uppercase tracking-wide mb-3 opacity-70">More</h5>
-            <div className="space-y-2 text-sm">
-              <Link href="#" className="block hover:text-[#F4B400]">Latest News</Link>
-              <Link href="/teams" className="block hover:text-[#F4B400]">Teams</Link>
-              <Link href="/teams" className="block hover:text-[#F4B400]">Players</Link>
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-white/10">
-          <div className="max-w-6xl mx-auto px-6 py-6 flex flex-wrap gap-4 items-center">
-            {SPONSOR_SLUGS.slice(0, 8).map((slug) => (
-              <div key={slug} className="w-20 h-11 bg-white rounded-md border-2 border-[#0B3363] flex items-center justify-center p-1">
-                <Image
-                  src={`/sponsors/${slug}.png`}
-                  alt={slug.replace(/-/g, " ")}
-                  width={70}
-                  height={35}
-                  className="object-contain w-full h-full"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="text-center text-xs opacity-40 py-4">© 2026 KSIJ League</div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }
