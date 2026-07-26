@@ -21,20 +21,24 @@ async function getCupData() {
         .order("created_at", { ascending: false })
         .limit(1);
       const season = seasons?.[0];
-      if (!season) return { competition: c, season: null, gameweeks: [], matches: [], teamMap: {} };
+      if (!season) return { competition: c, season: null, gameweeks: [], matches: [], teamMap: {}, teamSlugs: {} };
 
       const [{ data: gameweeks }, { data: matches }, { data: teams }] = await Promise.all([
         supabase.from("gameweeks").select("id,number,round_name").eq("season_id", season.id).order("number"),
         supabase
           .from("matches")
-          .select("id,gameweek_id,home_team_id,away_team_id,home_score,away_score,home_pens,away_pens,status")
+          .select("id,gameweek_id,home_team_id,away_team_id,home_score,away_score,home_pens,away_pens,status,next_match_id,next_match_slot")
           .eq("season_id", season.id),
-        supabase.from("teams").select("id,name").eq("division_id", c.division_id),
+        supabase.from("teams").select("id,name,slug").eq("division_id", c.division_id),
       ]);
       const teamMap: Record<string, string> = {};
-      (teams ?? []).forEach((t: any) => (teamMap[t.id] = t.name));
+      const teamSlugs: Record<string, string | null> = {};
+      (teams ?? []).forEach((t: any) => {
+        teamMap[t.id] = t.name;
+        teamSlugs[t.id] = t.slug;
+      });
 
-      return { competition: c, season, gameweeks: gameweeks ?? [], matches: matches ?? [], teamMap };
+      return { competition: c, season, gameweeks: gameweeks ?? [], matches: matches ?? [], teamMap, teamSlugs };
     })
   );
 }

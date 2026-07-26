@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import TeamBadge from "@/components/TeamBadge";
 
 type Match = {
   id: string;
@@ -12,6 +13,8 @@ type Match = {
   home_pens: number | null;
   away_pens: number | null;
   status: string;
+  next_match_id: string | null;
+  next_match_slot: "home" | "away" | null;
 };
 type Gameweek = { id: string; number: number; round_name: string | null };
 type CupData = {
@@ -20,7 +23,131 @@ type CupData = {
   gameweeks: Gameweek[];
   matches: Match[];
   teamMap: Record<string, string>;
+  teamSlugs: Record<string, string | null>;
 };
+
+type TreeNode = { match: Match; home: TreeNode | null; away: TreeNode | null };
+
+function buildTree(matches: Match[]): TreeNode | null {
+  const finalMatch = matches.find((m) => !m.next_match_id);
+  if (!finalMatch) return null;
+  function build(match: Match): TreeNode {
+    const homeFeeder = matches.find((m) => m.next_match_id === match.id && m.next_match_slot === "home") ?? null;
+    const awayFeeder = matches.find((m) => m.next_match_id === match.id && m.next_match_slot === "away") ?? null;
+    return {
+      match,
+      home: homeFeeder ? build(homeFeeder) : null,
+      away: awayFeeder ? build(awayFeeder) : null,
+    };
+  }
+  return build(finalMatch);
+}
+
+function MatchBox({ match, teamMap, teamSlugs }: { match: Match; teamMap: Record<string, string>; teamSlugs: Record<string, string | null> }) {
+  const homeName = match.home_team_id ? teamMap[match.home_team_id] : null;
+  const awayName = match.away_team_id ? teamMap[match.away_team_id] : null;
+  return (
+    <div className="w-52 flex-shrink-0 rounded-xl border border-[#0B3363]/10 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-2.5">
+      <div className="flex items-center justify-between text-sm mb-1">
+        {homeName ? (
+          <TeamBadge name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} size={18} className="min-w-0" />
+        ) : (
+          <span className="italic text-[#0B3363]/30 dark:text-white/30 text-xs">TBD</span>
+        )}
+        {match.status === "completed" && (
+          <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">{match.home_score}</span>
+        )}
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        {awayName ? (
+          <TeamBadge name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} size={18} className="min-w-0" />
+        ) : (
+          <span className="italic text-[#0B3363]/30 dark:text-white/30 text-xs">TBD</span>
+        )}
+        {match.status === "completed" && (
+          <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-1.5 py-0.5 rounded ml-2 flex-shrink-0">{match.away_score}</span>
+        )}
+      </div>
+      {match.status === "completed" && match.home_score === match.away_score && match.home_pens !== null && (
+        <div className="text-[10px] opacity-50 mt-1 text-center">Pens {match.home_pens}–{match.away_pens}</div>
+      )}
+    </div>
+  );
+}
+
+function BracketBranch({
+  node,
+  side,
+  teamMap,
+  teamSlugs,
+}: {
+  node: TreeNode;
+  side: "left" | "right";
+  teamMap: Record<string, string>;
+  teamSlugs: Record<string, string | null>;
+}) {
+  const hasChildren = !!(node.home || node.away);
+  const children = (
+    <div className={`flex flex-col gap-6 ${side === "left" ? "border-r-2 pr-4" : "border-l-2 pl-4"} border-[#0B3363]/15 dark:border-white/15`}>
+      {node.home && <BracketBranch node={node.home} side={side} teamMap={teamMap} teamSlugs={teamSlugs} />}
+      {node.away && <BracketBranch node={node.away} side={side} teamMap={teamMap} teamSlugs={teamSlugs} />}
+    </div>
+  );
+  const box = <MatchBox match={node.match} teamMap={teamMap} teamSlugs={teamSlugs} />;
+  return (
+    <div className={`flex items-center gap-4 ${side === "right" ? "flex-row-reverse" : ""}`}>
+      {hasChildren && children}
+      {box}
+    </div>
+  );
+}
+
+function DesktopBracket({ cup, champion }: { cup: CupData; champion: string | null }) {
+  const tree = buildTree(cup.matches);
+  if (!tree) {
+    return <div className="text-sm text-[#0B3363]/40 dark:text-white/40 p-8 text-center">The bracket hasn't been set yet.</div>;
+  }
+  return (
+    <div className="overflow-x-auto pb-4">
+      <div className="flex items-center justify-center gap-6 min-w-max px-4 py-6">
+        {tree.home && <BracketBranch node={tree.home} side="left" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />}
+        <div className="flex flex-col items-center gap-2 flex-shrink-0">
+          {champion && <span className="text-2xl">🏆</span>}
+          <MatchBox match={tree.match} teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />
+          <span className="text-[10px] font-bold uppercase text-[#3EA0D9]">Final</span>
+        </div>
+        {tree.away && <BracketBranch node={tree.away} side="right" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />}
+      </div>
+    </div>
+  );
+}
+
+function MobileBracket({ cup }: { cup: CupData }) {
+  return (
+    <div className="flex gap-6 overflow-x-auto pb-2">
+      {cup.gameweeks
+        .slice()
+        .sort((a, b) => a.number - b.number)
+        .map((gw) => (
+          <div key={gw.id} className="w-56 flex-shrink-0">
+            <h2 className="font-display font-bold text-sm mb-3">{gw.round_name ?? `Round ${gw.number}`}</h2>
+            <div className="flex flex-col gap-4">
+              {cup.matches
+                .filter((m) => m.gameweek_id === gw.id)
+                .map((m) => (
+                  <MatchBox key={m.id} match={m} teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} />
+                ))}
+            </div>
+          </div>
+        ))}
+      {cup.gameweeks.length === 0 && (
+        <div className="text-sm text-[#0B3363]/40 dark:text-white/40 rounded-2xl border border-dashed border-[#0B3363]/15 dark:border-white/15 p-8 text-center w-full">
+          The bracket hasn't been set yet.
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CupBracket({ cups }: { cups: CupData[] }) {
   const [active, setActive] = useState(0);
@@ -74,51 +201,11 @@ export default function CupBracket({ cups }: { cups: CupData[] }) {
             </div>
           )}
 
-          <div className="flex gap-6 overflow-x-auto pb-2">
-            {cup.gameweeks
-              .slice()
-              .sort((a, b) => a.number - b.number)
-              .map((gw) => (
-                <div key={gw.id} className="w-60 flex-shrink-0">
-                  <h2 className="font-display font-bold text-sm mb-3">{gw.round_name ?? `Round ${gw.number}`}</h2>
-                  <div className="flex flex-col gap-4">
-                    {cup.matches
-                      .filter((m) => m.gameweek_id === gw.id)
-                      .map((m) => {
-                        const homeName = m.home_team_id ? cup.teamMap[m.home_team_id] : null;
-                        const awayName = m.away_team_id ? cup.teamMap[m.away_team_id] : null;
-                        return (
-                          <div key={m.id} className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-3">
-                            <div className="flex items-center justify-between text-sm mb-1">
-                              <span className="truncate">{homeName ?? <span className="italic opacity-40">TBD</span>}</span>
-                              {m.status === "completed" && (
-                                <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2 py-0.5 rounded ml-2">
-                                  {m.home_score}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="truncate">{awayName ?? <span className="italic opacity-40">TBD</span>}</span>
-                              {m.status === "completed" && (
-                                <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2 py-0.5 rounded ml-2">
-                                  {m.away_score}
-                                </span>
-                              )}
-                            </div>
-                            {m.status === "completed" && m.home_score === m.away_score && m.home_pens !== null && (
-                              <div className="text-[10px] opacity-50 mt-1">Pens {m.home_pens}–{m.away_pens}</div>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </div>
-              ))}
-            {cup.gameweeks.length === 0 && (
-              <div className="text-sm text-[#0B3363]/40 dark:text-white/40 rounded-2xl border border-dashed border-[#0B3363]/15 dark:border-white/15 p-8 text-center w-full">
-                The bracket hasn't been set yet.
-              </div>
-            )}
+          <div className="hidden md:block">
+            <DesktopBracket cup={cup} champion={champion} />
+          </div>
+          <div className="md:hidden">
+            <MobileBracket cup={cup} />
           </div>
         </>
       )}
