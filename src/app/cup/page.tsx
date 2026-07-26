@@ -18,6 +18,7 @@ async function getCupData() {
         .from("seasons")
         .select("id,label")
         .eq("competition_id", c.id)
+        .eq("is_public", true)
         .order("created_at", { ascending: false })
         .limit(1);
       const season = seasons?.[0];

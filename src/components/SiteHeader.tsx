@@ -11,7 +11,7 @@ const NAV_ITEMS: { key: "seasons" | "teams" | "cup" | "stats" | "news" | "fantas
   { key: "seasons", label: "Seasons", href: "/" },
   { key: "teams", label: "Teams", href: "/teams" },
   { key: "cup", label: "Cup", href: "/cup" },
-  { key: "stats", label: "Stats", href: "#" },
+  { key: "stats", label: "Stats", href: "/seasons" },
   { key: "news", label: "Latest News", href: "#" },
   { key: "fantasy", label: "Fantasy", href: "/fantasy" },
 ];

@@ -11,7 +11,7 @@ export default function SiteFooter() {
             <Link href="/" className="block hover:text-[#F4B400]">Table</Link>
             <Link href="#" className="block hover:text-[#F4B400]">Fixtures &amp; Results</Link>
             <Link href="/cup" className="block hover:text-[#F4B400]">Cup</Link>
-            <Link href="#" className="block hover:text-[#F4B400]">Stats</Link>
+            <Link href="/seasons" className="block hover:text-[#F4B400]">Stats</Link>
           </div>
         </div>
         <div>

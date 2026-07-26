@@ -7,7 +7,7 @@ import { advanceCupWinner } from "@/lib/cup-advance";
 import Modal from "@/components/admin/Modal";
 
 type Competition = { id: string; name: string; division_id: string };
-type Season = { id: string; label: string };
+type Season = { id: string; label: string; is_public: boolean };
 type Team = { id: string; name: string };
 type Gameweek = { id: string; number: number; round_name: string | null };
 type Match = {
@@ -55,7 +55,7 @@ export default function CupAdmin() {
     (async () => {
       const comp = competitions.find((c) => c.id === selectedCompId);
       const [{ data: seasonsData }, { data: teamsData }] = await Promise.all([
-        supabase.from("seasons").select("id,label").eq("competition_id", selectedCompId).order("label"),
+        supabase.from("seasons").select("id,label,is_public").eq("competition_id", selectedCompId).order("label"),
         comp ? supabase.from("teams").select("id,name").eq("division_id", comp.division_id).order("name") : Promise.resolve({ data: [] as Team[] }),
       ]);
       setSeasons(seasonsData ?? []);
@@ -90,6 +90,14 @@ export default function CupAdmin() {
     return divisionTeams.find((t) => t.id === id)?.name ?? "—";
   }
 
+  async function togglePublic() {
+    const current = seasons.find((s) => s.id === selectedSeasonId);
+    if (!current) return;
+    const next = !current.is_public;
+    await supabase.from("seasons").update({ is_public: next }).eq("id", selectedSeasonId);
+    setSeasons((prev) => prev.map((s) => (s.id === selectedSeasonId ? { ...s, is_public: next } : s)));
+  }
+
   async function createSeason(e: React.FormEvent) {
     e.preventDefault();
     if (!newSeasonLabel.trim() || !selectedCompId) return;
@@ -97,7 +105,7 @@ export default function CupAdmin() {
     const { data, error } = await supabase
       .from("seasons")
       .insert({ competition_id: selectedCompId, label: newSeasonLabel.trim(), is_active: true })
-      .select("id,label")
+      .select("id,label,is_public")
       .single();
     setCreatingSeason(false);
     if (error || !data) {
@@ -237,13 +245,20 @@ export default function CupAdmin() {
       </div>
 
       {seasons.length > 0 ? (
-        <div className="mb-6 max-w-xs">
-          <label className="admin-label">Season</label>
-          <select value={selectedSeasonId} onChange={(e) => setSelectedSeasonId(e.target.value)} className="admin-select">
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>{s.label}</option>
-            ))}
-          </select>
+        <div className="mb-6 flex items-end gap-4 flex-wrap">
+          <div className="max-w-xs">
+            <label className="admin-label">Season</label>
+            <select value={selectedSeasonId} onChange={(e) => setSelectedSeasonId(e.target.value)} className="admin-select">
+              {seasons.map((s) => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          {selectedSeasonId && (
+            <button onClick={togglePublic} className="admin-btn admin-btn-gold text-sm">
+              {seasons.find((s) => s.id === selectedSeasonId)?.is_public ? "✓ Visible to public" : "Hidden — click to publish"}
+            </button>
+          )}
         </div>
       ) : (
         !loading && <div className="admin-empty mb-6">No cup seasons yet — create one to get started.</div>

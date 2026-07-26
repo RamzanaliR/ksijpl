@@ -268,7 +268,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
                     : r.outcome === "L" ? "bg-red-500/15 text-red-600"
                     : "bg-slate-500/15 text-slate-500";
                   return (
-                    <div className="rounded-2xl bg-white text-[#0B3363] border border-[#0B3363]/10 shadow-sm px-4 py-4 flex items-center justify-between text-sm">
+                    <a href={`/matches/${lastResult.id}`} className="rounded-2xl bg-white text-[#0B3363] border border-[#0B3363]/10 shadow-sm px-4 py-4 flex items-center justify-between text-sm hover:border-[#3EA0D9]/40 transition-colors">
                       <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${badgeColor}`}>
                         {r.outcome}
                       </span>
@@ -278,7 +278,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
                       <span className="font-display font-bold text-sm bg-[#0B3363]/5 px-3 py-1.5 rounded">
                         {r.us}–{r.them}
                       </span>
-                    </div>
+                    </a>
                   );
                 })()
               ) : (
@@ -295,12 +295,12 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
                   const isHome = m.home_team_id === id;
                   const opponentId = isHome ? m.away_team_id : m.home_team_id;
                   return (
-                    <div key={m.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                    <a href={`/matches/${m.id}`} key={m.id} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-[#0B3363]/5 transition-colors">
                       <TeamBadge name={teamName(opponentId)} slug={teamSlug(opponentId)} size={20} className="min-w-0" />
                       <span className="text-xs text-[#0B3363]/50 flex-shrink-0 ml-3">
                         {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
                       </span>
-                    </div>
+                    </a>
                   );
                 })}
                 {nextFixtures.length === 0 && (
