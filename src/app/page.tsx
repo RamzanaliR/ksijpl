@@ -128,6 +128,29 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Latest News (placeholder) */}
+      <section className="max-w-6xl mx-auto px-6 py-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display font-bold text-xl">Latest News</h2>
+          <Link href="#" className="text-xs font-bold uppercase text-[#3EA0D9]">View all →</Link>
+        </div>
+        <div className="grid md:grid-cols-3 gap-5">
+          {[
+            { tag: "Match Report", title: "Season 03 kicks off with five-goal thriller" },
+            { tag: "Fantasy", title: "Fantasy League launching soon — get ready" },
+            { tag: "Juniors", title: "Care & Cure Juniors PL: season preview" },
+          ].map((n, i) => (
+            <div key={i} className="rounded-2xl overflow-hidden border border-[#0B3363]/10 dark:border-white/10">
+              <div className="h-32 bg-gradient-to-br from-[#3EA0D9]/20 to-[#0B3363]/10" />
+              <div className="p-4">
+                <div className="text-[10px] font-bold uppercase text-[#3EA0D9]">{n.tag}</div>
+                <div className="font-semibold text-sm mt-1.5 leading-snug">{n.title}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Fantasy CTA */}
       <section className="max-w-6xl mx-auto px-6 py-10">
         <div className="rounded-2xl p-6 bg-[#0B3363] dark:bg-white text-white dark:text-[#0B3363] flex items-center justify-between flex-wrap gap-4">
