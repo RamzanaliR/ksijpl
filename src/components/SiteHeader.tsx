@@ -7,19 +7,20 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { supabase } from "@/lib/supabase";
 
-const NAV_ITEMS: { key: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy"; label: string; href: string }[] = [
-  { key: "seasons", label: "Seasons", href: "/" },
+const NAV_ITEMS: { key: "home" | "seasons" | "teams" | "cup" | "news" | "fantasy"; label: string; href: string }[] = [
+  { key: "home", label: "Home", href: "/" },
+  { key: "seasons", label: "Seasons", href: "/seasons" },
   { key: "teams", label: "Teams", href: "/teams" },
   { key: "cup", label: "Cup", href: "/cup" },
-  { key: "stats", label: "Stats", href: "/seasons" },
   { key: "news", label: "Latest News", href: "#" },
   { key: "fantasy", label: "Fantasy", href: "/fantasy" },
 ];
 
-export default function SiteHeader({ active }: { active?: "seasons" | "teams" | "cup" | "stats" | "news" | "fantasy" }) {
+export default function SiteHeader({ active }: { active?: "home" | "seasons" | "teams" | "cup" | "news" | "fantasy" }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [cupVisible, setCupVisible] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -39,8 +40,17 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
       setSignedIn(!!session?.user);
       checkAdmin(session?.user?.id);
     });
+    supabase
+      .from("seasons")
+      .select("id,competitions!inner(type)")
+      .eq("is_public", true)
+      .eq("competitions.type", "cup")
+      .limit(1)
+      .then(({ data }) => setCupVisible(!!data && data.length > 0));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => item.key !== "cup" || cupVisible);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -78,7 +88,7 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
             KSIJ DAR PL
           </Link>
           <ul className="hidden md:flex gap-7 text-sm font-semibold">
-            {NAV_ITEMS.map((item) => (
+            {visibleNavItems.map((item) => (
               <li key={item.key}><Link href={item.href} className={linkClass(item.key)}>{item.label}</Link></li>
             ))}
           </ul>
@@ -120,7 +130,7 @@ export default function SiteHeader({ active }: { active?: "seasons" | "teams" | 
         {menuOpen && (
           <div className="md:hidden border-t border-[#0B3363]/10 dark:border-white/10 px-6 py-4">
             <ul className="flex flex-col gap-1 text-sm font-semibold">
-              {NAV_ITEMS.map((item) => (
+              {visibleNavItems.map((item) => (
                 <li key={item.key}>
                   <Link
                     href={item.href}

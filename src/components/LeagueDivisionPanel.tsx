@@ -222,13 +222,17 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
               pageSize={5}
               emptyText="No results yet"
               renderItem={(m: any) => (
-                <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                  <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={20} className="w-2/5" />
-                  <span className="font-display font-bold text-xs bg-[#0B3363]/5 dark:bg-white/10 px-2.5 py-1 rounded flex-shrink-0">
+                <a
+                  href={`/matches/${m.id}`}
+                  key={m.id}
+                  className="flex items-center justify-between py-3.5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
+                >
+                  <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={36} className="w-2/5 font-bold text-sm" />
+                  <span className="font-display font-bold text-lg flex-shrink-0 px-2">
                     {m.home_score}–{m.away_score}
                   </span>
-                  <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={20} className="w-2/5 flex-row-reverse text-right" />
-                </div>
+                  <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={36} className="w-2/5 flex-row-reverse text-right font-bold text-sm" />
+                </a>
               )}
             />
           </div>
@@ -244,22 +248,30 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
               emptyText="No fixtures scheduled"
               renderItem={(m: any) =>
                 m.status === "live" ? (
-                  <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                    <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={20} className="w-2/5" />
-                    <span className="font-display font-bold text-xs bg-red-500/10 text-red-600 px-2.5 py-1 rounded flex items-center gap-1 flex-shrink-0">
+                  <a
+                    href={`/matches/${m.id}`}
+                    key={m.id}
+                    className="flex items-center justify-between py-3.5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
+                  >
+                    <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={36} className="w-2/5 font-bold text-sm" />
+                    <span className="font-display font-bold text-sm bg-red-500/10 text-red-600 px-2.5 py-1 rounded flex items-center gap-1 flex-shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                       {m.home_score ?? 0}–{m.away_score ?? 0}
                     </span>
-                    <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={20} className="w-2/5 flex-row-reverse text-right" />
-                  </div>
+                    <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={36} className="w-2/5 flex-row-reverse text-right font-bold text-sm" />
+                  </a>
                 ) : (
-                  <div key={m.id} className="flex items-center justify-between text-sm py-2 border-t border-[#0B3363]/5 dark:border-white/5 first:border-0">
-                    <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={20} className="w-2/5" />
-                    <span className="text-[10px] opacity-50 text-center w-1/5 flex-shrink-0">
-                      {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
+                  <a
+                    href={`/matches/${m.id}`}
+                    key={m.id}
+                    className="flex items-center justify-between py-3.5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
+                  >
+                    <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={36} className="w-2/5 font-bold text-sm" />
+                    <span className="font-display font-bold text-lg flex-shrink-0 px-2 text-center">
+                      {m.kickoff_at ? new Date(m.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "TBD"}
                     </span>
-                    <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={20} className="w-2/5 flex-row-reverse text-right" />
-                  </div>
+                    <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={36} className="w-2/5 flex-row-reverse text-right font-bold text-sm" />
+                  </a>
                 )
               }
             />

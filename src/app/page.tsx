@@ -84,7 +84,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
-      <SiteHeader active="seasons" />
+      <SiteHeader active="home" />
 
       {/* Hero */}
       <section className="bg-gradient-to-b from-[#3EA0D9]/10 to-transparent dark:from-[#3EA0D9]/10 border-b border-[#0B3363]/10 dark:border-white/10">

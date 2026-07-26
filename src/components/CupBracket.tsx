@@ -85,19 +85,25 @@ function MatchBox({
   const homeName = match.home_team_id ? teamMap[match.home_team_id] : null;
   const awayName = match.away_team_id ? teamMap[match.away_team_id] : null;
   const showScores = match.status === "completed";
+  const linkable = homeName && awayName;
+  const Wrapper = linkable ? "a" : "div";
+  const wrapperProps = linkable ? { href: `/matches/${match.id}` } : {};
 
   if (compact) {
     return (
-      <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+      <Wrapper {...(wrapperProps as any)} className="flex flex-col items-center gap-1.5 flex-shrink-0">
         <TeamSlot name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} score={showScores ? match.home_score : null} />
         <div className="w-4 h-px bg-[#0B3363]/20 dark:bg-white/20" />
         <TeamSlot name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} score={showScores ? match.away_score : null} />
-      </div>
+      </Wrapper>
     );
   }
 
   return (
-    <div className="w-52 flex-shrink-0 rounded-xl border border-[#0B3363]/10 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-2.5">
+    <Wrapper
+      {...(wrapperProps as any)}
+      className={`w-52 flex-shrink-0 rounded-xl border border-[#0B3363]/10 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-2.5 block ${linkable ? "hover:border-[#3EA0D9]/40 transition-colors" : ""}`}
+    >
       <div className="flex items-center justify-between text-sm mb-1">
         {homeName ? (
           <TeamBadge name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} size={18} className="min-w-0 text-[#0B3363]" />
@@ -125,7 +131,7 @@ function MatchBox({
       {showScores && match.home_score === match.away_score && match.home_pens !== null && (
         <div className="text-[10px] opacity-50 mt-1 text-center">Pens {match.home_pens}–{match.away_pens}</div>
       )}
-    </div>
+    </Wrapper>
   );
 }
 

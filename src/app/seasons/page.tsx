@@ -137,7 +137,7 @@ export default function SeasonsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
-        <SiteHeader active="stats" />
+        <SiteHeader active="seasons" />
         <div className="flex-1 flex items-center justify-center text-sm opacity-50">Loading…</div>
         <SiteFooter />
       </div>
@@ -146,7 +146,7 @@ export default function SeasonsPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
-      <SiteHeader active="stats" />
+      <SiteHeader active="seasons" />
       <main className="max-w-6xl mx-auto px-6 py-10 flex-1 w-full">
         <h1 className="font-display font-bold text-3xl mb-1">Seasons</h1>
         <p className="text-[#0B3363]/60 dark:text-white/60 mb-6">Full league table and player stats.</p>
@@ -209,19 +209,19 @@ export default function SeasonsPage() {
                     </thead>
                     <tbody>
                       {standings.map((row, i) => (
-                        <tr key={row.team_id} className="border-b border-[#0B3363]/5 dark:border-white/5 last:border-0">
-                          <td className="py-2 px-3 text-[#0B3363]/40 dark:text-white/40">{i + 1}</td>
-                          <td className="py-2 px-3">
+                        <tr key={row.team_id} className="border-b border-[#0B3363]/5 dark:border-white/5 last:border-0 even:bg-[#0B3363]/[0.03] dark:even:bg-white/[0.03]">
+                          <td className="py-3 sm:py-2 px-3 text-[#0B3363]/40 dark:text-white/40 font-semibold">{i + 1}</td>
+                          <td className="py-3 sm:py-2 px-3">
                             <a href={`/teams/${row.team_id}`} className="hover:text-[#3EA0D9] transition-colors">
-                              <TeamBadge name={teamMap[row.team_id]} slug={teamSlugs[row.team_id]} size={20} />
+                              <TeamBadge name={teamMap[row.team_id]} slug={teamSlugs[row.team_id]} size={26} />
                             </a>
                           </td>
-                          <td className="py-2 px-2 text-right">{row.played}</td>
-                          <td className="py-2 px-2 text-right">{row.won}</td>
-                          <td className="py-2 px-2 text-right">{row.goals_for}</td>
-                          <td className="py-2 px-2 text-right">{row.goals_against}</td>
-                          <td className="py-2 px-2 text-right">{row.goal_difference}</td>
-                          <td className="py-2 px-3 text-right font-bold text-[#3EA0D9]">{row.points}</td>
+                          <td className="py-3 sm:py-2 px-2 text-right">{row.played}</td>
+                          <td className="py-3 sm:py-2 px-2 text-right">{row.won}</td>
+                          <td className="py-3 sm:py-2 px-2 text-right">{row.goals_for}</td>
+                          <td className="py-3 sm:py-2 px-2 text-right">{row.goals_against}</td>
+                          <td className="py-3 sm:py-2 px-2 text-right">{row.goal_difference}</td>
+                          <td className="py-3 sm:py-2 px-3 text-right font-bold text-[#3EA0D9]">{row.points}</td>
                         </tr>
                       ))}
                       {standings.length === 0 && (
