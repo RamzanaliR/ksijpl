@@ -544,7 +544,7 @@ export default function FixturesAdmin() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="admin-page-title">Fixtures &amp; Scores</h1>
+        <h1 className="admin-page-title">Fixtures</h1>
         <div className="flex gap-2 flex-wrap">
           <input
             ref={fileInputRef}
@@ -699,12 +699,12 @@ export default function FixturesAdmin() {
         </form>
       </Modal>
 
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {gwMatches.map((m) => (
-          <MatchRow key={m.id} match={m} teamName={teamName} onSave={updateScore} />
+          <MatchRow key={m.id} match={m} teamName={teamName} />
         ))}
         {gwMatches.length === 0 && (
-          <div className="admin-empty">
+          <div className="admin-empty md:col-span-2">
             {gwList.length === 0 ? "No fixtures yet for this season." : "No fixtures in this match week."}
           </div>
         )}
@@ -881,15 +881,11 @@ export default function FixturesAdmin() {
 function MatchRow({
   match,
   teamName,
-  onSave,
 }: {
   match: Match;
   teamName: (id: string) => string;
-  onSave: (id: string, home: number, away: number) => void;
 }) {
-  const [home, setHome] = useState(match.home_score?.toString() ?? "");
-  const [away, setAway] = useState(match.away_score?.toString() ?? "");
-
+  const played = match.status === "completed";
   return (
     <div className="admin-card p-4">
       {/* Time + venue + status */}
@@ -900,41 +896,26 @@ function MatchRow({
             : "Time TBD"}
           {match.venue ? ` · ${match.venue}` : ""}
         </div>
-        <span className={`admin-pill ${match.status === "completed" ? "admin-pill-success" : "admin-pill-neutral"}`}>
+        <span className={`admin-pill ${played ? "admin-pill-success" : match.status === "live" ? "admin-pill-warning" : "admin-pill-neutral"}`}>
           {match.status}
         </span>
       </div>
 
-      {/* Teams */}
-      <div className="font-semibold text-[#0B3363] mb-3 bg-[#3EA0D9]/8 rounded-lg px-3 py-2">
-        {teamName(match.home_team_id)} <span className="text-slate-400 font-normal">vs</span> {teamName(match.away_team_id)}
+      {/* Teams + score */}
+      <div className="flex items-center justify-between font-semibold text-[#0B3363] mb-3 bg-[#3EA0D9]/8 rounded-lg px-3 py-2">
+        <span className="truncate">{teamName(match.home_team_id)}</span>
+        <span className="flex-shrink-0 px-2 font-display font-bold">
+          {played ? `${match.home_score} – ${match.away_score}` : "vs"}
+        </span>
+        <span className="truncate text-right">{teamName(match.away_team_id)}</span>
       </div>
 
-      {/* Score entry */}
-      <div className="flex items-center gap-2 bg-green-600/8 rounded-lg px-3 py-2">
-        <input
-          value={home}
-          onChange={(e) => setHome(e.target.value)}
-          className="admin-input w-14 text-center px-1 bg-white"
-          type="number"
-          placeholder="–"
-        />
-        <span className="text-slate-400">–</span>
-        <input
-          value={away}
-          onChange={(e) => setAway(e.target.value)}
-          className="admin-input w-14 text-center px-1 bg-white"
-          type="number"
-          placeholder="–"
-        />
-        <button
-          onClick={() => onSave(match.id, Number(home), Number(away))}
-          disabled={home === "" || away === ""}
-          className="admin-btn admin-btn-primary py-1.5 px-3 text-xs ml-auto"
-        >
-          Save
-        </button>
-      </div>
+      <a
+        href={`/admin/live/${match.id}`}
+        className="admin-btn admin-btn-primary py-1.5 px-3 text-xs w-full text-center block"
+      >
+        Edit — appearance, goals, assists, MM
+      </a>
     </div>
   );
 }
