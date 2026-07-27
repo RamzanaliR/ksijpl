@@ -455,6 +455,7 @@ export default function PickTeam() {
                               name={p.displayName}
                               price={p.price}
                               teamSlug={teamSlugs[p.team_id]}
+                              isGoalkeeper={p.position === "GK"}
                               opponentCode={nextOpponentByTeam[p.team_id]?.code}
                               opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
                               showSubIcon={!isLocked}
@@ -489,6 +490,7 @@ export default function PickTeam() {
                               name={p.displayName}
                               price={p.price}
                               teamSlug={teamSlugs[p.team_id]}
+                              isGoalkeeper={p.position === "GK"}
                               opponentCode={nextOpponentByTeam[p.team_id]?.code}
                               opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
                               highlighted={!!subModeOutId}

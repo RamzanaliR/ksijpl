@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 function GenericShirt({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
@@ -17,6 +19,7 @@ export default function PlayerJerseyCard({
   name,
   price,
   teamSlug,
+  isGoalkeeper,
   opponentCode,
   opponentIsHome,
   onRemove,
@@ -35,6 +38,7 @@ export default function PlayerJerseyCard({
   name: string;
   price?: number;
   teamSlug?: string | null;
+  isGoalkeeper?: boolean;
   opponentCode?: string | null;
   opponentIsHome?: boolean | null;
   onRemove?: () => void;
@@ -51,6 +55,8 @@ export default function PlayerJerseyCard({
   points?: number;
 }) {
   const Wrapper = onClick ? "button" : "div";
+  const jerseySrc = teamSlug ? `/jerseys/${teamSlug}${isGoalkeeper ? "-gk-home" : "-home"}.svg` : null;
+  const [imgError, setImgError] = useState(false);
   return (
     <div
       className={`relative w-24 sm:w-28 flex-shrink-0 text-center transition-all ${dimmed ? "opacity-40" : ""} ${
@@ -122,8 +128,8 @@ export default function PlayerJerseyCard({
           </div>
         )}
         <div className="w-16 h-16 sm:w-20 sm:h-20 mb-1 drop-shadow-sm">
-          {teamSlug ? (
-            <img src={`/jerseys/${teamSlug}-home.jpg`} alt={name} className="w-full h-full object-contain" />
+          {jerseySrc && !imgError ? (
+            <img src={jerseySrc} alt={name} className="w-full h-full object-contain" onError={() => setImgError(true)} />
           ) : (
             <GenericShirt className="w-full h-full" />
           )}

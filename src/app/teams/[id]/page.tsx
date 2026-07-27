@@ -158,23 +158,19 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
             <h2 className="font-display font-bold text-lg mb-4">Kit</h2>
             {team.slug ? (
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
-                <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-3 text-center">
-                  <Image
-                    src={`/jerseys/${team.slug}-home.jpg`}
+                <div className="text-center">
+                  <img
+                    src={`/jerseys/${team.slug}-home.svg`}
                     alt={`${team.name} home jersey`}
-                    width={160}
-                    height={160}
-                    className="object-contain w-full h-auto rounded-lg mb-2"
+                    className="w-full h-auto max-w-[160px] mx-auto mb-2"
                   />
                   <div className="text-xs font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Home</div>
                 </div>
-                <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-3 text-center">
-                  <Image
-                    src={`/jerseys/${team.slug}-away.jpg`}
+                <div className="text-center">
+                  <img
+                    src={`/jerseys/${team.slug}-away.svg`}
                     alt={`${team.name} away jersey`}
-                    width={160}
-                    height={160}
-                    className="object-contain w-full h-auto rounded-lg mb-2"
+                    className="w-full h-auto max-w-[160px] mx-auto mb-2"
                   />
                   <div className="text-xs font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Away</div>
                 </div>

@@ -265,7 +265,7 @@ export default function MyTeamPage() {
                     <div key={pos} className="flex justify-center gap-3 flex-wrap">
                       {rowPlayers.map((p) => (
                         <div key={p.playerId} className="text-center">
-                          <PlayerJerseyCard name={p.name} teamSlug={p.teamSlug} isCaptain={p.multiplier > 1} />
+                          <PlayerJerseyCard name={p.name} teamSlug={p.teamSlug} isGoalkeeper={p.position === "GK"} isCaptain={p.multiplier > 1} />
                           <div className="text-white font-display font-bold text-sm -mt-1">{p.points} pts</div>
                         </div>
                       ))}
@@ -278,7 +278,7 @@ export default function MyTeamPage() {
               <div className="flex gap-3 overflow-x-auto pb-2 mt-4 justify-center">
                 {benchOnly.map((p) => (
                   <div key={p.playerId} className="text-center opacity-50">
-                    <PlayerJerseyCard name={p.name} teamSlug={p.teamSlug} />
+                    <PlayerJerseyCard name={p.name} teamSlug={p.teamSlug} isGoalkeeper={p.position === "GK"} />
                     <div className="text-[#0B3363] dark:text-white font-display font-bold text-xs">{p.points} pts</div>
                   </div>
                 ))}

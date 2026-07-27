@@ -513,6 +513,7 @@ export default function SquadBuilder() {
                             name={p.displayName}
                             price={p.price}
                             teamSlug={teamSlugs[p.team_id]}
+                              isGoalkeeper={p.position === "GK"}
                             opponentCode={nextOpponentByTeam[p.team_id]?.code}
                             opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
                             onRemove={isLocked ? undefined : () => removePlayer(p)}
