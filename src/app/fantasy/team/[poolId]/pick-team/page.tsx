@@ -350,6 +350,67 @@ export default function PickTeam() {
     );
   }
 
+  const CHIP_ICONS: Record<string, React.ReactNode> = {
+    bench_boost: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" />
+      </svg>
+    ),
+    triple_captain: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2l2.4 6.6L21 9l-5 4.5L17.5 21 12 17l-5.5 4L8 13.5 3 9l6.6-.4z" />
+      </svg>
+    ),
+    free_hit: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
+      </svg>
+    ),
+  };
+  const CHIP_DESCRIPTIONS: Record<string, string> = {
+    bench_boost: "Counts your 4 bench players' points this match week too.",
+    triple_captain: "Your captain scores triple instead of double.",
+    free_hit: "Unlimited free transfers for one match week, then reverts.",
+  };
+
+  const chipsCard = (
+    <div className="rounded-2xl bg-[#0B1220] text-white p-4 mb-4">
+      <h2 className="font-display font-bold text-sm mb-3">Chips</h2>
+      <div className="flex justify-around gap-2">
+        {(["bench_boost", "triple_captain", "free_hit"] as const).map((key) => {
+          const label = key === "bench_boost" ? "Bench Boost" : key === "triple_captain" ? "Triple Captain" : "Free Hit";
+          const used = usedChips[key];
+          const isActive = activeChipThisWeek === key;
+          const lockedByWeek = key === "free_hit" && upcomingGwNumber === 1;
+          const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
+          return (
+            <button
+              key={key}
+              onClick={() => playChip(key)}
+              disabled={disabled}
+              title={`${label}: ${CHIP_DESCRIPTIONS[key]}${lockedByWeek ? " (unlocks Match Week 2)" : ""}`}
+              className="flex flex-col items-center gap-1 disabled:opacity-40 group"
+            >
+              <span
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                  isActive ? "bg-[#F4B400] text-[#0B3363]" : "bg-white/10 text-white group-hover:bg-white/20"
+                }`}
+              >
+                {CHIP_ICONS[key]}
+              </span>
+              <span className="text-[9px] font-semibold text-white/80 text-center leading-tight">
+                {label}
+                <br />
+                {used ? "Used" : lockedByWeek ? "MW2+" : "Play"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {chipMessage && <div className="text-[10px] text-white/60 mt-3 text-center">{chipMessage}</div>}
+    </div>
+  );
+
   const fixturesCard = (
     <div className="rounded-2xl bg-[#0B1220] text-white p-5">
       <h2 className="font-display font-bold text-lg mb-3">Fixtures</h2>
@@ -404,9 +465,12 @@ export default function PickTeam() {
           <a href={`/fantasy/team/${poolId}/points`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← My Team</a>
         </div>
 
-        <div className="grid lg:grid-cols-[280px_1fr] gap-6 min-w-0">
-          {/* Left: Fixtures (desktop only) */}
-          <div className="hidden lg:block">{fixturesCard}</div>
+        <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-w-0">
+          {/* Left: Chips + Fixtures (desktop only) */}
+          <div className="hidden lg:block">
+            {chipsCard}
+            {fixturesCard}
+          </div>
 
           {/* Right: Pick Team */}
           <div className="min-w-0">
@@ -442,13 +506,13 @@ export default function PickTeam() {
 
             {viewMode === "pitch" ? (
               <>
-                <PitchBackground>
+                <PitchBackground className="max-w-2xl mx-auto">
                   <div className="flex flex-col gap-4">
                     {POSITIONS.map((pos) => {
                       const rowPlayers = startingPlayers.filter((p) => p.position === pos);
                       if (rowPlayers.length === 0) return null;
                       return (
-                        <div key={pos} className="flex justify-center gap-3 flex-wrap">
+                        <div key={pos} className="flex justify-center gap-10 flex-wrap">
                           {rowPlayers.map((p) => (
                             <PlayerJerseyCard
                               key={p.id}
@@ -477,13 +541,13 @@ export default function PickTeam() {
                 </PitchBackground>
 
                 {/* Substitutes — separate white panel below the pitch */}
-                <div className="rounded-2xl bg-white dark:bg-white/5 border border-[#0B3363]/10 dark:border-white/10 p-4 mt-4">
+                <div className="rounded-2xl bg-white dark:bg-white/5 border border-[#0B3363]/10 dark:border-white/10 p-4 mt-4 max-w-2xl mx-auto">
                   <div className="flex justify-center gap-6 mb-3">
                     {benchPlayers.map((p) => (
                       <div key={p.id} className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{p.position}</div>
                     ))}
                   </div>
-                  <div className="flex gap-3 overflow-x-auto pb-1 min-w-0 w-full justify-center">
+                  <div className="flex gap-10 overflow-x-auto pb-1 min-w-0 w-full justify-center">
                     {benchPlayers.map((p) => (
                       <PlayerJerseyCard
                         key={p.id}
@@ -563,33 +627,12 @@ export default function PickTeam() {
               </div>
             )}
 
-            {/* Chips — compact, no descriptions, sitting below the team picker */}
-            <div className="flex flex-wrap gap-2 mt-4">
-              {([
-                { key: "bench_boost", label: "Bench Boost" },
-                { key: "triple_captain", label: "Triple Captain" },
-                { key: "free_hit", label: "Free Hit" },
-              ] as const).map((c) => {
-                const used = usedChips[c.key];
-                const isActive = activeChipThisWeek === c.key;
-                const lockedByWeek = c.key === "free_hit" && upcomingGwNumber === 1;
-                const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
-                return (
-                  <button
-                    key={c.key}
-                    onClick={() => playChip(c.key)}
-                    disabled={disabled}
-                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-[#0B3363]/15 dark:border-white/15 hover:bg-[#0B3363]/5 dark:hover:bg-white/5 transition-colors disabled:opacity-40"
-                  >
-                    {c.label} {used ? "· Used" : lockedByWeek ? "· From MW2" : "· Play"}
-                  </button>
-                );
-              })}
-            </div>
-            {chipMessage && <div className="text-xs text-[#0B3363]/60 dark:text-white/60 mt-2">{chipMessage}</div>}
 
             {/* Fixtures on mobile, below everything */}
-            <div className="lg:hidden mt-6">{fixturesCard}</div>
+            <div className="lg:hidden mt-6">
+              {chipsCard}
+              <div className="mt-4">{fixturesCard}</div>
+            </div>
 
             {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2 mt-4">{error}</div>}
             {saved && <div className="rounded-lg bg-green-50 text-green-700 text-sm px-3 py-2 mt-4">Squad saved!</div>}

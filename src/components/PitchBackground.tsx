@@ -1,7 +1,7 @@
-export default function PitchBackground({ children }: { children: React.ReactNode }) {
+export default function PitchBackground({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div
-      className="relative rounded-2xl overflow-hidden p-4 sm:p-6"
+      className={`relative rounded-2xl overflow-hidden p-4 sm:p-6 ${className ?? ""}`}
       style={{ background: "linear-gradient(180deg, #2f8f4e 0%, #1f6b39 100%)" }}
     >
       {/* Mown-stripe texture */}
