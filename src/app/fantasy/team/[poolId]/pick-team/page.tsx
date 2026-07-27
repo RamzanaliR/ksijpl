@@ -16,6 +16,7 @@ type Player = { id: string; full_name: string; displayName: string; position: Po
 type LineupEntry = { isStarting: boolean };
 
 const POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
+const POSITION_PLURAL: Record<Position, string> = { GK: "Goalkeepers", DEF: "Defenders", MID: "Midfielders", FWD: "Forwards" };
 const POSITION_ORDER: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
 const FORMATIONS: Record<string, { DEF: number; MID: number; FWD: number }> = {
   "3-3-1": { DEF: 3, MID: 3, FWD: 1 },
@@ -49,6 +50,7 @@ export default function PickTeam() {
   const [upcomingGwNumber, setUpcomingGwNumber] = useState<number | null>(null);
   const [upcomingGwId, setUpcomingGwId] = useState<string | null>(null);
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
+  const [totalPointsByPlayer, setTotalPointsByPlayer] = useState<Record<string, number>>({});
   const [usedChips, setUsedChips] = useState<Record<string, boolean>>({});
   const [activeChipThisWeek, setActiveChipThisWeek] = useState<string | null>(null);
   const [chipMessage, setChipMessage] = useState("");
@@ -113,6 +115,11 @@ export default function PickTeam() {
         price: priceMap[r.players.id] ?? 0,
       }));
       setSquadPlayers(pls);
+
+      const { data: allPlayerPoints } = await supabase.from("fantasy_player_gameweek_points").select("player_id,points").eq("fantasy_settings_id", poolId);
+      const totals: Record<string, number> = {};
+      (allPlayerPoints ?? []).forEach((p: any) => (totals[p.player_id] = (totals[p.player_id] ?? 0) + p.points));
+      setTotalPointsByPlayer(totals);
 
       const divisionId = (settingsRow as any).seasons?.competitions?.division_id;
       const { data: teamsRaw } = await supabase.from("teams").select("id,name,slug,short_name").eq("division_id", divisionId);
@@ -576,34 +583,43 @@ export default function PickTeam() {
               </>
             ) : (
               <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
-                <div className="px-4 py-2 bg-[#0B3363]/5 dark:bg-white/5 text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Starting {settings.starting_xi_size}</div>
-                {startingPlayers.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm border-b border-[#0B3363]/5 dark:border-white/5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <button
-                        onClick={() => !isLocked && startSub(p)}
-                        className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${subModeOutId === p.id ? "bg-red-500 text-white" : "bg-[#F4B400] text-[#0B3363]"}`}
-                      >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          {subModeOutId === p.id ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />}
-                        </svg>
-                      </button>
-                      <span className="text-[10px] font-bold text-[#3EA0D9] flex-shrink-0">{p.position}</span>
-                      <span className="truncate">{p.displayName}</span>
-                      {captainId === p.id && <span className="text-[9px] font-bold text-[#F4B400] flex-shrink-0">C</span>}
-                      {viceCaptainId === p.id && <span className="text-[9px] font-bold text-[#3EA0D9] flex-shrink-0">VC</span>}
+                <div className="grid grid-cols-[1fr_50px_50px] px-4 py-2 bg-[#0B3363]/5 dark:bg-white/5 text-[9px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50">
+                  <span>Starting {settings.starting_xi_size}</span><span className="text-right">TP</span><span className="text-right">Fix</span>
+                </div>
+                {POSITIONS.map((pos) => {
+                  const rowPlayers = startingPlayers.filter((p) => p.position === pos);
+                  if (rowPlayers.length === 0) return null;
+                  return (
+                    <div key={pos}>
+                      <div className="px-4 py-1.5 text-[10px] font-bold uppercase text-[#3EA0D9] bg-[#3EA0D9]/5">{POSITION_PLURAL[pos]}</div>
+                      {rowPlayers.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm border-b border-[#0B3363]/5 dark:border-white/5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <button
+                              onClick={() => !isLocked && startSub(p)}
+                              className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${subModeOutId === p.id ? "bg-red-500 text-white" : "bg-[#F4B400] text-[#0B3363]"}`}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                {subModeOutId === p.id ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />}
+                              </svg>
+                            </button>
+                            <span className="truncate">{p.displayName}</span>
+                            {captainId === p.id && <span className="text-[9px] font-bold text-[#F4B400] flex-shrink-0">C</span>}
+                            {viceCaptainId === p.id && <span className="text-[9px] font-bold text-[#3EA0D9] flex-shrink-0">VC</span>}
+                            <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-4 h-4 rounded-full text-[9px] font-bold flex-shrink-0 ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
+                            <button onClick={() => !isLocked && setVice(p.id)} className={`w-6 h-4 rounded-full text-[7px] font-bold flex-shrink-0 ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>VC</button>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            <span className="text-xs font-bold w-8 text-right">{totalPointsByPlayer[p.id] ?? 0}</span>
+                            <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40 w-12 text-right">
+                              {nextOpponentByTeam[p.team_id] ? `${nextOpponentByTeam[p.team_id].code} (${nextOpponentByTeam[p.team_id].isHome ? "H" : "A"})` : "—"}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {nextOpponentByTeam[p.team_id] && (
-                        <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40">
-                          {nextOpponentByTeam[p.team_id].code} ({nextOpponentByTeam[p.team_id].isHome ? "H" : "A"})
-                        </span>
-                      )}
-                      <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-5 h-5 rounded-full text-[10px] font-bold ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
-                      <button onClick={() => !isLocked && setVice(p.id)} className={`w-5 h-5 rounded-full text-[8px] font-bold ${viceCaptainId === p.id ? "bg-[#3EA0D9] text-white" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>VC</button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <div className="px-4 py-2 bg-[#0B3363]/5 dark:bg-white/5 text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Substitutes</div>
                 {benchPlayers.map((p, i) => {
@@ -623,11 +639,12 @@ export default function PickTeam() {
                         <span className="text-[10px] font-bold text-[#3EA0D9] flex-shrink-0">{p.position}</span>
                         <span className="truncate">{p.displayName}</span>
                       </div>
-                      {nextOpponentByTeam[p.team_id] && (
-                        <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40 flex-shrink-0">
-                          {nextOpponentByTeam[p.team_id].code} ({nextOpponentByTeam[p.team_id].isHome ? "H" : "A"})
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <span className="text-xs font-bold w-8 text-right">{totalPointsByPlayer[p.id] ?? 0}</span>
+                        <span className="text-[10px] text-[#0B3363]/40 dark:text-white/40 w-12 text-right">
+                          {nextOpponentByTeam[p.team_id] ? `${nextOpponentByTeam[p.team_id].code} (${nextOpponentByTeam[p.team_id].isHome ? "H" : "A"})` : "—"}
                         </span>
-                      )}
+                      </div>
                     </button>
                   );
                 })}
