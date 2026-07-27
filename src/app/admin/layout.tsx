@@ -94,6 +94,16 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/partners",
+    label: "Partners",
+    scope: "league",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="7" width="7" height="5" rx="1" /><rect x="14" y="7" width="7" height="5" rx="1" /><path d="M10 9.5h4" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/account",
     label: "Account",
     scope: "all",

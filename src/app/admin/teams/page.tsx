@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Modal from "@/components/admin/Modal";
 
 type Division = { id: string; name: string; slug: string };
-type Team = { id: string; name: string; short_name: string | null; division_id: string };
+type Team = { id: string; name: string; short_name: string | null; division_id: string; website_url: string | null };
 
 const DIVISION_LABELS: Record<string, string> = {
   juniors: "Care & Cure KSIJ PL Teams",
@@ -53,13 +53,14 @@ export default function TeamsAdmin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editShort, setEditShort] = useState("");
+  const [editWebsite, setEditWebsite] = useState("");
   const [mobileTab, setMobileTab] = useState(0);
 
   async function load() {
     setLoading(true);
     const [{ data: divs }, { data: tms }] = await Promise.all([
       supabase.from("divisions").select("id,name,slug").order("name"),
-      supabase.from("teams").select("id,name,short_name,division_id").order("name"),
+      supabase.from("teams").select("id,name,short_name,division_id,website_url").order("name"),
     ]);
     setDivisions(divs ?? []);
     setTeams(tms ?? []);
@@ -93,6 +94,7 @@ export default function TeamsAdmin() {
     setEditingId(t.id);
     setEditName(t.name);
     setEditShort(t.short_name ?? "");
+    setEditWebsite(t.website_url ?? "");
   }
 
   function cancelEdit() {
@@ -102,7 +104,7 @@ export default function TeamsAdmin() {
   async function saveEdit(id: string) {
     const { error } = await supabase
       .from("teams")
-      .update({ name: editName, short_name: editShort || null })
+      .update({ name: editName, short_name: editShort || null, website_url: editWebsite || null })
       .eq("id", id);
     if (error) {
       alert(error.message);
@@ -164,6 +166,7 @@ export default function TeamsAdmin() {
                       <tr>
                         <th>Team</th>
                         <th>Short</th>
+                        <th>Website</th>
                         <th className="text-right">Actions</th>
                       </tr>
                     </thead>
@@ -190,6 +193,14 @@ export default function TeamsAdmin() {
                                 />
                               </td>
                               <td>
+                                <input
+                                  value={editWebsite}
+                                  onChange={(e) => setEditWebsite(e.target.value)}
+                                  className="admin-input py-1 w-40"
+                                  placeholder="https://sponsor-site.com"
+                                />
+                              </td>
+                              <td>
                                 <div className="flex items-center justify-end gap-1">
                                   <button onClick={() => saveEdit(t.id)} className="admin-icon-btn" aria-label="Save" title="Save">
                                     <CheckIcon />
@@ -204,6 +215,7 @@ export default function TeamsAdmin() {
                             <tr key={t.id}>
                               <td>{t.name}</td>
                               <td className="text-slate-400">{t.short_name || "—"}</td>
+                              <td className="text-slate-400 truncate max-w-[160px]">{t.website_url || "—"}</td>
                               <td>
                                 <div className="flex items-center justify-end gap-1">
                                   <button onClick={() => startEdit(t)} className="admin-icon-btn" aria-label="Edit" title="Edit">

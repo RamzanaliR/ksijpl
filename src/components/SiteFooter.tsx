@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 export default function SiteFooter() {
   const [cupVisible, setCupVisible] = useState(false);
+  const [partners, setPartners] = useState<{ id: string; name: string; logo_url: string; website_url: string | null }[]>([]);
 
   useEffect(() => {
     supabase
@@ -15,6 +16,12 @@ export default function SiteFooter() {
       .eq("competitions.type", "cup")
       .limit(1)
       .then(({ data }) => setCupVisible(!!data && data.length > 0));
+
+    supabase
+      .from("partners")
+      .select("id,name,logo_url,website_url")
+      .order("display_order")
+      .then(({ data }) => setPartners(data ?? []));
   }, []);
 
   return (
@@ -22,12 +29,17 @@ export default function SiteFooter() {
       <div className="max-w-6xl mx-auto px-6 pt-10">
         <h5 className="font-display font-bold text-xs uppercase tracking-wide opacity-70 mb-4">Our Partners</h5>
         <div className="flex flex-wrap gap-4 pb-8 border-b border-white/10">
-          <a href="#" className="w-32 h-20 bg-white rounded-lg flex items-center justify-center p-2 hover:opacity-90 transition-opacity">
-            <img src="/logos/gofiber-pl-badge.png" alt="gofiber" className="object-contain w-full h-full" />
-          </a>
-          <a href="#" className="w-32 h-20 bg-white rounded-lg flex items-center justify-center p-2 hover:opacity-90 transition-opacity">
-            <img src="/logos/care-cure-pl-badge.png" alt="Care & Cure" className="object-contain w-full h-full" />
-          </a>
+          {partners.map((p) => (
+            <a
+              key={p.id}
+              href={p.website_url || "#"}
+              target={p.website_url ? "_blank" : undefined}
+              rel={p.website_url ? "noopener noreferrer" : undefined}
+              className="w-32 h-20 bg-white rounded-lg flex items-center justify-center p-2 hover:opacity-90 transition-opacity"
+            >
+              <img src={p.logo_url} alt={p.name} className="object-contain w-full h-full" />
+            </a>
+          ))}
         </div>
       </div>
       <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-3 gap-8">

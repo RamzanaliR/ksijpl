@@ -81,6 +81,9 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
 export default async function Home() {
   const seasonData = await getSeasonData();
   const senior = seasonData.find((d) => d.key === "gofiber") ?? seasonData[0];
+  const { data: teamsWithLinks } = await supabase.from("teams").select("slug,website_url").not("slug", "is", null);
+  const websiteBySlug: Record<string, string | null> = {};
+  (teamsWithLinks ?? []).forEach((t: any) => (websiteBySlug[t.slug] = t.website_url));
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
@@ -114,17 +117,25 @@ export default async function Home() {
       {/* Sponsor scroller — all team sponsors, auto-scrolling */}
       <section className="border-y border-[#0B3363]/10 dark:border-white/10 bg-[#3EA0D9]/5 dark:bg-white/5 py-8 overflow-hidden">
         <div className="flex gap-6 w-max animate-scroll-x">
-          {[...SPONSOR_SLUGS, ...SPONSOR_SLUGS].map((slug, i) => (
-            <div key={i} className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-1.5">
-              <Image
-                src={`/sponsors/${slug}.png`}
-                alt={slug.replace(/-/g, " ")}
-                width={160}
-                height={92}
-                className="object-contain w-full h-full"
-              />
-            </div>
-          ))}
+          {[...SPONSOR_SLUGS, ...SPONSOR_SLUGS].map((slug, i) => {
+            const url = websiteBySlug[slug];
+            const Wrapper = url ? "a" : "div";
+            return (
+              <Wrapper
+                key={i}
+                {...(url ? { href: url, target: "_blank", rel: "noopener noreferrer" } : {})}
+                className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-1.5 hover:opacity-90 transition-opacity"
+              >
+                <Image
+                  src={`/sponsors/${slug}.png`}
+                  alt={slug.replace(/-/g, " ")}
+                  width={160}
+                  height={92}
+                  className="object-contain w-full h-full"
+                />
+              </Wrapper>
+            );
+          })}
         </div>
       </section>
 
