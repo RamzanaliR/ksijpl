@@ -374,7 +374,7 @@ export default function PickTeam() {
   };
 
   const chipsCard = (
-    <div className="rounded-2xl bg-[#0B1220] text-white p-4 mb-4">
+    <div className="rounded-2xl bg-white/20 dark:bg-white/10 border border-[#0B3363]/10 dark:border-white/10 backdrop-blur-sm text-[#0B3363] dark:text-white p-4 mb-4">
       <h2 className="font-display font-bold text-sm mb-3">Chips</h2>
       <div className="flex justify-around gap-2">
         {(["bench_boost", "triple_captain", "free_hit"] as const).map((key) => {
@@ -384,44 +384,49 @@ export default function PickTeam() {
           const lockedByWeek = key === "free_hit" && upcomingGwNumber === 1;
           const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
           return (
-            <button
-              key={key}
-              onClick={() => playChip(key)}
-              disabled={disabled}
-              title={`${label}: ${CHIP_DESCRIPTIONS[key]}${lockedByWeek ? " (unlocks Match Week 2)" : ""}`}
-              className="flex flex-col items-center gap-1 disabled:opacity-40 group"
-            >
-              <span
-                className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                  isActive ? "bg-[#F4B400] text-[#0B3363]" : "bg-white/10 text-white group-hover:bg-white/20"
-                }`}
+            <div key={key} className="relative group">
+              <button
+                onClick={() => playChip(key)}
+                disabled={disabled}
+                className="flex flex-col items-center gap-1 disabled:opacity-40"
               >
-                {CHIP_ICONS[key]}
-              </span>
-              <span className="text-[9px] font-semibold text-white/80 text-center leading-tight">
-                {label}
-                <br />
-                {used ? "Used" : lockedByWeek ? "MW2+" : "Play"}
-              </span>
-            </button>
+                <span
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                    isActive ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10 text-[#0B3363] dark:text-white group-hover:bg-[#0B3363]/20 dark:group-hover:bg-white/20"
+                  }`}
+                >
+                  {CHIP_ICONS[key]}
+                </span>
+                <span className="text-[9px] font-semibold text-[#0B3363]/70 dark:text-white/70 text-center leading-tight">
+                  {label}
+                  <br />
+                  {used ? "Used" : lockedByWeek ? "MW2+" : "Play"}
+                </span>
+              </button>
+              {/* Custom tooltip, shown on hover/focus */}
+              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 rounded-lg bg-[#0B1220] text-white text-[10px] leading-snug px-2.5 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 text-center shadow-lg">
+                {CHIP_DESCRIPTIONS[key]}
+                {lockedByWeek && " Unlocks Match Week 2."}
+              </div>
+            </div>
           );
         })}
       </div>
-      {chipMessage && <div className="text-[10px] text-white/60 mt-3 text-center">{chipMessage}</div>}
+      {chipMessage && <div className="text-[10px] text-[#0B3363]/70 dark:text-white/70 mt-3 text-center">{chipMessage}</div>}
     </div>
   );
 
   const fixturesCard = (
-    <div className="rounded-2xl bg-[#0B1220] text-white p-5">
-      <h2 className="font-display font-bold text-lg mb-3">Fixtures</h2>
-      <div className="text-center mb-3">
-        <div className="font-bold text-sm">Match Week {upcomingGwNumber}</div>
+    <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-5">
+      <div className="inline-block bg-[#0B3363] dark:bg-white text-white dark:text-[#0B3363] font-display font-bold text-sm px-3 py-1.5 rounded-lg mb-3">
+        Upcoming Fixtures
       </div>
-      <div className="divide-y divide-white/10">
+      <div className="text-xs font-semibold text-[#0B3363]/50 dark:text-white/50 mb-2">Match Week {upcomingGwNumber}</div>
+      <div className="divide-y divide-[#0B3363]/10 dark:divide-white/10">
         {upcomingFixtures.map((m) => (
           <div key={m.id} className="flex items-center py-2.5 text-xs">
             <span className="flex-1 text-right font-semibold truncate pr-2">{teamNames[m.home_team_id] ?? "—"}</span>
-            <div className="w-5 h-5 flex-shrink-0 rounded bg-white flex items-center justify-center overflow-hidden mx-1">
+            <div className="w-5 h-5 flex-shrink-0 rounded bg-white border border-[#0B3363]/10 flex items-center justify-center overflow-hidden mx-1">
               {teamSlugs[m.home_team_id] ? (
                 <img src={`/sponsors/${teamSlugs[m.home_team_id]}.png`} alt="" className="w-full h-full object-contain p-0.5" />
               ) : (
@@ -431,7 +436,7 @@ export default function PickTeam() {
             <span className="font-bold flex-shrink-0 px-1 w-12 text-center">
               {m.status === "live" ? "● Live" : m.kickoff_at ? new Date(m.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "TBD"}
             </span>
-            <div className="w-5 h-5 flex-shrink-0 rounded bg-white flex items-center justify-center overflow-hidden mx-1">
+            <div className="w-5 h-5 flex-shrink-0 rounded bg-white border border-[#0B3363]/10 flex items-center justify-center overflow-hidden mx-1">
               {teamSlugs[m.away_team_id] ? (
                 <img src={`/sponsors/${teamSlugs[m.away_team_id]}.png`} alt="" className="w-full h-full object-contain p-0.5" />
               ) : (
@@ -441,7 +446,7 @@ export default function PickTeam() {
             <span className="flex-1 text-left font-semibold truncate pl-2">{teamNames[m.away_team_id] ?? "—"}</span>
           </div>
         ))}
-        {upcomingFixtures.length === 0 && <div className="text-xs text-white/40 text-center py-4">No fixtures scheduled.</div>}
+        {upcomingFixtures.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 text-center py-4">No fixtures scheduled.</div>}
       </div>
     </div>
   );
@@ -455,17 +460,11 @@ export default function PickTeam() {
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9]">{poolLabel}</div>
             <h1 className="font-display font-bold text-2xl">{teamName}</h1>
-            {deadline && (
-              <div className={`text-xs mt-1 ${isLocked ? "text-red-600 font-semibold" : "text-[#0B3363]/50 dark:text-white/50"}`}>
-                Match Week {upcomingGwNumber} · Deadline: {formatDeadline(deadline)}
-                {isLocked && " — locked, changes will apply from next match week"}
-              </div>
-            )}
           </div>
           <a href={`/fantasy/team/${poolId}/points`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← My Team</a>
         </div>
 
-        <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-w-0">
+        <div className="grid lg:grid-cols-[380px_1fr] gap-6 min-w-0">
           {/* Left: Chips + Fixtures (desktop only) */}
           <div className="hidden lg:block">
             {chipsCard}
@@ -474,35 +473,44 @@ export default function PickTeam() {
 
           {/* Right: Pick Team */}
           <div className="min-w-0">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h2 className="font-display font-bold text-base">Pick Team</h2>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center bg-[#0B3363]/5 dark:bg-white/10 rounded-lg p-0.5">
-                  <button
-                    onClick={() => setViewMode("pitch")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "pitch" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}
-                  >
-                    Pitch
-                  </button>
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}
-                  >
-                    List
-                  </button>
+            <div className="max-w-2xl mx-auto">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-display font-bold text-base">Pick Team</h2>
+                  {deadline && (
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
+                      MW{upcomingGwNumber} Deadline: {formatDeadline(deadline)}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-[#0B3363]/50 dark:text-white/50">Formation</label>
-                  <select value={formationKey} onChange={(e) => applyFormation(e.target.value)} disabled={isLocked} className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs font-semibold disabled:opacity-50">
-                    {Object.keys(FORMATIONS).map((k) => (<option key={k} value={k}>{k}</option>))}
-                  </select>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-[#0B3363]/5 dark:bg-white/10 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setViewMode("pitch")}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "pitch" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}
+                    >
+                      Pitch
+                    </button>
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}
+                    >
+                      List
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-[#0B3363]/50 dark:text-white/50">Formation</label>
+                    <select value={formationKey} onChange={(e) => applyFormation(e.target.value)} disabled={isLocked} className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs font-semibold disabled:opacity-50">
+                      {Object.keys(FORMATIONS).map((k) => (<option key={k} value={k}>{k}</option>))}
+                    </select>
+                  </div>
                 </div>
               </div>
+              <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">
+                Tap a starting player's yellow icon then a bench player to sub, tap C/VC to set captain — {settings.starting_gk_count} GK must always start.
+              </p>
+              {subModeMessage && <div className="text-xs text-red-600 mb-3">{subModeMessage}</div>}
             </div>
-            <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">
-              Tap the yellow icon on a starting player to sub them, tap a bench player to bring them on. Tap C / VC on the right of a player to set captain or vice-captain — {settings.starting_gk_count} GK must always start.
-            </p>
-            {subModeMessage && <div className="text-xs text-red-600 mb-3">{subModeMessage}</div>}
 
             {viewMode === "pitch" ? (
               <>
