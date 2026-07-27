@@ -24,6 +24,9 @@ body {
 .animate-scroll-x {
   animation: scroll-x 30s linear infinite;
 }
+.animate-scroll-x:hover {
+  animation-play-state: paused;
+}
 
 /* ================= Admin design system =================
    Shared, restrained primitives for every /admin page: instant

@@ -41,6 +41,8 @@ export default function TransfersPage() {
   const [pending, setPending] = useState<PendingTransfer[]>([]);
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
+  const [teamFilter, setTeamFilter] = useState("ALL");
+  const [sortMode, setSortMode] = useState<"price_desc" | "price_asc">("price_desc");
   const [pickingOutId, setPickingOutId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -324,11 +326,31 @@ export default function TransfersPage() {
               </button>
             ))}
           </div>
+          <div className="flex gap-2 mb-2">
+            <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} className="flex-1 border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs">
+              <option value="ALL">All teams</option>
+              {Object.entries(teamNames).sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as any)} className="flex-1 border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs">
+              <option value="price_desc">Price: high–low</option>
+              <option value="price_asc">Price: low–high</option>
+            </select>
+          </div>
         </>
       )}
       <div className="rounded-xl border border-[#0B3363]/10 dark:border-white/10 max-h-[420px] overflow-y-auto divide-y divide-[#0B3363]/5 dark:divide-white/5">
-        {(pickingOutId ? eligibleFor(pickingOutId) : candidates.filter((c) => (posFilter === "ALL" || c.position === posFilter) && c.name.toLowerCase().includes(search.toLowerCase())))
-          .sort((a, b) => b.price - a.price)
+        {(pickingOutId
+          ? eligibleFor(pickingOutId)
+          : candidates.filter(
+              (c) =>
+                (posFilter === "ALL" || c.position === posFilter) &&
+                (teamFilter === "ALL" || c.team_id === teamFilter) &&
+                c.name.toLowerCase().includes(search.toLowerCase())
+            )
+        )
+          .sort((a, b) => (sortMode === "price_asc" ? a.price - b.price : b.price - a.price))
           .map((c) => (
             <button
               key={c.id}
@@ -404,7 +426,7 @@ export default function TransfersPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-base">Your Squad</h2>
                   {deadline && (
-                    <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
                       Deadline {formatDeadlineCompact(deadline)}
                       {isLocked && " — LOCKED"}
                     </span>

@@ -215,6 +215,14 @@ export default function SquadBuilder() {
     }
     setTeamLimitAlert("");
     setSelected((prev) => new Set(prev).add(p.id));
+    if (teamId) {
+      supabase
+        .from("fantasy_team_players")
+        .upsert({ fantasy_team_id: teamId, player_id: p.id, is_starting: false, is_captain: false, is_vice_captain: false, bench_order: null }, { onConflict: "fantasy_team_id,player_id" })
+        .then(({ error }) => {
+          if (error) console.error("Could not save pick:", error.message);
+        });
+    }
   }
 
   function removePlayer(p: Player) {
@@ -224,6 +232,16 @@ export default function SquadBuilder() {
       next.delete(p.id);
       return next;
     });
+    if (teamId) {
+      supabase
+        .from("fantasy_team_players")
+        .delete()
+        .eq("fantasy_team_id", teamId)
+        .eq("player_id", p.id)
+        .then(({ error }) => {
+          if (error) console.error("Could not remove pick:", error.message);
+        });
+    }
   }
 
   function togglePlayer(p: Player) {
@@ -254,6 +272,20 @@ export default function SquadBuilder() {
       }
     }
     setSelected(nextSelected);
+    if (teamId) {
+      const newlyAdded = [...nextSelected].filter((id) => !selected.has(id));
+      if (newlyAdded.length > 0) {
+        supabase
+          .from("fantasy_team_players")
+          .upsert(
+            newlyAdded.map((id) => ({ fantasy_team_id: teamId, player_id: id, is_starting: false, is_captain: false, is_vice_captain: false, bench_order: null })),
+            { onConflict: "fantasy_team_id,player_id" }
+          )
+          .then(({ error }) => {
+            if (error) console.error("Could not save auto-pick:", error.message);
+          });
+      }
+    }
   }
 
   async function createTeam(e: React.FormEvent) {
@@ -441,7 +473,15 @@ export default function SquadBuilder() {
             </div>
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs bg-[#3EA0D9]/15 text-[#3EA0D9] font-semibold px-2.5 py-1 rounded-lg">{filteredPlayers.length} players shown</div>
-              <button onClick={() => setSelected(new Set())} className="text-xs text-red-600 hover:underline">Reset</button>
+              <button
+                onClick={() => {
+                  setSelected(new Set());
+                  if (teamId) supabase.from("fantasy_team_players").delete().eq("fantasy_team_id", teamId).then(() => {});
+                }}
+                className="text-xs text-red-600 hover:underline"
+              >
+                Reset
+              </button>
             </div>
 
             <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 max-h-[560px] overflow-y-auto divide-y divide-[#0B3363]/5 dark:divide-white/5">

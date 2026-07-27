@@ -485,7 +485,7 @@ export default function PickTeam() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-base">Pick Team</h2>
                   {deadline && (
-                    <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
                       Deadline {formatDeadlineCompact(deadline)}
                     </span>
                   )}

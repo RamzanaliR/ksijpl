@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import TeamBadge from "@/components/TeamBadge";
+import JerseyImage from "@/components/JerseyImage";
 
 const DIVISION_LABELS: Record<string, string> = {
   juniors: "Care & Cure KSIJ Juniors PL",
@@ -159,16 +160,18 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
             {team.slug ? (
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
                 <div className="text-center">
-                  <img
-                    src={`/jerseys/${team.slug}-home.svg`}
+                  <JerseyImage
+                    teamSlug={team.slug}
+                    variant="home"
                     alt={`${team.name} home jersey`}
                     className="w-full h-auto max-w-[160px] mx-auto mb-2"
                   />
                   <div className="text-xs font-bold uppercase text-[#0B3363]/50 dark:text-white/50">Home</div>
                 </div>
                 <div className="text-center">
-                  <img
-                    src={`/jerseys/${team.slug}-away.svg`}
+                  <JerseyImage
+                    teamSlug={team.slug}
+                    variant="away"
                     alt={`${team.name} away jersey`}
                     className="w-full h-auto max-w-[160px] mx-auto mb-2"
                   />

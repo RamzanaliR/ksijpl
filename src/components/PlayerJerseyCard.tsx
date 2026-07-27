@@ -2,19 +2,6 @@
 
 import { useState } from "react";
 
-function GenericShirt({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M30 15 L10 28 L18 42 L28 36 L28 88 L72 88 L72 36 L82 42 L90 28 L70 15 C70 15 62 24 50 24 C38 24 30 15 30 15 Z"
-        fill="#0B3363"
-        stroke="#3EA0D9"
-        strokeWidth="2"
-      />
-    </svg>
-  );
-}
-
 export default function PlayerJerseyCard({
   name,
   price,
@@ -56,13 +43,13 @@ export default function PlayerJerseyCard({
 }) {
   const Wrapper = onClick ? "button" : "div";
   const basePath = teamSlug ? `/jerseys/${teamSlug}${isGoalkeeper ? "-gk-home" : "-home"}` : null;
-  // Try PNG first (newer uploads), fall back to SVG (older uploads), then a generic shirt icon
-  const [format, setFormat] = useState<"png" | "svg" | "none">("png");
-  const jerseySrc = basePath && format !== "none" ? `${basePath}.${format}` : null;
+  // Try PNG first (newer uploads), fall back to SVG (older uploads), then the branded placeholder jersey
+  const [format, setFormat] = useState<"png" | "svg" | "placeholder">(basePath ? "png" : "placeholder");
+  const jerseySrc = format === "placeholder" ? "/jerseys/placeholder.png" : `${basePath}.${format}`;
 
   function handleImgError() {
     if (format === "png") setFormat("svg");
-    else setFormat("none");
+    else if (format === "svg") setFormat("placeholder");
   }
 
   const hasCorner = !!(onRemove || showSubIcon || onSetCaptain || onSetVice);
@@ -139,11 +126,7 @@ export default function PlayerJerseyCard({
         )}
         {/* Jersey sits taller than the boxes below it and is deliberately overlapped by them, so its shoulders/collar peek out above */}
         <div className="w-20 h-20 sm:w-24 sm:h-24 -mb-4 relative z-0">
-          {jerseySrc ? (
-            <img src={jerseySrc} alt={name} className="w-full h-full object-contain" onError={handleImgError} />
-          ) : (
-            <GenericShirt className="w-full h-full" />
-          )}
+          <img src={jerseySrc} alt={name} className="w-full h-full object-contain" onError={handleImgError} />
         </div>
         <div className="w-full relative z-10">
           <div className="bg-white rounded-t-md px-1.5 py-1 w-full">
