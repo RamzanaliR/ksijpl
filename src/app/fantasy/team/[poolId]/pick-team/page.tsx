@@ -471,7 +471,7 @@ export default function PickTeam() {
           <a href={`/fantasy/team/${poolId}/points`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← My Team</a>
         </div>
 
-        <div className="grid lg:grid-cols-[380px_1fr] gap-6 min-w-0">
+        <div className="grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
           {/* Left: Chips + Fixtures (desktop only) */}
           <div className="hidden lg:block">
             {chipsCard}
@@ -480,7 +480,7 @@ export default function PickTeam() {
 
           {/* Right: Pick Team */}
           <div className="min-w-0">
-            <div className="max-w-2xl mx-auto">
+            <div className="w-[730px] max-w-full mx-auto">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-base">Pick Team</h2>
@@ -521,7 +521,7 @@ export default function PickTeam() {
 
             {viewMode === "pitch" ? (
               <>
-                <PitchBackground className="max-w-2xl mx-auto">
+                <PitchBackground>
                   <div className="flex flex-col gap-4">
                     {POSITIONS.map((pos) => {
                       const rowPlayers = startingPlayers.filter((p) => p.position === pos);
@@ -556,7 +556,7 @@ export default function PickTeam() {
                 </PitchBackground>
 
                 {/* Substitutes — separate white panel below the pitch */}
-                <div className="rounded-2xl bg-white dark:bg-white/5 border border-[#0B3363]/10 dark:border-white/10 p-4 mt-4 max-w-2xl mx-auto">
+                <div className="rounded-2xl bg-white dark:bg-white/5 border border-[#0B3363]/10 dark:border-white/10 p-4 mt-4">
                   <div className="flex justify-center gap-6 mb-3">
                     {benchPlayers.map((p) => (
                       <div key={p.id} className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{p.position}</div>

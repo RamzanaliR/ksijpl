@@ -9,3 +9,11 @@ export function computeDeadline(fixtures: { kickoff_at: string | null }[]): Date
 export function formatDeadline(deadline: Date): string {
   return deadline.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
+
+export function formatDeadlineCompact(deadline: Date): string {
+  const day = String(deadline.getDate()).padStart(2, "0");
+  const month = deadline.toLocaleString(undefined, { month: "short" });
+  const year = deadline.getFullYear();
+  const time = deadline.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return `${day}/${month}/${year} | ${time}`;
+}

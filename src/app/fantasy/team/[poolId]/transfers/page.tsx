@@ -8,7 +8,7 @@ import SiteFooter from "@/components/SiteFooter";
 import FantasySubNav from "@/components/FantasySubNav";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
-import { computeDeadline, formatDeadline } from "@/lib/fantasy-deadline";
+import { computeDeadline, formatDeadlineCompact } from "@/lib/fantasy-deadline";
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
 type Settings = { id: string; season_id: string; budget: number; transfer_cost_points: number; free_transfers_per_gw: number };
@@ -365,26 +365,18 @@ export default function TransfersPage() {
       <SiteHeader active="fantasy" />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
         <FantasySubNav poolId={poolId} />
-        <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9]">{poolLabel}</div>
-            <h1 className="font-display font-bold text-2xl">Transfers</h1>
-          </div>
-          {deadline && (
-            <div className={`text-xs font-semibold px-3 py-2 rounded-lg bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
-              Match Week {upcomingGwNumber} · Deadline: {formatDeadline(deadline)}
-              {isLocked && " — locked"}
-            </div>
-          )}
+        <div className="mb-4">
+          <div className="text-xs font-bold uppercase tracking-wider text-[#3EA0D9]">{poolLabel}</div>
+          <h1 className="font-display font-bold text-2xl">Transfers</h1>
         </div>
 
         {message && <div className="rounded-lg bg-green-50 text-green-700 text-sm px-3 py-2 mb-4">{message}</div>}
         {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2 mb-4">{error}</div>}
         {alertMsg && <div className="rounded-lg bg-amber-50 text-amber-800 text-sm px-3 py-2 mb-4">{alertMsg}</div>}
 
-        <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-w-0">
+        <div className="grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
           <div className="hidden lg:block">
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-3 gap-2 mb-4 mt-[60px]">
               <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
                 <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Transfers</div>
                 <div className="font-display font-bold text-base text-[#0B3363]">{pending.length}/{unlimitedWindow ? "∞" : totalFreeAvailable}</div>
@@ -407,16 +399,26 @@ export default function TransfersPage() {
           </div>
 
           <div className="min-w-0">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-display font-bold text-base">Your Squad</h2>
-              <div className="flex items-center bg-[#0B3363]/5 dark:bg-white/10 rounded-lg p-0.5">
-                <button onClick={() => setViewMode("pitch")} className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "pitch" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}>Pitch</button>
-                <button onClick={() => setViewMode("list")} className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}>List</button>
+            <div className="w-[730px] max-w-full mx-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-display font-bold text-base">Your Squad</h2>
+                <div className="flex items-center bg-[#0B3363]/5 dark:bg-white/10 rounded-lg p-0.5">
+                  <button onClick={() => setViewMode("pitch")} className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "pitch" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}>Pitch</button>
+                  <button onClick={() => setViewMode("list")} className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}>List</button>
+                </div>
               </div>
-            </div>
 
-            {viewMode === "pitch" ? (
-              <PitchBackground className="max-w-2xl mx-auto">
+              {deadline && (
+                <div className="flex justify-center mb-4">
+                  <div className={`text-xl font-display font-bold px-4 py-2 rounded-lg bg-[#0B3363] text-white dark:bg-white/10 dark:text-white ${isLocked ? "ring-2 ring-red-500" : ""}`}>
+                    DEADLINE: {formatDeadlineCompact(deadline)}
+                    {isLocked && " — LOCKED"}
+                  </div>
+                </div>
+              )}
+
+              {viewMode === "pitch" ? (
+              <PitchBackground>
                 <div className="flex flex-col gap-4">
                   {POSITIONS.map((pos) => {
                     const rowPlayers = effectiveSquad.filter((p) => p.position === pos);
@@ -509,6 +511,7 @@ export default function TransfersPage() {
             )}
 
             <div className="lg:hidden mt-6">{playerSelectionPanel}</div>
+            </div>
           </div>
         </div>
       </main>
