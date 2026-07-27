@@ -57,17 +57,18 @@ export default function PlayerJerseyCard({
   const Wrapper = onClick ? "button" : "div";
   const jerseySrc = teamSlug ? `/jerseys/${teamSlug}${isGoalkeeper ? "-gk-home" : "-home"}.svg` : null;
   const [imgError, setImgError] = useState(false);
+
   return (
     <div
-      className={`relative w-24 sm:w-28 flex-shrink-0 text-center transition-all ${dimmed ? "opacity-40" : ""} ${
-        selected ? "ring-2 ring-[#F4B400] rounded-xl" : ""
-      } ${highlighted ? "ring-2 ring-[#3EA0D9] rounded-xl scale-105" : ""}`}
+      className={`relative w-24 sm:w-28 flex-shrink-0 transition-all rounded-xl bg-white/10 p-1.5 pt-2 ${dimmed ? "opacity-40" : ""} ${
+        selected ? "ring-2 ring-[#F4B400]" : ""
+      } ${highlighted ? "ring-2 ring-[#3EA0D9] scale-105" : ""}`}
     >
       {onRemove && (
         <button
           onClick={onRemove}
           aria-label="Remove player"
-          className="absolute -top-1.5 -right-1.5 z-10 w-5 h-5 rounded-full bg-white border border-[#0B3363]/20 text-[#0B3363] text-xs font-bold flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+          className="absolute -top-1.5 -left-1.5 z-10 w-5 h-5 rounded-full bg-[#0B1220] text-white text-xs font-bold flex items-center justify-center shadow-sm hover:bg-red-600"
         >
           ×
         </button>
@@ -123,26 +124,30 @@ export default function PlayerJerseyCard({
 
       <Wrapper onClick={onClick} className="w-full flex flex-col items-center">
         {price !== undefined && (
-          <div className="text-[10px] font-bold bg-[#0B3363] text-white rounded-full px-2 py-0.5 mb-1 inline-block">
+          <div className="font-display font-bold text-white text-xs sm:text-sm mb-1 drop-shadow-sm">
             TSH {price.toFixed(1)}m
           </div>
         )}
-        <div className="w-16 h-16 sm:w-20 sm:h-20 mb-1 drop-shadow-sm">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 mb-1.5">
           {jerseySrc && !imgError ? (
             <img src={jerseySrc} alt={name} className="w-full h-full object-contain" onError={() => setImgError(true)} />
           ) : (
             <GenericShirt className="w-full h-full" />
           )}
         </div>
-        <div className="bg-white rounded-lg px-1.5 py-1 w-full shadow-sm">
-          <div className="text-[10px] sm:text-[11px] font-semibold text-[#0B3363] truncate">{name}</div>
+        <div className="w-full">
+          <div className="bg-white rounded-t-md px-1.5 py-1 w-full">
+            <div className="text-[10px] sm:text-[11px] font-bold text-[#0B3363] truncate">{name}</div>
+          </div>
           {opponentCode && (
-            <div className="text-[9px] text-[#0B3363]/50">
-              {opponentCode} ({opponentIsHome ? "H" : "A"})
+            <div className="bg-[#0B3363]/10 rounded-b-md px-1.5 py-0.5 w-full">
+              <div className="text-[9px] text-[#0B3363]/60 font-medium">
+                {opponentCode} ({opponentIsHome ? "H" : "A"})
+              </div>
             </div>
           )}
-          {points !== undefined && <div className="text-[10px] font-bold text-[#3EA0D9]">{points} pts</div>}
         </div>
+        {points !== undefined && <div className="text-white font-display font-bold text-[11px] mt-1">{points} pts</div>}
       </Wrapper>
     </div>
   );

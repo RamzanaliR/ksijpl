@@ -453,7 +453,6 @@ export default function PickTeam() {
                             <PlayerJerseyCard
                               key={p.id}
                               name={p.displayName}
-                              price={p.price}
                               teamSlug={teamSlugs[p.team_id]}
                               isGoalkeeper={p.position === "GK"}
                               opponentCode={nextOpponentByTeam[p.team_id]?.code}
@@ -475,35 +474,33 @@ export default function PickTeam() {
                       <div className="text-center text-white/70 text-sm py-10">Pick a formation above, or tap bench players below to build your starting {settings.starting_xi_size}.</div>
                     )}
                   </div>
-
-                  {/* Substitutes — inside the pitch, matching the reference layout */}
-                  <div className="mt-6 pt-4 border-t border-white/20">
-                    <h3 className="font-display font-bold text-xs text-white/80 mb-3 text-center uppercase tracking-wide">Substitutes</h3>
-                    <div className="flex gap-3 overflow-x-auto pb-1 min-w-0 w-full justify-center">
-                      {benchPlayers.map((p, i) => {
-                        const outfieldIndex = benchPlayers.slice(0, i).filter((q) => q.position !== "GK").length;
-                        const label = p.position === "GK" ? "GKP" : `${outfieldIndex + 1}. ${p.position}`;
-                        return (
-                          <div key={p.id} className="flex flex-col items-center gap-1">
-                            <div className="text-[9px] font-bold uppercase text-white/60 tracking-wide">{label}</div>
-                            <PlayerJerseyCard
-                              name={p.displayName}
-                              price={p.price}
-                              teamSlug={teamSlugs[p.team_id]}
-                              isGoalkeeper={p.position === "GK"}
-                              opponentCode={nextOpponentByTeam[p.team_id]?.code}
-                              opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                              highlighted={!!subModeOutId}
-                              dimmed={!subModeOutId}
-                              onClick={!isLocked && subModeOutId ? () => completeSub(subModeOutId, p) : undefined}
-                            />
-                          </div>
-                        );
-                      })}
-                      {benchPlayers.length === 0 && <div className="text-xs text-white/60 py-4">No bench players yet.</div>}
-                    </div>
-                  </div>
                 </PitchBackground>
+
+                {/* Substitutes — separate white panel below the pitch */}
+                <div className="rounded-2xl bg-white dark:bg-white/5 border border-[#0B3363]/10 dark:border-white/10 p-4 mt-4">
+                  <div className="flex justify-center gap-6 mb-3">
+                    {benchPlayers.map((p) => (
+                      <div key={p.id} className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{p.position}</div>
+                    ))}
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto pb-1 min-w-0 w-full justify-center">
+                    {benchPlayers.map((p) => (
+                      <PlayerJerseyCard
+                        key={p.id}
+                        name={p.displayName}
+                        teamSlug={teamSlugs[p.team_id]}
+                        isGoalkeeper={p.position === "GK"}
+                        opponentCode={nextOpponentByTeam[p.team_id]?.code}
+                        opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
+                        highlighted={!!subModeOutId}
+                        dimmed={!subModeOutId}
+                        onClick={!isLocked && subModeOutId ? () => completeSub(subModeOutId, p) : undefined}
+                      />
+                    ))}
+                    {benchPlayers.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 py-4">No bench players yet.</div>}
+                  </div>
+                  <h3 className="font-display font-bold text-sm text-[#0B3363] dark:text-white mt-3 text-center">Substitutes</h3>
+                </div>
               </>
             ) : (
               <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
