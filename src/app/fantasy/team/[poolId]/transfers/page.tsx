@@ -39,6 +39,8 @@ export default function TransfersPage() {
 
   const [viewMode, setViewMode] = useState<"pitch" | "list">("pitch");
   const [pending, setPending] = useState<PendingTransfer[]>([]);
+  const [search, setSearch] = useState("");
+  const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
   const [pickingOutId, setPickingOutId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -295,92 +297,55 @@ export default function TransfersPage() {
     await loadAll();
   }
 
-  const CHIP_ICONS: Record<string, React.ReactNode> = {
-    bench_boost: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="18" height="4" rx="1" /><rect x="3" y="16" width="18" height="4" rx="1" />
-      </svg>
-    ),
-    triple_captain: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2l2.4 6.6L21 9l-5 4.5L17.5 21 12 17l-5.5 4L8 13.5 3 9l6.6-.4z" />
-      </svg>
-    ),
-    free_hit: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-        <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z" />
-      </svg>
-    ),
-  };
-  const CHIP_DESCRIPTIONS: Record<string, string> = {
-    bench_boost: "Counts your 4 bench players' points this match week too.",
-    triple_captain: "Your captain scores triple instead of double.",
-    free_hit: "Unlimited free transfers for one match week, then reverts.",
-  };
-
-  const chipsCard = (
-    <div className="rounded-2xl bg-white/20 dark:bg-white/10 border border-[#0B3363]/10 dark:border-white/10 backdrop-blur-sm text-[#0B3363] dark:text-white p-4 mb-4">
-      <h2 className="font-display font-bold text-sm mb-3">Chips</h2>
-      <div className="flex justify-around gap-2">
-        {(["bench_boost", "triple_captain", "free_hit"] as const)
-          .filter((key) => key !== "free_hit" || upcomingGwNumber !== 1)
-          .map((key) => {
-            const label = key === "bench_boost" ? "Bench Boost" : key === "triple_captain" ? "Triple Captain" : "Free Hit";
-            const used = usedChips[key];
-            const isActive = activeChipThisWeek === key;
-            return (
-              <div key={key} className="relative group">
-                <div className="flex flex-col items-center gap-1 opacity-70">
-                  <span className={`w-9 h-9 rounded-full flex items-center justify-center ${isActive ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>
-                    {CHIP_ICONS[key]}
-                  </span>
-                  <span className="text-[9px] font-semibold text-[#0B3363]/70 dark:text-white/70 text-center leading-tight">
-                    {label}
-                    <br />
-                    {used ? "Used" : "—"}
-                  </span>
-                </div>
-                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-[#0B1220] text-white text-[10px] leading-snug px-2.5 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 text-center shadow-lg">
-                  {CHIP_DESCRIPTIONS[key]} Play chips from Pick Team.
-                </div>
-              </div>
-            );
-          })}
-      </div>
-    </div>
-  );
-
-  const fixturesCard = (
-    <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-5">
-      <div className="inline-block bg-[#0B3363] dark:bg-white text-white dark:text-[#0B3363] font-display font-bold text-sm px-3 py-1.5 rounded-lg mb-3">
-        Upcoming Fixtures
-      </div>
-      <div className="text-xs font-semibold text-[#0B3363]/50 dark:text-white/50 mb-2">Match Week {upcomingGwNumber}</div>
-      <div className="divide-y divide-[#0B3363]/10 dark:divide-white/10">
-        {upcomingFixtures.map((m) => (
-          <div key={m.id} className="flex items-center py-2.5 text-xs">
-            <span className="flex-1 text-right font-semibold truncate pr-2">{teamNames[m.home_team_id] ?? "—"}</span>
-            <div className="w-5 h-5 flex-shrink-0 rounded bg-white border border-[#0B3363]/10 flex items-center justify-center overflow-hidden mx-1">
-              {teamSlugs[m.home_team_id] ? (
-                <img src={`/sponsors/${teamSlugs[m.home_team_id]}.png`} alt="" className="w-full h-full object-contain p-0.5" />
-              ) : (
-                <span className="text-[7px] font-bold text-[#0B3363]">{(teamNames[m.home_team_id] ?? "—").slice(0, 2).toUpperCase()}</span>
-              )}
-            </div>
-            <span className="font-bold flex-shrink-0 px-1 w-12 text-center">
-              {m.status === "live" ? "● Live" : m.kickoff_at ? new Date(m.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "TBD"}
-            </span>
-            <div className="w-5 h-5 flex-shrink-0 rounded bg-white border border-[#0B3363]/10 flex items-center justify-center overflow-hidden mx-1">
-              {teamSlugs[m.away_team_id] ? (
-                <img src={`/sponsors/${teamSlugs[m.away_team_id]}.png`} alt="" className="w-full h-full object-contain p-0.5" />
-              ) : (
-                <span className="text-[7px] font-bold text-[#0B3363]">{(teamNames[m.away_team_id] ?? "—").slice(0, 2).toUpperCase()}</span>
-              )}
-            </div>
-            <span className="flex-1 text-left font-semibold truncate pl-2">{teamNames[m.away_team_id] ?? "—"}</span>
+  const playerSelectionPanel = (
+    <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4">
+      <h2 className="font-display font-bold text-sm mb-1">
+        {pickingOutId ? "Pick a Replacement" : "Player Selection"}
+      </h2>
+      <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">
+        {pickingOutId ? `Showing ${POSITION_LABELS[squad.find((p) => p.playerId === pickingOutId)?.position ?? "GK"]}` : "Tap × on a squad player to start a transfer."}
+      </p>
+      {!pickingOutId && (
+        <>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name"
+            className="w-full border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-3 py-2 text-sm mb-2"
+          />
+          <div className="flex gap-1 mb-2 flex-wrap">
+            {(["ALL", ...POSITIONS] as const).map((pos) => (
+              <button
+                key={pos}
+                onClick={() => setPosFilter(pos)}
+                className={`text-[10px] font-semibold px-2 py-1 rounded-md ${posFilter === pos ? "bg-[#0B3363] text-white dark:bg-[#3EA0D9]" : "bg-[#0B3363]/5 dark:bg-white/10"}`}
+              >
+                {pos === "ALL" ? "All" : pos}
+              </button>
+            ))}
           </div>
-        ))}
-        {upcomingFixtures.length === 0 && <div className="text-xs text-[#0B3363]/40 dark:text-white/40 text-center py-4">No fixtures scheduled.</div>}
+        </>
+      )}
+      <div className="rounded-xl border border-[#0B3363]/10 dark:border-white/10 max-h-[420px] overflow-y-auto divide-y divide-[#0B3363]/5 dark:divide-white/5">
+        {(pickingOutId ? eligibleFor(pickingOutId) : candidates.filter((c) => (posFilter === "ALL" || c.position === posFilter) && c.name.toLowerCase().includes(search.toLowerCase())))
+          .sort((a, b) => b.price - a.price)
+          .map((c) => (
+            <button
+              key={c.id}
+              onClick={() => (pickingOutId ? pickReplacement(pickingOutId, c) : null)}
+              disabled={!pickingOutId}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-[#0B3363]/5 dark:hover:bg-white/5 text-left disabled:opacity-50 disabled:cursor-default"
+            >
+              <span className="min-w-0">
+                <span className="truncate font-medium block">{c.name}</span>
+                <span className="truncate text-[10px] text-[#0B3363]/40 dark:text-white/40 block">{teamNames[c.team_id] ?? "—"} · {c.position}</span>
+              </span>
+              <span className="font-display font-bold text-xs flex-shrink-0">TSH {c.price.toFixed(1)}m</span>
+            </button>
+          ))}
+        {(pickingOutId ? eligibleFor(pickingOutId).length === 0 : candidates.length === 0) && (
+          <div className="p-4 text-center text-xs text-[#0B3363]/40 dark:text-white/40">No players found.</div>
+        )}
       </div>
     </div>
   );
@@ -413,43 +378,32 @@ export default function TransfersPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 mb-4">
-          <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-3 py-2.5 text-center">
-            <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">Transfers</div>
-            <div className="font-display font-bold text-lg text-[#0B3363]">
-              {pending.length}/{unlimitedWindow ? "∞" : totalFreeAvailable}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-3 py-2.5 text-center">
-            <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">Cost</div>
-            <div className={`font-display font-bold text-lg ${pendingCost > 0 ? "text-red-600" : "text-[#0B3363]"}`}>
-              {pendingCost > 0 ? `-${pendingCost} pts` : "0 pts"}
-            </div>
-          </div>
-          <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-3 py-2.5 text-center">
-            <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">Bank</div>
-            <div className="font-display font-bold text-lg text-[#0B3363]">TSH {bank.toFixed(1)}m</div>
-          </div>
-        </div>
-        {unlimitedWindow && (
-          <div className="text-xs text-green-700 dark:text-green-400 font-semibold mb-3">
-            {freeHitActive ? "Free Hit is active — unlimited free changes this match week." : "Unlimited free transfers until Match Week 1's deadline."}
-          </div>
-        )}
-        {!unlimitedWindow && pending.length > 0 && (
-          <div className="text-xs text-[#0B3363]/60 dark:text-white/60 mb-3">
-            {freeUsedByPending} free + {paidByPending} paid transfer{paidByPending === 1 ? "" : "s"} queued.
-          </div>
-        )}
-
         {message && <div className="rounded-lg bg-green-50 text-green-700 text-sm px-3 py-2 mb-4">{message}</div>}
         {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2 mb-4">{error}</div>}
         {alertMsg && <div className="rounded-lg bg-amber-50 text-amber-800 text-sm px-3 py-2 mb-4">{alertMsg}</div>}
 
         <div className="grid lg:grid-cols-[320px_1fr] gap-6 min-w-0">
           <div className="hidden lg:block">
-            {chipsCard}
-            {fixturesCard}
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
+                <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Transfers</div>
+                <div className="font-display font-bold text-base text-[#0B3363]">{pending.length}/{unlimitedWindow ? "∞" : totalFreeAvailable}</div>
+              </div>
+              <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
+                <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Cost</div>
+                <div className={`font-display font-bold text-base ${pendingCost > 0 ? "text-red-600" : "text-[#0B3363]"}`}>{pendingCost > 0 ? `-${pendingCost}` : "0"}</div>
+              </div>
+              <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
+                <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Bank</div>
+                <div className="font-display font-bold text-base text-[#0B3363]">{bank.toFixed(1)}m</div>
+              </div>
+            </div>
+            {unlimitedWindow && (
+              <div className="text-xs text-green-700 dark:text-green-400 font-semibold mb-3">
+                {freeHitActive ? "Free Hit active — unlimited free changes." : "Unlimited free transfers until MW1 deadline."}
+              </div>
+            )}
+            {playerSelectionPanel}
           </div>
 
           <div className="min-w-0">
@@ -472,6 +426,21 @@ export default function TransfersPage() {
                         {rowPlayers.map((p) => {
                           const isPending = pending.some((t) => t.inPlayer.id === p.playerId);
                           const originalId = isPending ? pending.find((t) => t.inPlayer.id === p.playerId)!.outPlayerId : p.playerId;
+                          const isEmptySlot = pickingOutId === p.playerId;
+                          if (isEmptySlot) {
+                            return (
+                              <div key={p.playerId} className="flex flex-col items-center">
+                                <button
+                                  onClick={() => startPick(p.playerId)}
+                                  className="w-24 sm:w-28 h-24 sm:h-28 rounded-xl bg-white/10 border-2 border-dashed border-white/40 flex flex-col items-center justify-center gap-1"
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                                  <span className="text-[9px] font-bold text-white uppercase">{p.position}</span>
+                                </button>
+                                <span className="text-[9px] text-[#F4B400] font-bold mt-1">Pick replacement →</span>
+                              </div>
+                            );
+                          }
                           return (
                             <div key={p.playerId} className="flex flex-col items-center">
                               <PlayerJerseyCard
@@ -481,7 +450,6 @@ export default function TransfersPage() {
                                 opponentCode={nextOpponentByTeam[p.teamId]?.code}
                                 opponentIsHome={nextOpponentByTeam[p.teamId]?.isHome}
                                 onRemove={isLocked ? undefined : () => (isPending ? cancelPending(originalId) : startPick(p.playerId))}
-                                selected={pickingOutId === p.playerId}
                                 highlighted={isPending}
                               />
                               {isPending && <span className="text-[9px] text-[#F4B400] font-bold mt-1">Incoming</span>}
@@ -510,8 +478,11 @@ export default function TransfersPage() {
                         return (
                           <div key={p.playerId} className={`grid grid-cols-[1fr_70px_60px_50px] sm:grid-cols-[1fr_80px_80px_60px] gap-2 items-center px-4 py-2.5 text-sm border-b border-[#0B3363]/5 dark:border-white/5 last:border-0 ${isPending ? "bg-[#F4B400]/10" : ""}`}>
                             <button onClick={() => !isLocked && (isPending ? cancelPending(originalId) : startPick(p.playerId))} className="flex items-center gap-2 min-w-0 text-left">
-                              <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold ${isPending ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B1220]"}`}>×</span>
-                              <span className="truncate font-medium">{p.name}</span>
+                              <span className={`w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold border border-[#0B3363]/15 ${isPending ? "bg-[#F4B400] text-[#0B3363]" : "bg-white text-[#0B3363]"}`}>×</span>
+                              <span className="min-w-0">
+                                <span className="truncate font-medium block">{p.name}</span>
+                                <span className="truncate text-[10px] text-[#0B3363]/40 dark:text-white/40 block">{teamNames[p.teamId] ?? "—"}</span>
+                              </span>
                             </button>
                             <span className="text-right text-xs">TSH {p.price.toFixed(1)}m</span>
                             <span className="text-right text-xs font-bold">{totalPointsByPlayer[p.playerId] ?? 0}</span>
@@ -527,23 +498,6 @@ export default function TransfersPage() {
               </div>
             )}
 
-            {pickingOutId && (
-              <div className="mt-4 rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4">
-                <h3 className="font-display font-bold text-sm mb-2">Pick a replacement</h3>
-                <div className="max-h-64 overflow-y-auto divide-y divide-[#0B3363]/5 dark:divide-white/5">
-                  {eligibleFor(pickingOutId)
-                    .sort((a, b) => b.price - a.price)
-                    .map((c) => (
-                      <button key={c.id} onClick={() => pickReplacement(pickingOutId, c)} className="w-full flex items-center justify-between px-2 py-2 text-sm hover:bg-[#0B3363]/5 dark:hover:bg-white/5 text-left">
-                        <span className="truncate">{c.name}</span>
-                        <span className="font-display font-bold text-xs flex-shrink-0">TSH {c.price.toFixed(1)}m</span>
-                      </button>
-                    ))}
-                  {eligibleFor(pickingOutId).length === 0 && <div className="p-4 text-center text-xs text-[#0B3363]/40 dark:text-white/40">No eligible replacements.</div>}
-                </div>
-              </div>
-            )}
-
             {pending.length > 0 && (
               <button
                 onClick={confirmTransfers}
@@ -554,10 +508,7 @@ export default function TransfersPage() {
               </button>
             )}
 
-            <div className="lg:hidden mt-6">
-              {chipsCard}
-              <div className="mt-4">{fixturesCard}</div>
-            </div>
+            <div className="lg:hidden mt-6">{playerSelectionPanel}</div>
           </div>
         </div>
       </main>

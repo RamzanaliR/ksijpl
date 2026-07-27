@@ -603,7 +603,10 @@ export default function PickTeam() {
                                 {subModeOutId === p.id ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M7 10l5-5 5 5M7 14l5 5 5-5" />}
                               </svg>
                             </button>
-                            <span className="truncate">{p.displayName}</span>
+                            <span className="min-w-0">
+                              <span className="truncate block">{p.displayName}</span>
+                              <span className="truncate text-[9px] text-[#0B3363]/40 dark:text-white/40 block">{teamNames[p.team_id] ?? "—"}</span>
+                            </span>
                             {captainId === p.id && <span className="text-[9px] font-bold text-[#F4B400] flex-shrink-0">C</span>}
                             {viceCaptainId === p.id && <span className="text-[9px] font-bold text-[#3EA0D9] flex-shrink-0">VC</span>}
                             <button onClick={() => !isLocked && setCaptain(p.id)} className={`w-4 h-4 rounded-full text-[9px] font-bold flex-shrink-0 ${captainId === p.id ? "bg-[#F4B400] text-[#0B3363]" : "bg-[#0B3363]/10 dark:bg-white/10"}`}>C</button>
@@ -637,7 +640,10 @@ export default function PickTeam() {
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-[9px] font-bold text-[#0B3363]/40 dark:text-white/40 flex-shrink-0 w-10">{label}</span>
                         <span className="text-[10px] font-bold text-[#3EA0D9] flex-shrink-0">{p.position}</span>
-                        <span className="truncate">{p.displayName}</span>
+                        <span className="min-w-0">
+                          <span className="truncate block">{p.displayName}</span>
+                          <span className="truncate text-[9px] text-[#0B3363]/40 dark:text-white/40 block">{teamNames[p.team_id] ?? "—"}</span>
+                        </span>
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <span className="text-xs font-bold w-8 text-right">{totalPointsByPlayer[p.id] ?? 0}</span>
