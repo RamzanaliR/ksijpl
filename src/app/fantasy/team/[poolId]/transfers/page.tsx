@@ -400,22 +400,21 @@ export default function TransfersPage() {
 
           <div className="min-w-0">
             <div className="w-[730px] max-w-full mx-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-display font-bold text-base">Your Squad</h2>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-display font-bold text-base">Your Squad</h2>
+                  {deadline && (
+                    <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
+                      Deadline {formatDeadlineCompact(deadline)}
+                      {isLocked && " — LOCKED"}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center bg-[#0B3363]/5 dark:bg-white/10 rounded-lg p-0.5">
                   <button onClick={() => setViewMode("pitch")} className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "pitch" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}>Pitch</button>
                   <button onClick={() => setViewMode("list")} className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white shadow-sm" : "text-[#0B3363]/50 dark:text-white/50"}`}>List</button>
                 </div>
               </div>
-
-              {deadline && (
-                <div className="flex justify-center mb-4">
-                  <div className={`text-xl font-display font-bold px-4 py-2 rounded-lg bg-[#0B3363] text-white dark:bg-white/10 dark:text-white ${isLocked ? "ring-2 ring-red-500" : ""}`}>
-                    DEADLINE: {formatDeadlineCompact(deadline)}
-                    {isLocked && " — LOCKED"}
-                  </div>
-                </div>
-              )}
 
               {viewMode === "pitch" ? (
               <PitchBackground>

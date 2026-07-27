@@ -8,7 +8,7 @@ import SiteFooter from "@/components/SiteFooter";
 import FantasySubNav from "@/components/FantasySubNav";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
-import { computeDeadline, formatDeadline } from "@/lib/fantasy-deadline";
+import { computeDeadline, formatDeadlineCompact } from "@/lib/fantasy-deadline";
 
 type Position = "GK" | "DEF" | "MID" | "FWD";
 type Settings = { id: string; season_id: string; squad_size: number; starting_xi_size: number; starting_gk_count: number };
@@ -485,8 +485,8 @@ export default function PickTeam() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-base">Pick Team</h2>
                   {deadline && (
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
-                      MW{upcomingGwNumber} Deadline: {formatDeadline(deadline)}
+                    <span className={`text-[9px] font-bold px-2.5 py-1 rounded-full bg-white border border-[#0B3363]/10 shadow-sm ${isLocked ? "text-red-600" : "text-[#0B3363]"}`}>
+                      Deadline {formatDeadlineCompact(deadline)}
                     </span>
                   )}
                 </div>

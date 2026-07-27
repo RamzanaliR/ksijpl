@@ -17,6 +17,7 @@ type MediaAsset = {
 const CATEGORIES = [
   { value: "league_logo", label: "League Logos", teamScoped: false },
   { value: "main_sponsor_logo", label: "Main Sponsor Logos", teamScoped: false },
+  { value: "hero_banner", label: "Hero Banner / Image", teamScoped: false },
   { value: "hero_icon", label: "Hero Icons", teamScoped: false },
   { value: "team_sponsor_logo", label: "Team Sponsor Logos", teamScoped: true },
   { value: "team_icon", label: "Team Icons / Crests", teamScoped: true },
@@ -30,7 +31,7 @@ export default function MediaAdmin() {
   const [category, setCategory] = useState("league_logo");
   const [teamId, setTeamId] = useState("");
   const [label, setLabel] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -53,8 +54,8 @@ export default function MediaAdmin() {
   async function upload(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!file) {
-      setError("Choose a file first.");
+    if (files.length === 0) {
+      setError("Choose at least one file first.");
       return;
     }
     if (activeCategoryDef.teamScoped && !teamId) {
@@ -63,39 +64,35 @@ export default function MediaAdmin() {
     }
     setUploading(true);
 
-    const ext = file.name.split(".").pop();
-    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const path = `${category}/${teamId ? teamId + "/" : ""}${safeName}`;
+    for (const f of files) {
+      const ext = f.name.split(".").pop();
+      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const path = `${category}/${teamId ? teamId + "/" : ""}${safeName}`;
 
-    const { error: uploadError } = await supabase.storage.from("media").upload(path, file, {
-      cacheControl: "31536000",
-      upsert: false,
-    });
+      const { error: uploadError } = await supabase.storage.from("media").upload(path, f, {
+        cacheControl: "31536000",
+        upsert: false,
+      });
 
-    if (uploadError) {
-      setUploading(false);
-      setError(uploadError.message);
-      return;
+      if (uploadError) {
+        setError(`${f.name}: ${uploadError.message}`);
+        continue;
+      }
+
+      const { data: pub } = supabase.storage.from("media").getPublicUrl(path);
+
+      const { error: insertError } = await supabase.from("media_assets").insert({
+        category,
+        team_id: activeCategoryDef.teamScoped ? teamId : null,
+        label: label || (files.length > 1 ? f.name : null),
+        storage_path: path,
+        url: pub.publicUrl,
+      });
+      if (insertError) setError(`${f.name}: ${insertError.message}`);
     }
-
-    const { data: pub } = supabase.storage.from("media").getPublicUrl(path);
-
-    const { error: insertError } = await supabase.from("media_assets").insert({
-      category,
-      team_id: activeCategoryDef.teamScoped ? teamId : null,
-      label: label || null,
-      storage_path: path,
-      url: pub.publicUrl,
-    });
 
     setUploading(false);
-
-    if (insertError) {
-      setError(insertError.message);
-      return;
-    }
-
-    setFile(null);
+    setFiles([]);
     setLabel("");
     load();
   }
@@ -155,17 +152,19 @@ export default function MediaAdmin() {
         </div>
 
         <div>
-          <label className="admin-label">File</label>
+          <label className="admin-label">File{files.length > 1 ? "s" : ""}</label>
           <input
             type="file"
             accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            multiple
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
             className="text-sm w-56 text-[#0B3363]"
           />
+          {files.length > 1 && <p className="text-[11px] text-slate-400 mt-1">{files.length} files selected — label applied to all if set.</p>}
         </div>
 
         <button disabled={uploading} className="admin-btn admin-btn-primary">
-          {uploading ? "Uploading…" : "Upload"}
+          {uploading ? "Uploading…" : files.length > 1 ? `Upload ${files.length} files` : "Upload"}
         </button>
       </form>
 

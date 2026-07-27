@@ -32,6 +32,9 @@ export default function PlayersAdmin() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamByDivision, setSelectedTeamByDivision] = useState<Record<string, string>>({});
   const [playersByTeam, setPlayersByTeam] = useState<Record<string, Player[]>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editNumber, setEditNumber] = useState("");
 
   const [addOpen, setAddOpen] = useState(false);
   const [addTeamId, setAddTeamId] = useState("");
@@ -121,6 +124,19 @@ export default function PlayersAdmin() {
     await supabase.from("players").update({ fpl_name: value || null }).eq("id", id);
   }
 
+  async function saveEditPlayer(teamId: string, id: string) {
+    const { error } = await supabase
+      .from("players")
+      .update({ full_name: editName, squad_number: editNumber ? Number(editNumber) : null })
+      .eq("id", id);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setEditingId(null);
+    loadPlayers(teamId);
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -178,8 +194,30 @@ export default function PlayersAdmin() {
                   <tbody>
                     {players.map((p) => (
                       <tr key={p.id}>
-                        <td className="text-slate-400 w-10">{p.squad_number ?? "—"}</td>
-                        <td>{p.full_name}</td>
+                        {editingId === p.id ? (
+                          <>
+                            <td className="w-14">
+                              <input
+                                value={editNumber}
+                                onChange={(e) => setEditNumber(e.target.value)}
+                                type="number"
+                                className="text-xs border border-slate-200 rounded-lg px-1.5 py-1 w-12 outline-none text-[#0B3363]"
+                              />
+                            </td>
+                            <td>
+                              <input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="text-xs border border-slate-200 rounded-lg px-1.5 py-1 w-full outline-none text-[#0B3363]"
+                              />
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="text-slate-400 w-10">{p.squad_number ?? "—"}</td>
+                            <td>{p.full_name}</td>
+                          </>
+                        )}
                         <td>
                           <input
                             defaultValue={p.fpl_name ?? ""}
@@ -203,7 +241,26 @@ export default function PlayersAdmin() {
                           </select>
                         </td>
                         <td>
-                          <div className="flex justify-end">
+                          <div className="flex justify-end gap-1">
+                            {editingId === p.id ? (
+                              <>
+                                <button onClick={() => saveEditPlayer(selectedTeam, p.id)} className="admin-icon-btn" aria-label="Save" title="Save">✓</button>
+                                <button onClick={() => setEditingId(null)} className="admin-icon-btn" aria-label="Cancel" title="Cancel">×</button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setEditingId(p.id);
+                                  setEditName(p.full_name);
+                                  setEditNumber(p.squad_number?.toString() ?? "");
+                                }}
+                                className="admin-icon-btn"
+                                aria-label="Edit"
+                                title="Edit"
+                              >
+                                Edit
+                              </button>
+                            )}
                             <button
                               onClick={() => deletePlayer(selectedTeam, p.id)}
                               className="admin-icon-btn admin-icon-btn-danger"

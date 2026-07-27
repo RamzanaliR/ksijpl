@@ -914,7 +914,7 @@ function MatchRow({
         href={`/admin/live/${match.id}`}
         className="admin-btn admin-btn-primary py-1.5 px-3 text-xs w-full text-center block"
       >
-        Edit — appearance, goals, assists, MM
+        Edit
       </a>
     </div>
   );

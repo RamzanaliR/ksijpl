@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Modal from "@/components/admin/Modal";
 
-type Team = { id: string; name: string };
+type Team = { id: string; name: string; division_id?: string };
 type Player = { id: string; full_name: string; nickname: string | null; squad_number: number | null; position: string | null };
 type MatchEvent = { id: string; team_id: string; player_id: string; type: string; created_at: string };
 type MatchRow = {
@@ -54,6 +54,14 @@ export default function LiveMatchConsole() {
   const [pensOpen, setPensOpen] = useState(false);
   const [homePensInput, setHomePensInput] = useState("");
   const [awayPensInput, setAwayPensInput] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [divisionTeams, setDivisionTeams] = useState<Team[]>([]);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editVenue, setEditVenue] = useState("");
+  const [editHomeTeamId, setEditHomeTeamId] = useState("");
+  const [editAwayTeamId, setEditAwayTeamId] = useState("");
+  const [savingDetails, setSavingDetails] = useState(false);
 
   const load = useCallback(async () => {
     const { data: m } = await supabase
@@ -68,9 +76,20 @@ export default function LiveMatchConsole() {
     setMatch(m);
     setHomePensInput(m.home_pens?.toString() ?? "");
     setAwayPensInput(m.away_pens?.toString() ?? "");
+    if (m.kickoff_at) {
+      const d = new Date(m.kickoff_at);
+      setEditDate(d.toISOString().slice(0, 10));
+      setEditTime(d.toTimeString().slice(0, 5));
+    } else {
+      setEditDate("");
+      setEditTime("");
+    }
+    setEditVenue(m.venue ?? "");
+    setEditHomeTeamId(m.home_team_id);
+    setEditAwayTeamId(m.away_team_id);
 
     const [{ data: teamsData }, { data: attendance }, { data: evts }] = await Promise.all([
-      supabase.from("teams").select("id,name").in("id", [m.home_team_id, m.away_team_id]),
+      supabase.from("teams").select("id,name,division_id").in("id", [m.home_team_id, m.away_team_id]),
       supabase.from("match_attendance").select("player_id").eq("match_id", matchId),
       supabase.from("match_events").select("id,team_id,player_id,type,created_at").eq("match_id", matchId).order("created_at", { ascending: false }),
     ]);
@@ -78,6 +97,12 @@ export default function LiveMatchConsole() {
     setAwayTeam(teamsData?.find((t) => t.id === m.away_team_id) ?? null);
     setPresent(new Set((attendance ?? []).map((a) => a.player_id)));
     setEvents(evts ?? []);
+
+    const anyTeam = teamsData?.[0];
+    if (anyTeam?.division_id) {
+      const { data: allDivTeams } = await supabase.from("teams").select("id,name,division_id").eq("division_id", anyTeam.division_id).order("name");
+      setDivisionTeams(allDivTeams ?? []);
+    }
 
     const [{ data: hp }, { data: ap }] = await Promise.all([
       supabase.from("players").select("id,full_name,nickname,squad_number,position").eq("team_id", m.home_team_id).order("squad_number"),
@@ -92,6 +117,28 @@ export default function LiveMatchConsole() {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
     load();
   }, [load]);
+
+  async function saveDetails() {
+    if (!match) return;
+    setSavingDetails(true);
+    const kickoff_at = editDate && editTime ? new Date(`${editDate}T${editTime}`).toISOString() : null;
+    const { error } = await supabase
+      .from("matches")
+      .update({
+        kickoff_at,
+        venue: editVenue || null,
+        home_team_id: editHomeTeamId,
+        away_team_id: editAwayTeamId,
+      })
+      .eq("id", matchId);
+    setSavingDetails(false);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setDetailsOpen(false);
+    load();
+  }
 
   async function toggleAttendance(playerId: string, teamId: string) {
     if (present.has(playerId)) {
@@ -224,6 +271,63 @@ export default function LiveMatchConsole() {
           <div className="text-center flex-1 min-w-0">
             <div className="font-semibold text-sm text-[#0B3363] leading-tight line-clamp-2">{awayTeam?.name}</div>
           </div>
+        </div>
+
+        <div className="mb-4">
+          <button
+            onClick={() => setDetailsOpen((o) => !o)}
+            className="w-full flex items-center justify-between admin-card p-3 text-sm font-semibold text-[#0B3363]"
+          >
+            <span>
+              Match Details — {match.kickoff_at ? new Date(match.kickoff_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Time TBD"}
+              {match.venue ? ` · ${match.venue}` : ""}
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${detailsOpen ? "rotate-180" : ""}`}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+          {detailsOpen && (
+            <div className="admin-card p-4 mt-2 flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="admin-label">Date</label>
+                  <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="admin-input" />
+                </div>
+                <div>
+                  <label className="admin-label">Time</label>
+                  <input type="time" value={editTime} onChange={(e) => setEditTime(e.target.value)} className="admin-input" />
+                </div>
+              </div>
+              <div>
+                <label className="admin-label">Pitch / Venue</label>
+                <input value={editVenue} onChange={(e) => setEditVenue(e.target.value)} className="admin-input" placeholder="e.g. Pitch 1" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="admin-label">Home team</label>
+                  <select value={editHomeTeamId} onChange={(e) => setEditHomeTeamId(e.target.value)} className="admin-select">
+                    {divisionTeams.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="admin-label">Away team</label>
+                  <select value={editAwayTeamId} onChange={(e) => setEditAwayTeamId(e.target.value)} className="admin-select">
+                    {divisionTeams.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
+                  </select>
+                </div>
+              </div>
+              {editHomeTeamId === editAwayTeamId && (
+                <div className="admin-alert admin-alert-error">Home and away teams can't be the same.</div>
+              )}
+              <button
+                onClick={saveDetails}
+                disabled={savingDetails || editHomeTeamId === editAwayTeamId}
+                className="admin-btn admin-btn-primary py-2 text-sm disabled:opacity-40"
+              >
+                {savingDetails ? "Saving…" : "Save Match Details"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col items-center gap-2 mb-6">

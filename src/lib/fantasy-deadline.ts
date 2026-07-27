@@ -11,9 +11,9 @@ export function formatDeadline(deadline: Date): string {
 }
 
 export function formatDeadlineCompact(deadline: Date): string {
-  const day = String(deadline.getDate()).padStart(2, "0");
+  const day = deadline.getDate();
   const month = deadline.toLocaleString(undefined, { month: "short" });
   const year = deadline.getFullYear();
   const time = deadline.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  return `${day}/${month}/${year} | ${time}`;
+  return `${day} ${month} ${year} • ${time}`;
 }
