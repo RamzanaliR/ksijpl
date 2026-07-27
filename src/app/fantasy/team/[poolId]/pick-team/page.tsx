@@ -377,12 +377,13 @@ export default function PickTeam() {
     <div className="rounded-2xl bg-white/20 dark:bg-white/10 border border-[#0B3363]/10 dark:border-white/10 backdrop-blur-sm text-[#0B3363] dark:text-white p-4 mb-4">
       <h2 className="font-display font-bold text-sm mb-3">Chips</h2>
       <div className="flex justify-around gap-2">
-        {(["bench_boost", "triple_captain", "free_hit"] as const).map((key) => {
+        {(["bench_boost", "triple_captain", "free_hit"] as const)
+          .filter((key) => key !== "free_hit" || upcomingGwNumber !== 1)
+          .map((key) => {
           const label = key === "bench_boost" ? "Bench Boost" : key === "triple_captain" ? "Triple Captain" : "Free Hit";
           const used = usedChips[key];
           const isActive = activeChipThisWeek === key;
-          const lockedByWeek = key === "free_hit" && upcomingGwNumber === 1;
-          const disabled = used || isLocked || lockedByWeek || (!!activeChipThisWeek && !isActive);
+          const disabled = used || isLocked || (!!activeChipThisWeek && !isActive);
           return (
             <div key={key} className="relative group">
               <button
@@ -400,13 +401,12 @@ export default function PickTeam() {
                 <span className="text-[9px] font-semibold text-[#0B3363]/70 dark:text-white/70 text-center leading-tight">
                   {label}
                   <br />
-                  {used ? "Used" : lockedByWeek ? "MW2+" : "Play"}
+                  {used ? "Used" : "Play"}
                 </span>
               </button>
               {/* Custom tooltip, shown on hover/focus */}
               <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 rounded-lg bg-[#0B1220] text-white text-[10px] leading-snug px-2.5 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 text-center shadow-lg">
                 {CHIP_DESCRIPTIONS[key]}
-                {lockedByWeek && " Unlocks Match Week 2."}
               </div>
             </div>
           );

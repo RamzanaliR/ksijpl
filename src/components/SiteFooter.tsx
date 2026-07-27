@@ -19,6 +19,17 @@ export default function SiteFooter() {
 
   return (
     <footer className="mt-auto bg-[#0B3363] dark:bg-[#060B14] text-white">
+      <div className="max-w-6xl mx-auto px-6 pt-10">
+        <h5 className="font-display font-bold text-xs uppercase tracking-wide opacity-70 mb-4">Our Partners</h5>
+        <div className="flex flex-wrap gap-4 pb-8 border-b border-white/10">
+          <a href="#" className="w-32 h-20 bg-white rounded-lg flex items-center justify-center p-2 hover:opacity-90 transition-opacity">
+            <img src="/logos/gofiber-pl-badge.png" alt="gofiber" className="object-contain w-full h-full" />
+          </a>
+          <a href="#" className="w-32 h-20 bg-white rounded-lg flex items-center justify-center p-2 hover:opacity-90 transition-opacity">
+            <img src="/logos/care-cure-pl-badge.png" alt="Care & Cure" className="object-contain w-full h-full" />
+          </a>
+        </div>
+      </div>
       <div className="max-w-6xl mx-auto px-6 py-10 grid grid-cols-2 md:grid-cols-3 gap-8">
         <div>
           <h5 className="font-display font-bold text-xs uppercase tracking-wide mb-3 opacity-70">League</h5>

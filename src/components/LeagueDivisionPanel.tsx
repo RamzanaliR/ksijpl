@@ -128,7 +128,7 @@ function ResponsiveList<T>({
 
 function CardTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="inline-block bg-white text-[#0B3363] font-display font-bold text-base px-3 py-1.5 rounded-lg mb-4">
+    <div className="inline-block bg-white text-[#0B3363] font-display font-bold text-lg px-3 py-1.5 rounded-lg mb-4">
       {children}
     </div>
   );
@@ -167,7 +167,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
         ))}
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5 items-stretch">
+      <div className="grid md:grid-cols-3 gap-5 items-start">
         {/* Table */}
         <div className="rounded-2xl p-5 bg-[#0B3363] text-white dark:bg-white dark:text-[#0B3363] flex flex-col">
           <CardTitle>League Table</CardTitle>
@@ -225,7 +225,7 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
                 <a
                   href={`/matches/${m.id}`}
                   key={m.id}
-                  className="flex items-center justify-between py-4 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
+                  className="flex items-center justify-between py-5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
                 >
                   <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={36} className="w-2/5 font-bold text-sm" />
                   <span className="font-display font-bold text-lg flex-shrink-0 px-2">
@@ -251,10 +251,10 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
                   <a
                     href={`/matches/${m.id}`}
                     key={m.id}
-                    className="flex items-center justify-between py-2.5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
+                    className="flex items-center justify-between py-1.5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
                   >
                     <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={36} className="w-2/5 font-bold text-sm" />
-                    <span className="font-display font-bold text-sm bg-red-500/10 text-red-600 px-2.5 py-1 rounded flex items-center gap-1 flex-shrink-0">
+                    <span className="font-display font-bold text-xs bg-red-500/10 text-red-600 px-2 py-0.5 rounded flex items-center gap-1 flex-shrink-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                       {m.home_score ?? 0}–{m.away_score ?? 0}
                     </span>
@@ -264,10 +264,10 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
                   <a
                     href={`/matches/${m.id}`}
                     key={m.id}
-                    className="flex items-center justify-between py-2.5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
+                    className="flex items-center justify-between py-1.5 border-t border-[#0B3363]/10 dark:border-white/10 first:border-0 hover:opacity-80 transition-opacity"
                   >
                     <TeamBadge name={d.teamMap[m.home_team_id]} slug={d.teamSlugs[m.home_team_id]} size={36} className="w-2/5 font-bold text-sm" />
-                    <span className="font-display font-bold text-sm flex-shrink-0 px-2 text-center">
+                    <span className="font-display font-bold text-xs flex-shrink-0 px-2 text-center">
                       {m.kickoff_at ? new Date(m.kickoff_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "TBD"}
                     </span>
                     <TeamBadge name={d.teamMap[m.away_team_id]} slug={d.teamSlugs[m.away_team_id]} size={36} className="w-2/5 flex-row-reverse text-right font-bold text-sm" />

@@ -115,12 +115,12 @@ export default async function Home() {
       <section className="border-y border-[#0B3363]/10 dark:border-white/10 bg-[#3EA0D9]/5 dark:bg-white/5 py-8 overflow-hidden">
         <div className="flex gap-6 w-max animate-scroll-x">
           {[...SPONSOR_SLUGS, ...SPONSOR_SLUGS].map((slug, i) => (
-            <div key={i} className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-3">
+            <div key={i} className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-1.5">
               <Image
                 src={`/sponsors/${slug}.png`}
                 alt={slug.replace(/-/g, " ")}
-                width={140}
-                height={80}
+                width={160}
+                height={92}
                 className="object-contain w-full h-full"
               />
             </div>
@@ -165,18 +165,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Partners — league-level sponsors, static, no scroll */}
-      <section className="max-w-6xl mx-auto px-6 pb-10">
-        <h2 className="font-display font-bold text-xl mb-4">Our Partners</h2>
-        <div className="flex flex-wrap gap-6">
-          <div className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center p-3">
-            <Image src="/logos/gofiber-pl-badge.png" alt="gofiber" width={140} height={80} className="object-contain w-full h-full" />
-          </div>
-          <div className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center p-3">
-            <Image src="/logos/care-cure-pl-badge.png" alt="Care & Cure" width={140} height={80} className="object-contain w-full h-full" />
-          </div>
-        </div>
-      </section>
+      {/* Partners now live in the site-wide footer, above the link columns */}
 
       <SiteFooter />
     </div>

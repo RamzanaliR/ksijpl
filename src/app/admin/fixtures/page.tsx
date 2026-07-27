@@ -41,6 +41,12 @@ export default function FixturesAdmin() {
   const [kickoff, setKickoff] = useState("");
   const [addFixOpen, setAddFixOpen] = useState(false);
 
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wipeConfirmText, setWipeConfirmText] = useState("");
+  const [wiping, setWiping] = useState(false);
+  const [wipeResult, setWipeResult] = useState("");
+
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; errors: string[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -123,7 +129,45 @@ export default function FixturesAdmin() {
     loadDivisions();
     loadSeasons();
     loadTeams();
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: adminRow } = await supabase.from("admin_users").select("role").eq("id", data.user.id).maybeSingle();
+      setIsSuperAdmin(adminRow?.role === "super_admin");
+    });
   }, []);
+
+  async function wipeAllData() {
+    if (wipeConfirmText !== "WIPE ALL DATA") return;
+    setWiping(true);
+    setWipeResult("");
+    try {
+      // Downstream Fantasy points/standings are derived from match data, so clear those first
+      await supabase.from("fantasy_player_gameweek_points").delete().not("id", "is", null);
+      await supabase.from("fantasy_gameweek_points").delete().not("id", "is", null);
+      await supabase.from("fantasy_gameweek_squads").delete().not("id", "is", null);
+      await supabase.from("match_events").delete().not("id", "is", null);
+      await supabase.from("match_attendance").delete().not("id", "is", null);
+      const { error } = await supabase
+        .from("matches")
+        .update({
+          status: "scheduled",
+          home_score: null,
+          away_score: null,
+          home_pens: null,
+          away_pens: null,
+          home_motm_player_id: null,
+          away_motm_player_id: null,
+        })
+        .not("id", "is", null);
+      if (error) throw error;
+      setWipeResult("Done — all match results, events, attendance, and Fantasy points have been cleared.");
+      setWipeConfirmText("");
+      if (selectedSeason) loadMatches(selectedSeason);
+    } catch (e: any) {
+      setWipeResult(`Error: ${e.message}`);
+    }
+    setWiping(false);
+  }
 
   useEffect(() => {
     if (selectedSeason) {
@@ -512,6 +556,11 @@ export default function FixturesAdmin() {
               if (file) handleImportFile(file);
             }}
           />
+          {isSuperAdmin && (
+            <button onClick={() => setWipeOpen(true)} className="admin-btn text-xs sm:text-sm px-3 sm:px-4 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100">
+              Danger Zone
+            </button>
+          )}
           <button onClick={() => setAddFixOpen(true)} className="admin-btn admin-btn-primary text-xs sm:text-sm px-3 sm:px-4">
             Add Fixture
           </button>
@@ -589,6 +638,33 @@ export default function FixturesAdmin() {
           </button>
         </div>
       )}
+
+      <Modal
+        open={wipeOpen}
+        onClose={() => { setWipeOpen(false); setWipeConfirmText(""); setWipeResult(""); }}
+        title="Wipe all match data"
+        description="This permanently resets every match to scheduled, deletes all goals/cards/attendance/MOTM, and clears all Fantasy points and standings computed from them. This cannot be undone."
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-red-700">
+            Type <span className="font-mono font-bold">WIPE ALL DATA</span> below to confirm.
+          </p>
+          <input
+            value={wipeConfirmText}
+            onChange={(e) => setWipeConfirmText(e.target.value)}
+            placeholder="WIPE ALL DATA"
+            className="admin-input font-mono"
+          />
+          {wipeResult && <div className={`text-sm ${wipeResult.startsWith("Error") ? "text-red-600" : "text-green-700"}`}>{wipeResult}</div>}
+          <button
+            onClick={wipeAllData}
+            disabled={wipeConfirmText !== "WIPE ALL DATA" || wiping}
+            className="admin-btn bg-red-600 text-white hover:bg-red-700 disabled:opacity-40"
+          >
+            {wiping ? "Wiping…" : "Permanently wipe all data"}
+          </button>
+        </div>
+      </Modal>
 
       <Modal open={addFixOpen} onClose={() => setAddFixOpen(false)} title="Add Fixture" description="Adds to the match week you're currently viewing.">
         <form onSubmit={addFixture} className="flex flex-col gap-3">
