@@ -65,6 +65,7 @@ export default function SquadBuilder() {
 
   const [search, setSearch] = useState("");
   const [posFilter, setPosFilter] = useState<Position | "ALL">("ALL");
+  const [teamFilter, setTeamFilter] = useState("ALL");
   const [sortMode, setSortMode] = useState<SortMode>("price_desc");
 
   useEffect(() => {
@@ -329,6 +330,7 @@ export default function SquadBuilder() {
 
   const filteredPlayers = players
     .filter((p) => (posFilter === "ALL" ? true : p.position === posFilter))
+    .filter((p) => (teamFilter === "ALL" ? true : p.team_id === teamFilter))
     .filter((p) => p.full_name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       if (sortMode === "price_desc") return b.price - a.price;
@@ -392,6 +394,86 @@ export default function SquadBuilder() {
     return slots;
   }
 
+  const playerSelectionPanel = (
+    <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-4">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="font-display font-bold text-sm">Player Selection</h2>
+        <button
+          onClick={() => {
+            setSelected(new Set());
+            setTeamLimitAlert("");
+            if (teamId) supabase.from("fantasy_team_players").delete().eq("fantasy_team_id", teamId).then(() => {});
+          }}
+          className="text-xs text-red-600 hover:underline"
+        >
+          Reset
+        </button>
+      </div>
+      <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">{filteredPlayers.length} players shown · budget TSH {budget}m</p>
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by name"
+        className="w-full border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-3 py-2 text-sm mb-2"
+      />
+      <div className="flex gap-1 mb-2 flex-wrap">
+        {(["ALL", ...POSITIONS] as const).map((pos) => (
+          <button
+            key={pos}
+            onClick={() => setPosFilter(pos)}
+            className={`text-[10px] font-semibold px-2 py-1 rounded-md ${posFilter === pos ? "bg-[#0B3363] text-white dark:bg-[#3EA0D9]" : "bg-[#0B3363]/5 dark:bg-white/10"}`}
+          >
+            {pos === "ALL" ? "All" : pos}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2 mb-2">
+        <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} className="flex-1 border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs">
+          <option value="ALL">All teams</option>
+          {Object.entries(teamNames).sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
+        <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} className="flex-1 border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs">
+          <option value="price_desc">Price: high–low</option>
+          <option value="price_asc">Price: low–high</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+      <div className="rounded-xl border border-[#0B3363]/10 dark:border-white/10 max-h-[420px] overflow-y-auto divide-y divide-[#0B3363]/5 dark:divide-white/5">
+        {filteredPlayers.map((p) => {
+          const isSel = selected.has(p.id);
+          const disabled =
+            !isSel &&
+            (isLocked ||
+              selected.size >= settings.squad_size ||
+              countByPos(p.position) >= requiredByPosition[p.position] ||
+              p.price > remaining);
+          return (
+            <button
+              key={p.id}
+              onClick={() => togglePlayer(p)}
+              disabled={disabled}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-[#0B3363]/5 dark:hover:bg-white/5 text-left disabled:opacity-50 disabled:cursor-default"
+            >
+              <span className="min-w-0">
+                <span className="truncate font-medium block">{p.full_name}</span>
+                <span className="truncate text-[10px] text-[#0B3363]/40 dark:text-white/40 block">{p.teamName} · {p.position}</span>
+              </span>
+              <span className="flex items-center gap-2 flex-shrink-0">
+                <span className="font-display font-bold text-xs">TSH {p.price.toFixed(1)}m</span>
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isSel ? "bg-[#0B3363] text-white dark:bg-[#3EA0D9]" : "bg-[#3EA0D9]/15 text-[#3EA0D9]"}`}>
+                  {isSel ? "✓" : "+"}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+        {filteredPlayers.length === 0 && <div className="p-4 text-center text-xs text-[#0B3363]/40 dark:text-white/40">No players match.</div>}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
       <SiteHeader active="fantasy" />
@@ -449,142 +531,98 @@ export default function SquadBuilder() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-[340px_1fr] gap-6 min-w-0">
-          {/* Left: Player Selection */}
-          <section className="min-w-0">
-            <h2 className="font-display font-bold text-base mb-1">Player Selection</h2>
-            <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-3">Select players to fill your squad. Max budget TSH {budget}m.</p>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name"
-              className="w-full border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-3 py-2 text-sm mb-2"
-            />
-            <div className="flex gap-2 mb-2">
-              <select value={posFilter} onChange={(e) => setPosFilter(e.target.value as any)} className="flex-1 border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs">
-                <option value="ALL">All positions</option>
-                {POSITIONS.map((pos) => (<option key={pos} value={pos}>{POSITION_LABELS[pos]}</option>))}
-              </select>
-              <select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} className="flex-1 border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-2 py-1.5 text-xs">
-                <option value="price_desc">Price: high–low</option>
-                <option value="price_asc">Price: low–high</option>
-                <option value="name">Name</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs bg-[#3EA0D9]/15 text-[#3EA0D9] font-semibold px-2.5 py-1 rounded-lg">{filteredPlayers.length} players shown</div>
-              <button
-                onClick={() => {
-                  setSelected(new Set());
-                  if (teamId) supabase.from("fantasy_team_players").delete().eq("fantasy_team_id", teamId).then(() => {});
-                }}
-                className="text-xs text-red-600 hover:underline"
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 max-h-[560px] overflow-y-auto divide-y divide-[#0B3363]/5 dark:divide-white/5">
-              {filteredPlayers.map((p) => {
-                const isSel = selected.has(p.id);
-                const disabled =
-                  !isSel &&
-                  (isLocked ||
-                    selected.size >= settings.squad_size ||
-                    countByPos(p.position) >= requiredByPosition[p.position] ||
-                    p.price > remaining);
-                return (
-                  <div key={p.id} className="flex items-center justify-between px-3 py-2 text-sm bg-white dark:bg-white/5">
-                    <div className="min-w-0">
-                      <div className="truncate font-medium text-[#0B3363] dark:text-white">{p.full_name}</div>
-                      <div className="text-xs text-[#0B3363]/40 dark:text-white/40 truncate">{p.position} · {p.teamName}</div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="font-display font-bold text-xs">TSH {p.price.toFixed(1)}m</span>
-                      <button
-                        onClick={() => togglePlayer(p)}
-                        disabled={disabled}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${
-                          isSel
-                            ? "bg-[#0B3363] text-white dark:bg-[#3EA0D9]"
-                            : disabled
-                            ? "bg-[#0B3363]/5 dark:bg-white/5 text-[#0B3363]/20 dark:text-white/20"
-                            : "bg-[#3EA0D9]/15 text-[#3EA0D9] hover:bg-[#3EA0D9]/25"
-                        }`}
-                      >
-                        {isSel ? "✓" : "+"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-              {filteredPlayers.length === 0 && <div className="p-4 text-center text-xs text-[#0B3363]/40 dark:text-white/40">No players match.</div>}
-            </div>
-          </section>
-
-          {/* Right: Squad Selection */}
-          <section className="min-w-0">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <h2 className="font-display font-bold text-base">Squad Selection</h2>
-              <div className="flex items-center gap-3">
-                <div className={`text-sm font-bold px-3 py-1.5 rounded-lg ${selected.size === settings.squad_size ? "bg-green-500/15 text-green-700 dark:text-green-400" : "bg-[#0B3363]/5 dark:bg-white/10"}`}>
-                  {selected.size}/{settings.squad_size} selected
-                </div>
-                <div className={`text-sm font-bold px-3 py-1.5 rounded-lg ${remaining < 0 ? "bg-red-500/15 text-red-600" : "bg-[#F4B400]/20"}`}>
-                  TSH {remaining.toFixed(1)}m bank
+        <div className="grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
+          <div className="hidden lg:block">
+            <div className="grid grid-cols-2 gap-2 mb-4 mt-[60px]">
+              <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
+                <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Squad</div>
+                <div className={`font-display font-bold text-base ${selected.size === settings.squad_size ? "text-green-700 dark:text-green-400" : "text-[#0B3363]"}`}>
+                  {selected.size}/{settings.squad_size}
                 </div>
               </div>
+              <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
+                <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Bank</div>
+                <div className={`font-display font-bold text-base ${remaining < 0 ? "text-red-600" : "text-[#0B3363]"}`}>{remaining.toFixed(1)}m</div>
+              </div>
             </div>
-
             <div className="flex items-center gap-2 mb-4">
               <button onClick={autoPick} disabled={squadFull || isLocked} className="admin-btn admin-btn-gold text-xs sm:text-sm">Auto Pick</button>
-              <span className="text-xs text-[#0B3363]/40 dark:text-white/40">Fills any empty slots within budget.</span>
+              <span className="text-xs text-[#0B3363]/40 dark:text-white/40">Fills empty slots within budget.</span>
             </div>
-            {teamLimitAlert && <div className="rounded-lg bg-amber-50 text-amber-800 text-xs px-3 py-2 mb-3">{teamLimitAlert}</div>}
+            {playerSelectionPanel}
+          </div>
 
-            <PitchBackground>
-              <div className="flex flex-col gap-4">
-                {POSITIONS.map((pos) => (
-                  <div key={pos} className="flex justify-center gap-10 flex-wrap">
-                    {buildSlots(pos).map((p, i) => (
-                      <div key={p?.id ?? `${pos}-empty-${i}`}>
-                        {p ? (
-                          <PlayerJerseyCard
-                            name={p.displayName}
-                            price={p.price}
-                            teamSlug={teamSlugs[p.team_id]}
-                              isGoalkeeper={p.position === "GK"}
-                            opponentCode={nextOpponentByTeam[p.team_id]?.code}
-                            opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
-                            onRemove={isLocked ? undefined : () => removePlayer(p)}
-                          />
-                        ) : (
-                          <button onClick={() => setPosFilter(pos)} className="w-20 sm:w-24 bg-black/10 hover:bg-black/15 rounded-xl p-3 flex flex-col items-center gap-1 transition-colors">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
-                            <span className="text-[10px] font-bold text-white uppercase">{pos}</span>
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ))}
+          <div className="min-w-0">
+            <div className="w-[730px] max-w-full mx-auto">
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h2 className="font-display font-bold text-base">Your Squad</h2>
               </div>
-            </PitchBackground>
+              {teamLimitAlert && <div className="rounded-lg bg-amber-50 text-amber-800 text-xs px-3 py-2 mb-3">{teamLimitAlert}</div>}
 
-            {!squadComplete ? (
-              <p className="text-xs text-[#0B3363]/40 dark:text-white/40">
-                Fill all {settings.squad_size} slots within budget to move on to picking your starting {settings.starting_xi_size}.
-              </p>
-            ) : (
-              <button
-                onClick={continueToPickTeam}
-                disabled={continuing || isLocked}
-                className="w-full py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9] font-semibold text-sm disabled:opacity-40"
-              >
-                {continuing ? "Saving…" : "Continue to Pick Team →"}
-              </button>
-            )}
-          </section>
+              <PitchBackground>
+                <div className="flex flex-col gap-4">
+                  {POSITIONS.map((pos) => (
+                    <div key={pos} className="flex justify-center gap-10 flex-wrap">
+                      {buildSlots(pos).map((p, i) => (
+                        <div key={p?.id ?? `${pos}-empty-${i}`}>
+                          {p ? (
+                            <PlayerJerseyCard
+                              name={p.displayName}
+                              price={p.price}
+                              teamSlug={teamSlugs[p.team_id]}
+                              isGoalkeeper={p.position === "GK"}
+                              opponentCode={nextOpponentByTeam[p.team_id]?.code}
+                              opponentIsHome={nextOpponentByTeam[p.team_id]?.isHome}
+                              onRemove={isLocked ? undefined : () => removePlayer(p)}
+                            />
+                          ) : (
+                            <button onClick={() => setPosFilter(pos)} className="w-20 sm:w-24 bg-black/10 hover:bg-black/15 rounded-xl p-3 flex flex-col items-center gap-1 transition-colors">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+                              <span className="text-[10px] font-bold text-white uppercase">{pos}</span>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </PitchBackground>
+
+              {!squadComplete ? (
+                <p className="text-xs text-[#0B3363]/40 dark:text-white/40 mt-4">
+                  Fill all {settings.squad_size} slots within budget to move on to picking your starting {settings.starting_xi_size}.
+                </p>
+              ) : (
+                <button
+                  onClick={continueToPickTeam}
+                  disabled={continuing || isLocked}
+                  className="w-full mt-4 py-2.5 rounded-lg bg-[#0B3363] text-white dark:bg-[#3EA0D9] font-semibold text-sm disabled:opacity-40"
+                >
+                  {continuing ? "Saving…" : "Continue to Pick Team →"}
+                </button>
+              )}
+
+              <div className="lg:hidden mt-6">
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
+                    <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Squad</div>
+                    <div className={`font-display font-bold text-base ${selected.size === settings.squad_size ? "text-green-700 dark:text-green-400" : "text-[#0B3363]"}`}>
+                      {selected.size}/{settings.squad_size}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
+                    <div className="text-[9px] font-bold uppercase text-[#0B3363]/40">Bank</div>
+                    <div className={`font-display font-bold text-base ${remaining < 0 ? "text-red-600" : "text-[#0B3363]"}`}>{remaining.toFixed(1)}m</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <button onClick={autoPick} disabled={squadFull || isLocked} className="admin-btn admin-btn-gold text-xs sm:text-sm">Auto Pick</button>
+                  <span className="text-xs text-[#0B3363]/40 dark:text-white/40">Fills empty slots within budget.</span>
+                </div>
+                {playerSelectionPanel}
+              </div>
+            </div>
+          </div>
         </div>
       </main>
       <SiteFooter />
