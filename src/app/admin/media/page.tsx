@@ -89,6 +89,13 @@ export default function MediaAdmin() {
         url: pub.publicUrl,
       });
       if (insertError) setError(`${f.name}: ${insertError.message}`);
+
+      // Wire straight into the live site: a team sponsor logo upload updates the team record
+      // so every sponsor badge across the site picks it up immediately, no code change needed.
+      if (category === "team_sponsor_logo" && teamId) {
+        const { error: teamUpdateError } = await supabase.from("teams").update({ sponsor_logo_url: pub.publicUrl }).eq("id", teamId);
+        if (teamUpdateError) setError(`Uploaded, but couldn't link it to the team: ${teamUpdateError.message}`);
+      }
     }
 
     setUploading(false);

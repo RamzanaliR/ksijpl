@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CupBracket from "@/components/CupBracket";
+import { getSponsorLogoMap } from "@/lib/sponsor-logos";
 
 export const metadata = { title: "Cup — KSIJ DAR PL" };
 
@@ -22,7 +23,7 @@ async function getCupData() {
         .order("created_at", { ascending: false })
         .limit(1);
       const season = seasons?.[0];
-      if (!season) return { competition: c, season: null, gameweeks: [], matches: [], teamMap: {}, teamSlugs: {} };
+      if (!season) return { competition: c, season: null, gameweeks: [], matches: [], teamMap: {}, teamSlugs: {}, teamLogoUrls: {} };
 
       const [{ data: gameweeks }, { data: matches }, { data: teams }] = await Promise.all([
         supabase.from("gameweeks").select("id,number,round_name").eq("season_id", season.id).order("number"),
@@ -39,7 +40,8 @@ async function getCupData() {
         teamSlugs[t.id] = t.slug;
       });
 
-      return { competition: c, season, gameweeks: gameweeks ?? [], matches: matches ?? [], teamMap, teamSlugs };
+      const teamLogoUrls = await getSponsorLogoMap();
+      return { competition: c, season, gameweeks: gameweeks ?? [], matches: matches ?? [], teamMap, teamSlugs, teamLogoUrls };
     })
   );
 }

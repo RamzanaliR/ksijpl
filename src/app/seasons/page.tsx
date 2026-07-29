@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import TeamBadge from "@/components/TeamBadge";
+import { getSponsorLogoMap } from "@/lib/sponsor-logos";
 
 type Competition = { id: string; name: string; division_id: string; sponsor_name: string };
 type Season = { id: string; label: string };
@@ -34,6 +35,7 @@ export default function SeasonsPage() {
   const [selectedSeasonId, setSelectedSeasonId] = useState("");
   const [teamMap, setTeamMap] = useState<Record<string, string>>({});
   const [teamSlugs, setTeamSlugs] = useState<Record<string, string | null>>({});
+  const [teamLogoUrls, setTeamLogoUrls] = useState<Record<string, string>>({});
   const [standings, setStandings] = useState<StandingRow[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStat[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +93,7 @@ export default function SeasonsPage() {
       });
       setTeamMap(tMap);
       setTeamSlugs(tSlugs);
+      getSponsorLogoMap().then(setTeamLogoUrls);
       setStandings(standingsData ?? []);
 
       const teamIds = (teams ?? []).map((t: any) => t.id);
@@ -213,7 +216,7 @@ export default function SeasonsPage() {
                           <td className="py-3 sm:py-2 px-3 text-[#0B3363]/40 dark:text-white/40 font-semibold">{i + 1}</td>
                           <td className="py-3 sm:py-2 px-3">
                             <a href={`/teams/${row.team_id}`} className="hover:text-[#3EA0D9] transition-colors">
-                              <TeamBadge name={teamMap[row.team_id]} slug={teamSlugs[row.team_id]} size={26} />
+                              <TeamBadge name={teamMap[row.team_id]} slug={teamSlugs[row.team_id]} logoUrl={teamLogoUrls[row.team_id]} size={26} />
                             </a>
                           </td>
                           <td className="py-3 sm:py-2 px-2 text-right">{row.played}</td>
@@ -261,7 +264,7 @@ export default function SeasonsPage() {
                             {p.nickname && <span className="text-xs text-[#0B3363]/40 dark:text-white/40"> "{p.nickname}"</span>}
                           </td>
                           <td className="py-2 px-2">
-                            <TeamBadge name={teamMap[p.team_id] ?? "—"} slug={teamSlugs[p.team_id]} size={16} className="text-xs" />
+                            <TeamBadge name={teamMap[p.team_id] ?? "—"} slug={teamSlugs[p.team_id]} logoUrl={teamLogoUrls[p.team_id]} size={16} className="text-xs" />
                           </td>
                           <td className="py-2 px-2 text-right">{p.gp}</td>
                           <td className="py-2 px-2 text-right font-bold text-[#3EA0D9]">{p.goals}</td>

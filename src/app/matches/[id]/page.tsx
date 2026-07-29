@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import TeamBadge from "@/components/TeamBadge";
+import { getSponsorLogoMap } from "@/lib/sponsor-logos";
 
 const EVENT_META: Record<string, { label: string; icon: string }> = {
   goal: { label: "Goal", icon: "⚽" },
@@ -27,7 +28,7 @@ export default async function MatchResultPage({ params }: { params: Promise<{ id
 
   if (!match) notFound();
 
-  const [{ data: homeTeam }, { data: awayTeam }, { data: gameweek }, { data: season }, { data: events }, { data: attendance }, { data: motmPlayers }] =
+  const [{ data: homeTeam }, { data: awayTeam }, { data: gameweek }, { data: season }, { data: events }, { data: attendance }, { data: motmPlayers }, sponsorLogoMap] =
     await Promise.all([
       supabase.from("teams").select("id,name,slug").eq("id", match.home_team_id).maybeSingle(),
       supabase.from("teams").select("id,name,slug").eq("id", match.away_team_id).maybeSingle(),
@@ -43,6 +44,7 @@ export default async function MatchResultPage({ params }: { params: Promise<{ id
         .from("players")
         .select("id,full_name,nickname")
         .in("id", [match.home_motm_player_id, match.away_motm_player_id].filter(Boolean) as string[]),
+      getSponsorLogoMap(),
     ]);
 
   const roundLabel = (gameweek as any)?.round_name ?? (gameweek ? `Match Week ${(gameweek as any).number}` : null);
@@ -78,8 +80,8 @@ export default async function MatchResultPage({ params }: { params: Promise<{ id
           <div className="flex items-center justify-between gap-4">
             <a href={homeTeam ? `/teams/${homeTeam.id}` : "#"} className="flex-1 flex flex-col items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
               <div className="w-16 h-16 rounded-xl bg-white border-2 border-[#0B3363] flex items-center justify-center overflow-hidden flex-shrink-0">
-                {homeTeam?.slug ? (
-                  <img src={`/sponsors/${homeTeam.slug}.png`} alt={homeTeam.name} className="w-full h-full object-contain p-1" />
+                {(homeTeam && sponsorLogoMap[homeTeam.id]) || homeTeam?.slug ? (
+                  <img src={(homeTeam && sponsorLogoMap[homeTeam.id]) || `/sponsors/${homeTeam!.slug}.png`} alt={homeTeam!.name} className="w-full h-full object-contain p-1" />
                 ) : (
                   <span className="font-display font-bold text-[#0B3363] text-sm">{homeTeam?.name.slice(0, 2).toUpperCase()}</span>
                 )}
@@ -109,8 +111,8 @@ export default async function MatchResultPage({ params }: { params: Promise<{ id
 
             <a href={awayTeam ? `/teams/${awayTeam.id}` : "#"} className="flex-1 flex flex-col items-center gap-2 min-w-0 hover:opacity-80 transition-opacity">
               <div className="w-16 h-16 rounded-xl bg-white border-2 border-[#0B3363] flex items-center justify-center overflow-hidden flex-shrink-0">
-                {awayTeam?.slug ? (
-                  <img src={`/sponsors/${awayTeam.slug}.png`} alt={awayTeam.name} className="w-full h-full object-contain p-1" />
+                {(awayTeam && sponsorLogoMap[awayTeam.id]) || awayTeam?.slug ? (
+                  <img src={(awayTeam && sponsorLogoMap[awayTeam.id]) || `/sponsors/${awayTeam!.slug}.png`} alt={awayTeam!.name} className="w-full h-full object-contain p-1" />
                 ) : (
                   <span className="font-display font-bold text-[#0B3363] text-sm">{awayTeam?.name.slice(0, 2).toUpperCase()}</span>
                 )}
@@ -166,7 +168,7 @@ export default async function MatchResultPage({ params }: { params: Promise<{ id
             <h2 className="font-display font-bold text-lg mb-4">Featured Players</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <TeamBadge name={homeTeam?.name ?? "Home"} slug={homeTeam?.slug} size={18} className="mb-2 text-xs font-bold" />
+                <TeamBadge name={homeTeam?.name ?? "Home"} slug={homeTeam?.slug} logoUrl={homeTeam ? sponsorLogoMap[homeTeam.id] : null} size={18} className="mb-2 text-xs font-bold" />
                 <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 divide-y divide-[#0B3363]/5 dark:divide-white/5">
                   {homeAttendance.map((a: any) => (
                     <div key={a.player_id} className="px-3 py-2 text-xs truncate">{a.players?.nickname || a.players?.full_name}</div>
@@ -175,7 +177,7 @@ export default async function MatchResultPage({ params }: { params: Promise<{ id
                 </div>
               </div>
               <div>
-                <TeamBadge name={awayTeam?.name ?? "Away"} slug={awayTeam?.slug} size={18} className="mb-2 text-xs font-bold" />
+                <TeamBadge name={awayTeam?.name ?? "Away"} slug={awayTeam?.slug} logoUrl={awayTeam ? sponsorLogoMap[awayTeam.id] : null} size={18} className="mb-2 text-xs font-bold" />
                 <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 divide-y divide-[#0B3363]/5 dark:divide-white/5">
                   {awayAttendance.map((a: any) => (
                     <div key={a.player_id} className="px-3 py-2 text-xs truncate">{a.players?.nickname || a.players?.full_name}</div>

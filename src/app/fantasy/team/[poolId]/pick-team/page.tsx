@@ -194,6 +194,8 @@ export default function PickTeam() {
 
   const startingCount = squadPlayers.filter((p) => lineup[p.id]?.isStarting).length;
   const startingGkCount = squadPlayers.filter((p) => p.position === "GK" && lineup[p.id]?.isStarting).length;
+  const startingDefCount = squadPlayers.filter((p) => p.position === "DEF" && lineup[p.id]?.isStarting).length;
+  const MIN_STARTING_DEF = 2;
   // Bench always shown GK -> DEF -> MID -> FWD, by price within each group
   const benchPlayers = squadPlayers
     .filter((p) => !lineup[p.id]?.isStarting)
@@ -204,6 +206,7 @@ export default function PickTeam() {
     settings &&
     startingCount === settings.starting_xi_size &&
     startingGkCount === settings.starting_gk_count &&
+    startingDefCount >= MIN_STARTING_DEF &&
     !!captainId &&
     !!viceCaptainId &&
     captainId !== viceCaptainId &&
@@ -223,6 +226,11 @@ export default function PickTeam() {
     const wouldBeGkCount = startingGkCount - (outPlayer.position === "GK" ? 1 : 0) + (inPlayer.position === "GK" ? 1 : 0);
     if (wouldBeGkCount !== requiredGk) {
       setSubModeMessage(`That swap would leave ${wouldBeGkCount} goalkeeper${wouldBeGkCount === 1 ? "" : "s"} starting — exactly ${requiredGk} is required.`);
+      return;
+    }
+    const wouldBeDefCount = startingDefCount - (outPlayer.position === "DEF" ? 1 : 0) + (inPlayer.position === "DEF" ? 1 : 0);
+    if (wouldBeDefCount < MIN_STARTING_DEF) {
+      setSubModeMessage(`That swap would leave ${wouldBeDefCount} defender${wouldBeDefCount === 1 ? "" : "s"} starting — at least ${MIN_STARTING_DEF} is required.`);
       return;
     }
     setSaved(false);

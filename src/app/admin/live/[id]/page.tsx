@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Modal from "@/components/admin/Modal";
+import { computeGameweekPoints } from "@/lib/fantasy-compute";
 
 type Team = { id: string; name: string; division_id?: string };
 type Player = { id: string; full_name: string; nickname: string | null; squad_number: number | null; position: string | null };
@@ -21,6 +22,8 @@ type MatchRow = {
   away_motm_player_id: string | null;
   kickoff_at: string | null;
   venue: string | null;
+  gameweek_id: string | null;
+  season_id: string | null;
 };
 
 const EVENT_META: Record<string, { label: string; icon: string; short: string }> = {
@@ -66,7 +69,7 @@ export default function LiveMatchConsole() {
   const load = useCallback(async () => {
     const { data: m } = await supabase
       .from("matches")
-      .select("id,home_team_id,away_team_id,status,home_score,away_score,home_pens,away_pens,home_motm_player_id,away_motm_player_id,kickoff_at,venue")
+      .select("id,home_team_id,away_team_id,status,home_score,away_score,home_pens,away_pens,home_motm_player_id,away_motm_player_id,kickoff_at,venue,gameweek_id,season_id")
       .eq("id", matchId)
       .maybeSingle();
     if (!m) {
@@ -201,6 +204,21 @@ export default function LiveMatchConsole() {
   async function setStatus(status: string) {
     await supabase.from("matches").update({ status }).eq("id", matchId);
     setMatch((prev) => (prev ? { ...prev, status } : prev));
+
+    if (status === "completed" && match?.gameweek_id && match?.season_id) {
+      const { data: gwMatches } = await supabase.from("matches").select("status").eq("gameweek_id", match.gameweek_id);
+      const allDone = (gwMatches ?? []).every((m) => m.status === "completed");
+      if (allDone) {
+        const { data: pool } = await supabase.from("fantasy_settings").select("id").eq("season_id", match.season_id).eq("is_active", true).maybeSingle();
+        if (pool) {
+          try {
+            await computeGameweekPoints(pool.id, match.gameweek_id);
+          } catch (e) {
+            console.error("Auto-compute Fantasy points failed:", e);
+          }
+        }
+      }
+    }
   }
 
   async function saveMotm(side: "home" | "away", playerId: string) {

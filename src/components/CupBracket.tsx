@@ -24,6 +24,7 @@ type CupData = {
   matches: Match[];
   teamMap: Record<string, string>;
   teamSlugs: Record<string, string | null>;
+  teamLogoUrls: Record<string, string>;
 };
 
 type TreeNode = { match: Match; home: TreeNode | null; away: TreeNode | null };
@@ -46,17 +47,20 @@ function buildTree(matches: Match[]): TreeNode | null {
 function TeamSlot({
   name,
   slug,
+  logoUrl,
   score,
 }: {
   name: string | null;
   slug: string | null;
+  logoUrl?: string | null;
   score: number | null;
 }) {
+  const src = logoUrl || (slug ? `/sponsors/${slug}.png` : null);
   return (
     <div className="flex flex-col items-center text-center gap-1 w-16 flex-shrink-0">
       <div className="w-10 h-10 rounded-lg bg-white border border-[#0B3363]/15 flex items-center justify-center overflow-hidden flex-shrink-0">
-        {name && slug ? (
-          <img src={`/sponsors/${slug}.png`} alt={name} className="w-full h-full object-contain p-0.5" />
+        {name && src ? (
+          <img src={src} alt={name} className="w-full h-full object-contain p-0.5" />
         ) : name ? (
           <span className="font-display font-bold text-[#0B3363] text-[10px]">{name.slice(0, 2).toUpperCase()}</span>
         ) : (
@@ -75,11 +79,13 @@ function MatchBox({
   match,
   teamMap,
   teamSlugs,
+  teamLogoUrls,
   compact,
 }: {
   match: Match;
   teamMap: Record<string, string>;
   teamSlugs: Record<string, string | null>;
+  teamLogoUrls: Record<string, string>;
   compact?: boolean;
 }) {
   const homeName = match.home_team_id ? teamMap[match.home_team_id] : null;
@@ -92,9 +98,9 @@ function MatchBox({
   if (compact) {
     return (
       <Wrapper {...(wrapperProps as any)} className="flex flex-col items-center gap-1.5 flex-shrink-0">
-        <TeamSlot name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} score={showScores ? match.home_score : null} />
+        <TeamSlot name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} logoUrl={match.home_team_id ? teamLogoUrls[match.home_team_id] : null} score={showScores ? match.home_score : null} />
         <div className="w-4 h-px bg-[#0B3363]/20 dark:bg-white/20" />
-        <TeamSlot name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} score={showScores ? match.away_score : null} />
+        <TeamSlot name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} logoUrl={match.away_team_id ? teamLogoUrls[match.away_team_id] : null} score={showScores ? match.away_score : null} />
       </Wrapper>
     );
   }
@@ -106,7 +112,7 @@ function MatchBox({
     >
       <div className="flex items-center justify-between text-sm mb-1">
         {homeName ? (
-          <TeamBadge name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} size={18} className="min-w-0 text-[#0B3363]" />
+          <TeamBadge name={homeName} slug={match.home_team_id ? teamSlugs[match.home_team_id] : null} logoUrl={match.home_team_id ? teamLogoUrls[match.home_team_id] : null} size={18} className="min-w-0 text-[#0B3363]" />
         ) : (
           <span className="italic text-[#0B3363]/30 dark:text-white/30 text-xs">TBD</span>
         )}
@@ -118,7 +124,7 @@ function MatchBox({
       </div>
       <div className="flex items-center justify-between text-sm">
         {awayName ? (
-          <TeamBadge name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} size={18} className="min-w-0 text-[#0B3363]" />
+          <TeamBadge name={awayName} slug={match.away_team_id ? teamSlugs[match.away_team_id] : null} logoUrl={match.away_team_id ? teamLogoUrls[match.away_team_id] : null} size={18} className="min-w-0 text-[#0B3363]" />
         ) : (
           <span className="italic text-[#0B3363]/30 dark:text-white/30 text-xs">TBD</span>
         )}
@@ -140,12 +146,14 @@ function BracketBranch({
   side,
   teamMap,
   teamSlugs,
+  teamLogoUrls,
   compact,
 }: {
   node: TreeNode;
   side: "left" | "right";
   teamMap: Record<string, string>;
   teamSlugs: Record<string, string | null>;
+  teamLogoUrls: Record<string, string>;
   compact?: boolean;
 }) {
   const hasChildren = !!(node.home || node.away);
@@ -153,11 +161,11 @@ function BracketBranch({
   const pad = compact ? (side === "left" ? "pr-2" : "pl-2") : side === "left" ? "pr-4" : "pl-4";
   const children = (
     <div className={`flex flex-col ${gap} ${side === "left" ? "border-r-2" : "border-l-2"} ${pad} border-[#0B3363]/15 dark:border-white/15`}>
-      {node.home && <BracketBranch node={node.home} side={side} teamMap={teamMap} teamSlugs={teamSlugs} compact={compact} />}
-      {node.away && <BracketBranch node={node.away} side={side} teamMap={teamMap} teamSlugs={teamSlugs} compact={compact} />}
+      {node.home && <BracketBranch node={node.home} side={side} teamMap={teamMap} teamSlugs={teamSlugs} teamLogoUrls={teamLogoUrls} compact={compact} />}
+      {node.away && <BracketBranch node={node.away} side={side} teamMap={teamMap} teamSlugs={teamSlugs} teamLogoUrls={teamLogoUrls} compact={compact} />}
     </div>
   );
-  const box = <MatchBox match={node.match} teamMap={teamMap} teamSlugs={teamSlugs} compact={compact} />;
+  const box = <MatchBox match={node.match} teamMap={teamMap} teamSlugs={teamSlugs} teamLogoUrls={teamLogoUrls} compact={compact} />;
   return (
     <div className={`flex items-center ${compact ? "gap-2" : "gap-4"} ${side === "right" ? "flex-row-reverse" : ""}`}>
       {hasChildren && children}
@@ -174,13 +182,13 @@ function BracketTree({ cup, champion, compact }: { cup: CupData; champion: strin
   return (
     <div className="overflow-x-auto pb-4">
       <div className={`flex items-center justify-center ${compact ? "gap-3" : "gap-6"} min-w-max px-4 py-6`}>
-        {tree.home && <BracketBranch node={tree.home} side="left" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} compact={compact} />}
+        {tree.home && <BracketBranch node={tree.home} side="left" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} teamLogoUrls={cup.teamLogoUrls} compact={compact} />}
         <div className="flex flex-col items-center gap-2 flex-shrink-0">
           {champion && <span className={compact ? "text-lg" : "text-2xl"}>🏆</span>}
-          <MatchBox match={tree.match} teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} compact={compact} />
+          <MatchBox match={tree.match} teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} teamLogoUrls={cup.teamLogoUrls} compact={compact} />
           <span className="text-[9px] font-bold uppercase text-[#3EA0D9]">Final</span>
         </div>
-        {tree.away && <BracketBranch node={tree.away} side="right" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} compact={compact} />}
+        {tree.away && <BracketBranch node={tree.away} side="right" teamMap={cup.teamMap} teamSlugs={cup.teamSlugs} teamLogoUrls={cup.teamLogoUrls} compact={compact} />}
       </div>
     </div>
   );

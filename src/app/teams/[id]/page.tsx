@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import TeamBadge from "@/components/TeamBadge";
+import { getSponsorLogoMap } from "@/lib/sponsor-logos";
 import JerseyImage from "@/components/JerseyImage";
 
 const DIVISION_LABELS: Record<string, string> = {
@@ -25,6 +26,8 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
   if (!team) notFound();
 
   const division = (team as any).divisions as { name: string; slug: string } | null;
+  const sponsorLogoMap = await getSponsorLogoMap();
+  const teamLogoUrl = sponsorLogoMap[team.id];
 
   const [{ data: players }, { data: homeMatches }, { data: awayMatches }, { data: allTeamsRaw }, { data: attendance }, { data: events }] =
     await Promise.all([
@@ -135,8 +138,8 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
         {/* Header */}
         <div className="flex items-center gap-5 mb-10 flex-wrap">
           <div className="w-20 h-20 rounded-2xl bg-white border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {team.slug ? (
-              <Image src={`/sponsors/${team.slug}.png`} alt={team.name} width={68} height={68} className="object-contain w-full h-full" />
+            {teamLogoUrl || team.slug ? (
+              <img src={teamLogoUrl || `/sponsors/${team.slug}.png`} alt={team.name} className="object-contain w-full h-full p-2" />
             ) : (
               <span className="font-display font-bold text-[#0B3363] text-xl">
                 {team.short_name || team.name.slice(0, 2).toUpperCase()}
@@ -272,7 +275,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
                         {r.outcome}
                       </span>
                       <span className="flex-1 px-3 min-w-0">
-                        <TeamBadge name={r.opponent} slug={teamSlug(r.opponentId)} size={20} />
+                        <TeamBadge name={r.opponent} slug={teamSlug(r.opponentId)} logoUrl={sponsorLogoMap[r.opponentId]} size={20} />
                       </span>
                       <span className="font-display font-bold text-sm bg-[#0B3363]/5 px-3 py-1.5 rounded">
                         {r.us}–{r.them}
@@ -295,7 +298,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
                   const opponentId = isHome ? m.away_team_id : m.home_team_id;
                   return (
                     <a href={`/matches/${m.id}`} key={m.id} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-[#0B3363]/5 transition-colors">
-                      <TeamBadge name={teamName(opponentId)} slug={teamSlug(opponentId)} size={20} className="min-w-0" />
+                      <TeamBadge name={teamName(opponentId)} slug={teamSlug(opponentId)} logoUrl={sponsorLogoMap[opponentId]} size={20} className="min-w-0" />
                       <span className="text-xs text-[#0B3363]/50 flex-shrink-0 ml-3">
                         {m.kickoff_at ? new Date(m.kickoff_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
                       </span>

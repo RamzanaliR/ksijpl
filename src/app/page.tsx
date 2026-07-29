@@ -4,13 +4,9 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import LeagueDivisionPanel, { type DivisionPanelData } from "@/components/LeagueDivisionPanel";
+import { getSponsorLogoMap } from "@/lib/sponsor-logos";
 
-const SPONSOR_SLUGS = [
-  "care-and-cure", "dar-glass", "dot-syndicate", "double-click", "fidahussein-and-co",
-  "fragrance-world", "gf-trucks", "growing-tree", "irh", "masumin", "mo",
-  "murji-sundries", "power-computers", "rafiki", "rungu", "safiri",
-  "smiles-cars", "stepping-stones", "tiba", "u-world",
-];
+
 
 const DIVISION_LABELS: Record<string, string> = {
   gofiber: "gofiber KSIJ PL",
@@ -18,10 +14,13 @@ const DIVISION_LABELS: Record<string, string> = {
 };
 
 async function getSeasonData(): Promise<DivisionPanelData[]> {
-  const { data: seasons } = await supabase
-    .from("seasons")
-    .select("id,label,is_active,competitions(name,sponsor_name,division_id,type)")
-    .eq("is_active", true);
+  const [{ data: seasons }, sponsorLogos] = await Promise.all([
+    supabase
+      .from("seasons")
+      .select("id,label,is_active,competitions(name,sponsor_name,division_id,type)")
+      .eq("is_active", true),
+    getSponsorLogoMap(),
+  ]);
 
   const ordered = [...(seasons ?? [])]
     .filter((s: any) => s.competitions?.type === "league")
@@ -70,6 +69,7 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
         standings: standings ?? [],
         teamMap,
         teamSlugs,
+        teamLogoUrls: sponsorLogos,
         results,
         fixtures,
         matchWeekInProgress,
@@ -81,9 +81,11 @@ async function getSeasonData(): Promise<DivisionPanelData[]> {
 export default async function Home() {
   const seasonData = await getSeasonData();
   const senior = seasonData.find((d) => d.key === "gofiber") ?? seasonData[0];
-  const { data: teamsWithLinks } = await supabase.from("teams").select("slug,website_url").not("slug", "is", null);
-  const websiteBySlug: Record<string, string | null> = {};
-  (teamsWithLinks ?? []).forEach((t: any) => (websiteBySlug[t.slug] = t.website_url));
+  const [{ data: teamsWithLinks }, sponsorLogoMap] = await Promise.all([
+    supabase.from("teams").select("id,slug,name,website_url").not("slug", "is", null),
+    getSponsorLogoMap(),
+  ]);
+  const scrollerTeams = teamsWithLinks ?? [];
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0B1220] text-[#0B3363] dark:text-white transition-colors">
@@ -117,22 +119,17 @@ export default async function Home() {
       {/* Sponsor scroller — all team sponsors, auto-scrolling */}
       <section className="border-y border-[#0B3363]/10 dark:border-white/10 bg-[#3EA0D9]/5 dark:bg-white/5 py-8 overflow-hidden">
         <div className="flex gap-6 w-max animate-scroll-x">
-          {[...SPONSOR_SLUGS, ...SPONSOR_SLUGS].map((slug, i) => {
-            const url = websiteBySlug[slug];
+          {[...scrollerTeams, ...scrollerTeams].map((team, i) => {
+            const url = team.website_url;
             const Wrapper = url ? "a" : "div";
+            const logoSrc = sponsorLogoMap[team.id] || `/sponsors/${team.slug}.png`;
             return (
               <Wrapper
                 key={i}
                 {...(url ? { href: url, target: "_blank", rel: "noopener noreferrer" } : {})}
                 className="w-40 h-24 bg-white rounded-xl border-2 border-[#0B3363] flex items-center justify-center flex-shrink-0 p-1.5 hover:opacity-90 transition-opacity"
               >
-                <Image
-                  src={`/sponsors/${slug}.png`}
-                  alt={slug.replace(/-/g, " ")}
-                  width={160}
-                  height={92}
-                  className="object-contain w-full h-full"
-                />
+                <img src={logoSrc} alt={team.name} className="object-contain w-full h-full" />
               </Wrapper>
             );
           })}

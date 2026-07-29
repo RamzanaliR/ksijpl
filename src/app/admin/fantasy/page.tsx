@@ -192,7 +192,7 @@ export default function FantasyAdmin() {
           </button>
         </div>
         <p className="text-xs text-slate-400 mb-3">
-          Scores every player from this match week's completed matches, applies auto-subs and captain doubling for each fantasy team, and updates the leaderboard. Safe to re-run if you correct a score afterwards.
+          This now runs automatically the moment the last match in a match week is marked completed in Live Console. Use this button to re-run it manually if you correct a score, event, or MOTM afterwards — it's safe to re-run any time.
         </p>
 
         {computeError && <div className="admin-alert admin-alert-error mb-3">{computeError}</div>}
