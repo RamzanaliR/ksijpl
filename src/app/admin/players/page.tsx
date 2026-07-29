@@ -32,6 +32,8 @@ export default function PlayersAdmin() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [selectedTeamByDivision, setSelectedTeamByDivision] = useState<Record<string, string>>({});
   const [playersByTeam, setPlayersByTeam] = useState<Record<string, Player[]>>({});
+  const [pricesByTeam, setPricesByTeam] = useState<Record<string, Record<string, number>>>({});
+  const [poolByDivision, setPoolByDivision] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editNumber, setEditNumber] = useState("");
@@ -51,12 +53,19 @@ export default function PlayersAdmin() {
   );
 
   async function loadBase() {
-    const [{ data: divs }, { data: tms }] = await Promise.all([
+    const [{ data: divs }, { data: tms }, { data: pools }] = await Promise.all([
       supabase.from("divisions").select("id,name,slug").order("name"),
       supabase.from("teams").select("id,name,division_id").order("name"),
+      supabase.from("fantasy_settings").select("id,seasons(competitions(division_id))").eq("is_active", true),
     ]);
     setDivisions(divs ?? []);
     setTeams(tms ?? []);
+    const poolMap: Record<string, string> = {};
+    (pools ?? []).forEach((p: any) => {
+      const divId = p.seasons?.competitions?.division_id;
+      if (divId) poolMap[divId] = p.id;
+    });
+    setPoolByDivision(poolMap);
 
     const defaults: Record<string, string> = {};
     (divs ?? []).forEach((d) => {
@@ -74,6 +83,29 @@ export default function PlayersAdmin() {
       .eq("team_id", teamId)
       .order("squad_number");
     setPlayersByTeam((prev) => ({ ...prev, [teamId]: data ?? [] }));
+
+    const team = teams.find((t) => t.id === teamId);
+    const poolId = team ? poolByDivision[team.division_id] : undefined;
+    if (poolId && data && data.length) {
+      const { data: priceRows } = await supabase
+        .from("fantasy_player_prices")
+        .select("player_id,price")
+        .eq("fantasy_settings_id", poolId)
+        .in("player_id", data.map((p) => p.id));
+      const priceMap: Record<string, number> = {};
+      (priceRows ?? []).forEach((r: any) => (priceMap[r.player_id] = Number(r.price)));
+      setPricesByTeam((prev) => ({ ...prev, [teamId]: priceMap }));
+    }
+  }
+
+  async function savePrice(teamId: string, playerId: string, value: string) {
+    const team = teams.find((t) => t.id === teamId);
+    const poolId = team ? poolByDivision[team.division_id] : undefined;
+    if (!poolId) return;
+    const price = Number(value);
+    if (!value || isNaN(price)) return;
+    await supabase.from("fantasy_player_prices").upsert({ fantasy_settings_id: poolId, player_id: playerId, price }, { onConflict: "fantasy_settings_id,player_id" });
+    setPricesByTeam((prev) => ({ ...prev, [teamId]: { ...(prev[teamId] ?? {}), [playerId]: price } }));
   }
 
   useEffect(() => {
@@ -188,6 +220,7 @@ export default function PlayersAdmin() {
                       <th>Name</th>
                       <th>FPL Name</th>
                       <th>Pos</th>
+                      <th>Price</th>
                       <th className="text-right">Actions</th>
                     </tr>
                   </thead>
@@ -239,6 +272,21 @@ export default function PlayersAdmin() {
                               <option key={pos} value={pos}>{pos}</option>
                             ))}
                           </select>
+                        </td>
+                        <td>
+                          {poolByDivision[teams.find((t) => t.id === selectedTeam)?.division_id ?? ""] ? (
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="0"
+                              defaultValue={pricesByTeam[selectedTeam]?.[p.id] ?? ""}
+                              onBlur={(e) => savePrice(selectedTeam, p.id, e.target.value)}
+                              placeholder="TSH"
+                              className="text-xs border border-slate-200 rounded-lg px-1.5 py-1 w-16 outline-none text-[#0B3363]"
+                            />
+                          ) : (
+                            <span className="text-slate-300 text-xs">—</span>
+                          )}
                         </td>
                         <td>
                           <div className="flex justify-end gap-1">

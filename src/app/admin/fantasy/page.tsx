@@ -222,46 +222,31 @@ export default function FantasyAdmin() {
         )}
       </div>
 
-      <div className="admin-stat-label mb-3">Player Prices</div>
-      <div className="space-y-8">
-        {POSITIONS.map((pos) => (
-          <section key={pos}>
-            <h2 className="font-semibold text-[#0B3363] mb-2 text-sm">{pos}</h2>
-            <div className="admin-card overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="admin-table">
-                  <thead>
-                    <tr><th>Player</th><th>Team</th><th className="text-right">Price (TSH m)</th></tr>
-                  </thead>
-                  <tbody>
-                    {players
-                      .filter((p) => p.position === pos)
-                      .map((p) => (
-                        <tr key={p.id}>
-                          <td>{p.full_name}{p.nickname ? ` "${p.nickname}"` : ""}</td>
-                          <td className="text-slate-400">{p.teamName}</td>
-                          <td className="text-right">
-                            <input
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              defaultValue={prices[p.id] ?? ""}
-                              onBlur={(e) => savePrice(p.id, e.target.value)}
-                              disabled={savingId === p.id}
-                              className="admin-input w-20 text-right py-1 inline-block"
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-              {players.filter((p) => p.position === pos).length === 0 && (
-                <div className="admin-empty">No {pos} players with a price yet.</div>
-              )}
-            </div>
-          </section>
-        ))}
+      <div className="admin-stat-label mb-3">Scoring Rules</div>
+      <p className="text-sm text-slate-500 mb-4 max-w-2xl">
+        This is exactly how points are calculated — nothing here is editable, it's a reference for what "Compute Points" applies to every player automatically.
+        Player prices moved to <a href="/admin/players" className="text-[#3EA0D9] hover:underline">Players</a>, since that's where you already manage everything else about a player.
+      </p>
+      <div className="admin-card overflow-hidden mb-8 max-w-2xl">
+        <table className="admin-table">
+          <thead>
+            <tr><th>Event</th><th className="text-right">GK</th><th className="text-right">DEF</th><th className="text-right">MID</th><th className="text-right">FWD</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Appearance (any minutes)</td><td className="text-right">+1</td><td className="text-right">+1</td><td className="text-right">+1</td><td className="text-right">+1</td></tr>
+            <tr><td>Goal</td><td className="text-right">+10</td><td className="text-right">+6</td><td className="text-right">+5</td><td className="text-right">+4</td></tr>
+            <tr><td>Assist</td><td className="text-right">+3</td><td className="text-right">+3</td><td className="text-right">+3</td><td className="text-right">+3</td></tr>
+            <tr><td>Clean sheet</td><td className="text-right">+4</td><td className="text-right">+4</td><td className="text-right">—</td><td className="text-right">—</td></tr>
+            <tr><td>Every 3 goals conceded</td><td className="text-right">-3</td><td className="text-right">-3</td><td className="text-right">—</td><td className="text-right">—</td></tr>
+            <tr><td>Penalty save</td><td className="text-right">+5</td><td className="text-right">—</td><td className="text-right">—</td><td className="text-right">—</td></tr>
+            <tr><td>Penalty miss</td><td className="text-right" colSpan={4}>-2 (any position)</td></tr>
+            <tr><td>Yellow card</td><td className="text-right" colSpan={4}>-1 (any position)</td></tr>
+            <tr><td>Red card</td><td className="text-right" colSpan={4}>-2 (any position)</td></tr>
+            <tr><td>Own goal</td><td className="text-right" colSpan={4}>-2 (any position)</td></tr>
+            <tr><td>Man of the Match</td><td className="text-right" colSpan={4}>+3 (any position)</td></tr>
+            <tr><td>Captain</td><td className="text-right" colSpan={4}>×2 total (×3 if Triple Captain is active)</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   );
