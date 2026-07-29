@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -259,7 +260,9 @@ export default function LeaguesPage() {
                   >
                     <td className="py-2.5 px-4 text-[#0B3363]/40 dark:text-white/40">{i + 1}</td>
                     <td className="py-2.5 px-2 font-medium">
-                      {r.teamName}
+                      <Link href={`/fantasy/team/${poolId}/leaderboard/${r.teamId}`} className="hover:underline">
+                        {r.teamName}
+                      </Link>
                       {r.teamId === myTeamId && <span className="text-[10px] text-[#3EA0D9] font-bold ml-1.5">YOU</span>}
                     </td>
                     <td className="py-2.5 px-2 text-right">{r.gwPoints}</td>
