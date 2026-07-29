@@ -21,7 +21,7 @@ const NAV = [
   {
     href: "/admin/live",
     label: "Live Match Console",
-    scope: "league",
+    scope: "matchday",
     icon: (
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="9" />
@@ -148,16 +148,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setDrawerOpen(false);
   }, [pathname]);
 
-  if (pathname === "/admin/login" || pathname?.startsWith("/admin/live")) {
+  if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
   function canSee(scope: string) {
-    if (scope === "all") return true;
     if (!role) return false;
     if (role === "super_admin") return true;
+    if (role === "matchday_admin") return scope === "matchday";
+    if (scope === "all") return true;
     if (scope === "super") return false;
-    if (scope === "league") return role === "matchday_admin";
+    if (scope === "league") return false;
     if (scope === "fantasy") return role === "fantasy_admin";
     return false;
   }
