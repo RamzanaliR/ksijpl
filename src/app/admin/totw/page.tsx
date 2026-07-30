@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import PitchBackground from "@/components/PitchBackground";
 import PlayerJerseyCard from "@/components/PlayerJerseyCard";
@@ -45,8 +45,6 @@ const FORMATIONS: Record<string, Formation> = {
   "2-4-1": { label: "2-4-1", def: 2, mid: 4, fwd: 1 },
   "3-2-2": { label: "3-2-2", def: 3, mid: 2, fwd: 2 },
 };
-
-const PITCH_WIDTH = 730; // match Fantasy pick-team width exactly
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -98,22 +96,6 @@ export default function TOTWAdminPage() {
   const [saveMsg, setSaveMsg] = useState("");
 
   // Pitch scaling
-  const pitchWrapRef = useRef<HTMLDivElement>(null);
-  const [pitchScale, setPitchScale] = useState(1);
-
-  useEffect(() => {
-    function updateScale() {
-      if (pitchWrapRef.current) {
-        const w = pitchWrapRef.current.offsetWidth;
-        setPitchScale(Math.min(1, w / PITCH_WIDTH));
-      }
-    }
-    updateScale();
-    const ro = new ResizeObserver(updateScale);
-    if (pitchWrapRef.current) ro.observe(pitchWrapRef.current);
-    return () => ro.disconnect();
-  }, []);
-
   // ─── Load gameweeks ──────────────────────────────────────────────────────
 
   const loadGameweeks = useCallback(async (div: Division) => {
@@ -377,63 +359,51 @@ export default function TOTWAdminPage() {
               {published && <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">Published</span>}
             </div>
 
-            {/* Scaled pitch wrapper */}
-            <div ref={pitchWrapRef} className="w-full overflow-hidden">
-              <div
-                style={{
-                  width: PITCH_WIDTH,
-                  transformOrigin: "top left",
-                  transform: `scale(${pitchScale})`,
-                  // Push container height to match scaled height
-                  marginBottom: pitchScale < 1 ? `calc((${pitchScale} - 1) * 500px)` : undefined,
-                }}
-              >
-                <PitchBackground>
-                  <div className="flex flex-col gap-4">
-                    {/* FWD */}
-                    {f.fwd > 0 && (
-                      <div className="flex justify-center gap-6">
-                        {activeSlots.filter((s) => s.startsWith("fwd")).map((slot) => (
-                          <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
-                            isActive={pickingSlot === slot}
-                            onPick={() => { setPickingSlot(slot); setSearch(""); }}
-                            onRemove={() => setSlots((p) => { const n = {...p}; delete n[slot]; return n; })} />
-                        ))}
-                      </div>
-                    )}
-                    {/* MID */}
-                    {f.mid > 0 && (
-                      <div className="flex justify-center gap-6">
-                        {activeSlots.filter((s) => s.startsWith("mid")).map((slot) => (
-                          <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
-                            isActive={pickingSlot === slot}
-                            onPick={() => { setPickingSlot(slot); setSearch(""); }}
-                            onRemove={() => setSlots((p) => { const n = {...p}; delete n[slot]; return n; })} />
-                        ))}
-                      </div>
-                    )}
-                    {/* DEF */}
-                    {f.def > 0 && (
-                      <div className="flex justify-center gap-6">
-                        {activeSlots.filter((s) => s.startsWith("def")).map((slot) => (
-                          <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
-                            isActive={pickingSlot === slot}
-                            onPick={() => { setPickingSlot(slot); setSearch(""); }}
-                            onRemove={() => setSlots((p) => { const n = {...p}; delete n[slot]; return n; })} />
-                        ))}
-                      </div>
-                    )}
-                    {/* GK */}
-                    <div className="flex justify-center">
-                      <TOTWJerseySlot slot="gk" playerId={slots["gk"]} playerMap={playerMap}
-                        isActive={pickingSlot === "gk"}
-                        onPick={() => { setPickingSlot("gk"); setSearch(""); }}
-                        onRemove={() => setSlots((p) => { const n = {...p}; delete n["gk"]; return n; })} />
-                    </div>
+            {/* Fluid pitch — fills container, cards shrink proportionally */}
+            <PitchBackground>
+              <div className="flex flex-col gap-3">
+                {/* FWD */}
+                {f.fwd > 0 && (
+                  <div className="flex justify-center gap-1 sm:gap-3">
+                    {activeSlots.filter((s) => s.startsWith("fwd")).map((slot) => (
+                      <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
+                        isActive={pickingSlot === slot}
+                        onPick={() => { setPickingSlot(slot); setSearch(""); }}
+                        onRemove={() => setSlots((p) => { const n = {...p}; delete n[slot]; return n; })} />
+                    ))}
                   </div>
-                </PitchBackground>
+                )}
+                {/* MID */}
+                {f.mid > 0 && (
+                  <div className="flex justify-center gap-1 sm:gap-3">
+                    {activeSlots.filter((s) => s.startsWith("mid")).map((slot) => (
+                      <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
+                        isActive={pickingSlot === slot}
+                        onPick={() => { setPickingSlot(slot); setSearch(""); }}
+                        onRemove={() => setSlots((p) => { const n = {...p}; delete n[slot]; return n; })} />
+                    ))}
+                  </div>
+                )}
+                {/* DEF */}
+                {f.def > 0 && (
+                  <div className="flex justify-center gap-1 sm:gap-3">
+                    {activeSlots.filter((s) => s.startsWith("def")).map((slot) => (
+                      <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
+                        isActive={pickingSlot === slot}
+                        onPick={() => { setPickingSlot(slot); setSearch(""); }}
+                        onRemove={() => setSlots((p) => { const n = {...p}; delete n[slot]; return n; })} />
+                    ))}
+                  </div>
+                )}
+                {/* GK */}
+                <div className="flex justify-center">
+                  <TOTWJerseySlot slot="gk" playerId={slots["gk"]} playerMap={playerMap}
+                    isActive={pickingSlot === "gk"}
+                    onPick={() => { setPickingSlot("gk"); setSearch(""); }}
+                    onRemove={() => setSlots((p) => { const n = {...p}; delete n["gk"]; return n; })} />
+                </div>
               </div>
-            </div>
+            </PitchBackground>
 
             {/* Actions */}
             <div className="flex gap-2 mt-4 flex-wrap items-center">
@@ -493,27 +463,29 @@ function TOTWJerseySlot({ slot, playerId, playerMap, isActive, onPick, onRemove 
 
   if (player) {
     return (
-      <PlayerJerseyCard
-        name={displayName(player)}
-        teamSlug={player.teamSlug}
-        isGoalkeeper={slot === "gk"}
-        selected={isActive}
-        onRemove={onRemove}
-        onClick={onPick}
-      />
+      <div className="w-14 sm:w-20 md:w-24 flex-shrink-0">
+        <PlayerJerseyCard
+          name={displayName(player)}
+          teamSlug={player.teamSlug}
+          isGoalkeeper={slot === "gk"}
+          selected={isActive}
+          onRemove={onRemove}
+          onClick={onPick}
+        />
+      </div>
     );
   }
 
   return (
     <button
       onClick={onPick}
-      className={`w-20 sm:w-24 flex flex-col items-center gap-1 rounded-xl p-2 transition-all
+      className={`w-14 sm:w-20 md:w-24 flex-shrink-0 flex flex-col items-center gap-1 rounded-xl p-1.5 sm:p-2 transition-all
         ${isActive ? "bg-[#F4B400]/30 ring-2 ring-[#F4B400]" : "bg-black/10 hover:bg-black/20"}`}
     >
-      <div className="w-10 h-10 rounded-full border-2 border-dashed border-white/50 flex items-center justify-center">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-dashed border-white/50 flex items-center justify-center">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
       </div>
-      <span className="text-[9px] font-bold text-white/60 uppercase">{slotLabel(slot)}</span>
+      <span className="text-[8px] sm:text-[9px] font-bold text-white/60 uppercase">{slotLabel(slot)}</span>
     </button>
   );
 }
