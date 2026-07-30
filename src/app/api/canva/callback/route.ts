@@ -42,14 +42,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${SITE_URL}/admin/media?canva_error=missing_verifier`);
   }
 
-  // Get credentials
-  const [{ data: clientIdRow }, { data: clientSecretRow }] = await Promise.all([
-    supabase.from("admin_settings").select("value").eq("key", "canva_client_id").maybeSingle(),
-    supabase.from("admin_settings").select("value").eq("key", "canva_client_secret").maybeSingle(),
-  ]);
-
-  const clientId     = clientIdRow?.value;
-  const clientSecret = clientSecretRow?.value;
+  // Get credentials from env vars
+  const clientId     = process.env.CANVA_CLIENT_ID;
+  const clientSecret = process.env.CANVA_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(`${SITE_URL}/admin/media?canva_error=missing_credentials`);

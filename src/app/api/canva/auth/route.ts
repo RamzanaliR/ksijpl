@@ -22,16 +22,10 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Read client ID from admin_settings
-  const { data: clientIdRow } = await supabase
-    .from("admin_settings")
-    .select("value")
-    .eq("key", "canva_client_id")
-    .maybeSingle();
-
-  const clientId = clientIdRow?.value;
+  // Client ID from env var (not sensitive)
+  const clientId = process.env.CANVA_CLIENT_ID;
   if (!clientId) {
-    return NextResponse.json({ error: "Canva client_id not configured in admin_settings." }, { status: 500 });
+    return NextResponse.json({ error: "CANVA_CLIENT_ID env var not set on Vercel." }, { status: 500 });
   }
 
   // Generate PKCE code verifier + challenge
