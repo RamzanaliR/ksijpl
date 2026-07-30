@@ -296,6 +296,21 @@ export default function MediaAdmin() {
 
   // ─── Download ──────────────────────────────────────────────────────────────
 
+  async function deleteMedia(m: GeneratedMedia) {
+    if (!confirm("Delete this graphic? This can\'t be undone.")) return;
+    // Extract storage path from URL
+    const storagePath = m.storage_url
+      ? m.storage_url.split("/generated-graphics/")[1]
+      : null;
+    await fetch("/api/admin/delete-media", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: m.id, storage_path: storagePath }),
+    });
+    if (preview?.id === m.id) setPreview(null);
+    await loadMedia();
+  }
+
   function downloadSingle(m: GeneratedMedia) {
     if (!m.storage_url) return;
     const a = document.createElement("a");
@@ -637,6 +652,12 @@ export default function MediaAdmin() {
                       ↓ Download PNG
                     </button>
                   )}
+                  <button
+                    onClick={() => deleteMedia(preview)}
+                    className="admin-btn text-xs border border-red-100 text-red-400 hover:bg-red-50 hover:text-red-600 ml-auto"
+                  >
+                    🗑 Delete
+                  </button>
                 </div>
               </div>
 

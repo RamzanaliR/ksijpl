@@ -92,21 +92,18 @@ export async function uploadImageToCanva(imageUrl: string, name: string): Promis
   const token = await getAccessToken();
   if (!token) return null;
 
-  // Fetch the image bytes
-  const imgRes = await fetch(imageUrl);
-  if (!imgRes.ok) return null;
-  const imgBuffer = await imgRes.arrayBuffer();
-  const contentType = imgRes.headers.get("content-type") ?? "image/png";
-
-  // Create upload job
+  // Use URL-based upload (simpler, no binary transfer needed)
   const uploadRes = await fetch(`${CANVA_API}/assets/upload`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
-      "Content-Type": contentType,
-      "Asset-Upload-Metadata": JSON.stringify({ name_base64: Buffer.from(name).toString("base64") }),
+      "Content-Type": "application/octet-stream",
+      "Asset-Upload-Metadata": JSON.stringify({
+        name_base64: Buffer.from(name).toString("base64"),
+      }),
     },
-    body: imgBuffer,
+    // Fetch image bytes and pass as octet-stream
+    body: await fetch(imageUrl).then((r) => r.arrayBuffer()),
   });
 
   if (!uploadRes.ok) {
