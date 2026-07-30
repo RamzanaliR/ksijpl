@@ -40,15 +40,10 @@ const SENIORS_COMPETITION_ID = "e0eee160-729a-4cbd-a29a-20d36115db31";
 const JUNIORS_COMPETITION_ID = "544019cb-0615-4b38-b9b8-03e71dfe1706";
 
 const FORMATIONS: Record<string, Formation> = {
-  "1-4-2-1": { label: "1-4-2-1", def: 4, mid: 2, fwd: 1 },
-  "1-3-3-2": { label: "1-3-3-2", def: 3, mid: 3, fwd: 2 },
-  "1-2-4-1": { label: "1-2-4-1", def: 2, mid: 4, fwd: 1 },
-  "1-2-2-2": { label: "1-2-2-2", def: 2, mid: 2, fwd: 2 },
-  "1-3-2-1": { label: "1-3-2-1", def: 3, mid: 2, fwd: 1 },
-  "1-4-1-1": { label: "1-4-1-1", def: 4, mid: 1, fwd: 1 },
-  "1-2-3-2": { label: "1-2-3-2", def: 2, mid: 3, fwd: 2 },
-  "1-3-3-1": { label: "1-3-3-1", def: 3, mid: 3, fwd: 1 },
-  "1-3-2-2": { label: "1-3-2-2", def: 3, mid: 2, fwd: 2 },
+  "2-3-2": { label: "2-3-2", def: 2, mid: 3, fwd: 2 },
+  "3-3-1": { label: "3-3-1", def: 3, mid: 3, fwd: 1 },
+  "2-4-1": { label: "2-4-1", def: 2, mid: 4, fwd: 1 },
+  "3-2-2": { label: "3-2-2", def: 3, mid: 2, fwd: 2 },
 };
 
 const PITCH_WIDTH = 730; // match Fantasy pick-team width exactly
@@ -56,7 +51,7 @@ const PITCH_WIDTH = 730; // match Fantasy pick-team width exactly
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getActiveSlots(formation: string): SlotKey[] {
-  const f = FORMATIONS[formation] ?? FORMATIONS["1-4-2-1"];
+  const f = FORMATIONS[formation] ?? FORMATIONS["2-3-2"];
   const slots: SlotKey[] = ["gk"];
   for (let i = 1; i <= f.def; i++) slots.push(`def_${i}` as SlotKey);
   for (let i = 1; i <= f.mid; i++) slots.push(`mid_${i}` as SlotKey);
@@ -87,7 +82,7 @@ export default function TOTWAdminPage() {
   const [division, setDivision] = useState<Division>("seniors");
   const [gameweeks, setGameweeks] = useState<Gameweek[]>([]);
   const [selectedGw, setSelectedGw] = useState<string>("");
-  const [formation, setFormation] = useState("1-4-2-1");
+  const [formation, setFormation] = useState("2-3-2");
   const [selectorName, setSelectorName] = useState("Ramzi Rajani");
 
   const [slots, setSlots] = useState<Partial<Record<SlotKey, string>>>({});
