@@ -78,20 +78,26 @@ function CanvaStatusBanner() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [tokenExpiry, setTokenExpiry] = useState<string | null>(null);
 
+  const [oauthError, setOauthError] = useState<string | null>(null);
+
   useEffect(() => {
     supabase.from("admin_settings")
       .select("key,value")
       .in("key", ["canva_access_token","canva_token_expires_at"])
       .then(({ data }) => {
-        const token   = data?.find((r: any) => r.key === "canva_access_token")?.value;
-        const expiry  = data?.find((r: any) => r.key === "canva_token_expires_at")?.value;
-        setConnected(!!token);
+        const token  = data?.find((r: any) => r.key === "canva_access_token")?.value;
+        const expiry = data?.find((r: any) => r.key === "canva_token_expires_at")?.value;
+        setConnected(!!(token && token.length > 10));
         setTokenExpiry(expiry ?? null);
       });
-    // Check URL params for OAuth result
     const params = new URLSearchParams(window.location.search);
     if (params.get("canva_connected")) {
       setConnected(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    const err = params.get("canva_error");
+    if (err) {
+      setOauthError(decodeURIComponent(err));
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
@@ -110,10 +116,17 @@ function CanvaStatusBanner() {
   }
 
   return (
-    <div className="mt-3 rounded-lg bg-blue-50 text-blue-700 text-xs px-3 py-2 flex items-center justify-between">
-      <span>⚙️ Canva not connected — graphics will queue until authorised.</span>
-      <a href="/api/canva/auth" className="underline font-semibold ml-3 whitespace-nowrap">Connect Canva →</a>
-    </div>
+    <>
+      {oauthError && (
+        <div className="mt-3 rounded-lg bg-red-50 text-red-700 text-xs px-3 py-2">
+          ❌ Canva auth error: <strong>{oauthError}</strong> — check your Client ID and Secret in Vercel env vars.
+        </div>
+      )}
+      <div className="mt-3 rounded-lg bg-blue-50 text-blue-700 text-xs px-3 py-2 flex items-center justify-between">
+        <span>⚙️ Canva not connected — graphics will queue until authorised.</span>
+        <a href="/api/canva/auth" className="underline font-semibold ml-3 whitespace-nowrap">Connect Canva →</a>
+      </div>
+    </>
   );
 }
 
