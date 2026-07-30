@@ -232,12 +232,33 @@ export default function MediaAdmin() {
       if (!res.ok) {
         const err = await res.json();
         setGenerateError(err.error ?? "Generation failed.");
+        setGenerating(false);
+        return;
       }
     } catch (e: any) {
       setGenerateError(e.message);
+      setGenerating(false);
+      return;
     }
-    setGenerating(false);
+
+    // Poll every 5s for up to 3 minutes until graphic appears with storage_url
     await loadMedia();
+    let polls = 0;
+    const poll = setInterval(async () => {
+      polls++;
+      const { data } = await supabase
+        .from("generated_media")
+        .select("id,storage_url")
+        .eq("gameweek_id", selectedGw)
+        .eq("division", division)
+        .not("storage_url", "is", null)
+        .limit(1);
+      await loadMedia();
+      if ((data?.length ?? 0) > 0 || polls >= 36) {
+        clearInterval(poll);
+        setGenerating(false);
+      }
+    }, 5000);
   }
 
   function toggleType(t: TemplateType) {
@@ -430,7 +451,7 @@ export default function MediaAdmin() {
               disabled={generating || !selectedGw || selectedTypes.size === 0}
               className="admin-btn admin-btn-primary whitespace-nowrap"
             >
-              {generating ? "Generating…" : `🚀 Generate ${selectedTypes.size > 0 ? selectedTypes.size : ""} Graphic${selectedTypes.size !== 1 ? "s" : ""}`}
+              {generating ? "⏳ Generating…" : `🚀 Generate ${selectedTypes.size > 0 ? selectedTypes.size : ""} Graphic${selectedTypes.size !== 1 ? "s" : ""}`}
             </button>
           </div>
         </div>
