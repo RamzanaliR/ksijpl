@@ -51,27 +51,27 @@ async function fetchFixturesData(sb: ReturnType<typeof getSupabase>, gameweekId:
   const { data: matches } = await sb
     .from("matches")
     .select(`
-      id, kickoff_time, pitch,
+      id, kickoff_at, venue,
       home_team:teams!matches_home_team_id_fkey(name,sponsor_logo_url),
       away_team:teams!matches_away_team_id_fkey(name,sponsor_logo_url)
     `)
     .eq("gameweek_id", gameweekId)
-    .order("kickoff_time");
+    .order("kickoff_at");
 
   const mw = (gw as any)?.round_name ?? `Match Week ${(gw as any)?.number}`;
   const fixtureLines = (matches ?? []).map((m: any) => {
-    const time = m.kickoff_time
-      ? new Date(m.kickoff_time).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dar_es_Salaam" })
+    const time = m.kickoff_at
+      ? new Date(m.kickoff_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dar_es_Salaam" })
       : "TBC";
-    return `${m.home_team?.name} vs ${m.away_team?.name} | ${time} | Pitch ${m.pitch ?? "TBC"}`;
+    return `${m.home_team?.name} vs ${m.away_team?.name} | ${time} | Pitch ${m.venue ?? "TBC"}`;
   });
 
   return {
     canvaData: { matches: matches ?? [], matchWeek: mw },
     captionVars: {
       match_week: mw,
-      date: matches?.[0]?.kickoff_time
-        ? new Date((matches[0] as any).kickoff_time).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dar_es_Salaam" })
+      date: matches?.[0]?.kickoff_at
+        ? new Date((matches[0] as any).kickoff_at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dar_es_Salaam" })
         : "TBC",
       fixture_list: fixtureLines.join("\n"),
     },
@@ -88,10 +88,10 @@ async function fetchResultsData(sb: ReturnType<typeof getSupabase>, gameweekId: 
   const { data: matches } = await sb
     .from("matches")
     .select(`
-      id, home_score, away_score, home_pen_score, away_pen_score,
+      id, home_score, away_score, home_pens, away_pens,
       home_team:teams!matches_home_team_id_fkey(name,sponsor_logo_url),
       away_team:teams!matches_away_team_id_fkey(name,sponsor_logo_url),
-      man_of_the_match_id,
+      home_motm_player_id,
       match_events(event_type, minute, player:players(full_name,fpl_name,nickname))
     `)
     .eq("gameweek_id", gameweekId)
@@ -100,7 +100,7 @@ async function fetchResultsData(sb: ReturnType<typeof getSupabase>, gameweekId: 
   const mw = (gw as any)?.round_name ?? `Match Week ${(gw as any)?.number}`;
   const resultLines = (matches ?? []).map((m: any) => {
     const score = `${m.home_team?.name} ${m.home_score ?? 0} – ${m.away_score ?? 0} ${m.away_team?.name}`;
-    const pen = m.home_pen_score != null ? ` (${m.home_pen_score}–${m.away_pen_score} pens)` : "";
+    const pen = m.home_pens != null ? ` (${m.home_pens}–${m.away_pens} pens)` : "";
     return `${score}${pen}`;
   });
 
@@ -158,10 +158,10 @@ async function fetchMotmData(sb: ReturnType<typeof getSupabase>, gameweekId: str
       id,
       home_team:teams!matches_home_team_id_fkey(name),
       away_team:teams!matches_away_team_id_fkey(name),
-      motm:players!matches_man_of_the_match_id_fkey(full_name,fpl_name,nickname,headshot_url)
+      motm:players!matches_home_motm_player_id_fkey(full_name,fpl_name,nickname,headshot_url)
     `)
     .eq("gameweek_id", gameweekId)
-    .not("man_of_the_match_id", "is", null);
+    .not("home_motm_player_id", "is", null);
 
   const mw = (gw as any)?.round_name ?? `Match Week ${(gw as any)?.number}`;
   const motmLines = (matches ?? []).map((m: any, i: number) => {
@@ -188,12 +188,12 @@ async function fetchIndividualMatchData(sb: ReturnType<typeof getSupabase>, game
   const { data: matches } = await sb
     .from("matches")
     .select(`
-      id, kickoff_time, pitch,
+      id, kickoff_at, venue,
       home_team:teams!matches_home_team_id_fkey(name,home_jersey_url,gk_jersey_url),
       away_team:teams!matches_away_team_id_fkey(name,home_jersey_url,gk_jersey_url)
     `)
     .eq("gameweek_id", gameweekId)
-    .order("kickoff_time");
+    .order("kickoff_at");
 
   const mw = (gw as any)?.round_name ?? `Match Week ${(gw as any)?.number}`;
   return {
@@ -208,8 +208,8 @@ async function fetchIndividualMatchData(sb: ReturnType<typeof getSupabase>, game
 async function buildFixturesAutofill(canvaData: any): Promise<CanvaAutofillData> {
   const d: CanvaAutofillData = {
     match_week_label: textField(canvaData.matchWeek ?? ""),
-    fixture_date: textField(canvaData.matches?.[0]?.kickoff_time
-      ? new Date(canvaData.matches[0].kickoff_time).toLocaleDateString("en-GB", {
+    fixture_date: textField(canvaData.matches?.[0]?.kickoff_at
+      ? new Date(canvaData.matches[0].kickoff_at).toLocaleDateString("en-GB", {
           weekday: "long", day: "numeric", month: "long",
           timeZone: "Africa/Dar_es_Salaam"
         }).toUpperCase()
@@ -219,8 +219,8 @@ async function buildFixturesAutofill(canvaData: any): Promise<CanvaAutofillData>
   for (let i = 0; i < (canvaData.matches ?? []).length; i++) {
     const m = canvaData.matches[i];
     const n = i + 1;
-    const time = m.kickoff_time
-      ? new Date(m.kickoff_time).toLocaleTimeString("en-GB", {
+    const time = m.kickoff_at
+      ? new Date(m.kickoff_at).toLocaleTimeString("en-GB", {
           hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dar_es_Salaam"
         })
       : "TBC";
@@ -228,7 +228,7 @@ async function buildFixturesAutofill(canvaData: any): Promise<CanvaAutofillData>
     d[`match_${n}_home_name`] = textField(m.home_team?.name ?? "");
     d[`match_${n}_away_name`] = textField(m.away_team?.name ?? "");
     d[`match_${n}_time`]      = textField(time);
-    d[`match_${n}_pitch`]     = textField(`Pitch ${m.pitch ?? "TBC"}`);
+    d[`match_${n}_pitch`]     = textField(`Pitch ${m.venue ?? "TBC"}`);
 
     // Upload logos to Canva assets and get asset IDs
     if (m.home_team?.sponsor_logo_url) {
@@ -269,8 +269,8 @@ async function buildResultsAutofill(match: any): Promise<CanvaAutofillData> {
     home_score:   textField(String(match.home_score ?? 0)),
     away_score:   textField(String(match.away_score ?? 0)),
     penalty_line: textField(
-      match.home_pen_score != null
-        ? `AFTER PENALTIES ${match.home_pen_score}–${match.away_pen_score}`
+      match.home_pens != null
+        ? `AFTER PENALTIES ${match.home_pens}–${match.away_pens}`
         : ""
     ),
   };
@@ -288,8 +288,8 @@ async function buildResultsAutofill(match: any): Promise<CanvaAutofillData> {
   d["home_scorers"] = textField(homeGoals);
   d["away_scorers"] = textField(awayGoals);
 
-  if (match.motm?.fpl_name ?? match.motm?.full_name) {
-    d["motm_name"] = textField(match.motm?.fpl_name ?? match.motm?.full_name ?? "");
+  if (match.home_motm?.fpl_name ?? match.home_motm?.full_name ?? match.away_motm?.fpl_name) {
+    d["motm_name"] = textField(match.home_motm?.fpl_name ?? match.home_motm?.full_name ?? match.away_motm?.fpl_name ?? match.away_motm?.full_name ?? "");
   }
 
   if (match.home_team?.sponsor_logo_url) {
@@ -328,17 +328,17 @@ async function buildIndividualMatchAutofill(match: any, matchWeek: string): Prom
     match_week_label: textField(matchWeek),
     home_team_name:   textField(match.home_team?.name ?? ""),
     away_team_name:   textField(match.away_team?.name ?? ""),
-    match_date: textField(match.kickoff_time
-      ? new Date(match.kickoff_time).toLocaleDateString("en-GB", {
+    match_date: textField(match.kickoff_at
+      ? new Date(match.kickoff_at).toLocaleDateString("en-GB", {
           day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Dar_es_Salaam"
         }).toUpperCase()
       : ""),
-    match_time: textField(match.kickoff_time
-      ? new Date(match.kickoff_time).toLocaleTimeString("en-GB", {
+    match_time: textField(match.kickoff_at
+      ? new Date(match.kickoff_at).toLocaleTimeString("en-GB", {
           hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dar_es_Salaam"
         })
       : ""),
-    pitch_number: textField(`Pitch ${match.pitch ?? "TBC"}`),
+    pitch_number: textField(`Pitch ${match.venue ?? "TBC"}`),
   };
 
   const jerseyFields: [string, string | undefined][] = [
