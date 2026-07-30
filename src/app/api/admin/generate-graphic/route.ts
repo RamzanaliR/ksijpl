@@ -458,32 +458,46 @@ export async function POST(req: NextRequest) {
         // Generate caption from template
         const caption = await buildCaption(supabase, templateType, division, record.captionVars);
 
-        // Attempt Canva generation (returns null if no credentials)
-        await supabase.from("generated_media").update({
-          status: "generating", updated_at: new Date().toISOString(),
-        }).eq("gameweek_id", gameweek_id).eq("template_type", templateType).eq("division", division);
-
-        // For results/individual_match, canvaData.matches[i] is the per-match data
-        const matchCanvaData = record.match_id && canvaData.matches
-          ? canvaData.matches.find((m: any) => m.id === record.match_id) ?? canvaData
-          : canvaData;
-        const storageUrl = await callCanvaAndStore(
-          templateType, matchCanvaData,
-          `${templateType} - ${division} - ${new Date().toISOString().slice(0, 10)}`
-        );
-
+        // Insert record immediately so UI shows "Generating" status
         const { data: inserted } = await supabase.from("generated_media").insert({
           gameweek_id: gameweek_id,
           match_id: record.match_id,
           template_type: templateType,
           division,
-          status: storageUrl ? "pending_approval" : "pending_generation",
+          status: "generating",
           caption_generated: caption,
-          storage_url: storageUrl,
-          generated_at: storageUrl ? new Date().toISOString() : null,
         }).select("id").single();
 
-        if (inserted?.id) created.push(inserted.id);
+        if (!inserted?.id) continue;
+        created.push(inserted.id);
+        const recordId = inserted.id;
+
+        // For results/individual_match, resolve per-match canva data
+        const matchCanvaData = record.match_id && canvaData.matches
+          ? canvaData.matches.find((m: any) => m.id === record.match_id) ?? canvaData
+          : canvaData;
+
+        // Run Canva pipeline — update record when done
+        try {
+          const storageUrl = await callCanvaAndStore(
+            templateType, matchCanvaData,
+            `${templateType} - ${division} - ${new Date().toISOString().slice(0, 10)}`
+          );
+          await supabase.from("generated_media").update({
+            status: storageUrl ? "pending_approval" : "pending_generation",
+            storage_url: storageUrl ?? null,
+            generated_at: storageUrl ? new Date().toISOString() : null,
+            generation_error: storageUrl ? null : "Canva generation failed — check template ID and token.",
+            updated_at: new Date().toISOString(),
+          }).eq("id", recordId);
+        } catch (canvaErr: any) {
+          console.error("[generate-graphic] Canva error:", canvaErr);
+          await supabase.from("generated_media").update({
+            status: "pending_generation",
+            generation_error: canvaErr?.message ?? "Unknown Canva error",
+            updated_at: new Date().toISOString(),
+          }).eq("id", recordId);
+        }
       }
     }
 

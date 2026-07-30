@@ -9,7 +9,7 @@ const CANVA_API = "https://api.canva.com/rest/v1";
 
 // ─── Template IDs (fill in as each design is published as Brand Template) ─────
 export const CANVA_TEMPLATE_IDS: Record<string, string> = {
-  fixtures:         "DAHQ3IABTAY",
+  fixtures:         "EAHQ2Xq4Gb0",
   individual_match: "",
   results:          "",
   league_table:     "",
