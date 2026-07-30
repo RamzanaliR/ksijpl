@@ -46,6 +46,9 @@ const FORMATIONS: Record<string, Formation> = {
   "1-2-2-2": { label: "1-2-2-2", def: 2, mid: 2, fwd: 2 },
   "1-3-2-1": { label: "1-3-2-1", def: 3, mid: 2, fwd: 1 },
   "1-4-1-1": { label: "1-4-1-1", def: 4, mid: 1, fwd: 1 },
+  "1-2-3-2": { label: "1-2-3-2", def: 2, mid: 3, fwd: 2 },
+  "1-3-3-1": { label: "1-3-3-1", def: 3, mid: 3, fwd: 1 },
+  "1-3-2-2": { label: "1-3-2-2", def: 3, mid: 2, fwd: 2 },
 };
 
 const PITCH_WIDTH = 730; // match Fantasy pick-team width exactly
