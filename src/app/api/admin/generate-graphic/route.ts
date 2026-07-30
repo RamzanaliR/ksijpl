@@ -52,24 +52,26 @@ async function fetchFixturesData(sb: ReturnType<typeof getSupabase>, gameweekId:
     .from("matches")
     .select(`
       id, kickoff_at, venue,
-      home_team:teams!matches_home_team_id_fkey(name,sponsor_logo_url),
-      away_team:teams!matches_away_team_id_fkey(name,sponsor_logo_url)
+      home_team:teams!matches_home_team_id_fkey(id,name,sponsor_logo_url),
+      away_team:teams!matches_away_team_id_fkey(id,name,sponsor_logo_url)
     `)
     .eq("gameweek_id", gameweekId)
-    .order("kickoff_at");
+    .order("kickoff_at")
+    .order("id");
 
-  const mw = (gw as any)?.round_name ?? `Match Week ${(gw as any)?.number}`;
+  const gwNum = (gw as any)?.number ?? 1;
+  const mw = (gw as any)?.round_name ?? `MATCH WEEK ${String(gwNum).padStart(2, "0")} FIXTURES`;
   const fixtureLines = (matches ?? []).map((m: any) => {
     const time = m.kickoff_at
       ? new Date(m.kickoff_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dar_es_Salaam" })
       : "TBC";
-    return `${m.home_team?.name} vs ${m.away_team?.name} | ${time} | Pitch ${m.venue ?? "TBC"}`;
+    return `${m.home_team?.name} vs ${m.away_team?.name} | ${time} | ${m.venue ?? "TBC"}`;
   });
 
   return {
     canvaData: { matches: matches ?? [], matchWeek: mw },
     captionVars: {
-      match_week: mw,
+      match_week: mw.replace(" FIXTURES", ""),
       date: matches?.[0]?.kickoff_at
         ? new Date((matches[0] as any).kickoff_at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dar_es_Salaam" })
         : "TBC",
@@ -107,7 +109,7 @@ async function fetchResultsData(sb: ReturnType<typeof getSupabase>, gameweekId: 
   return {
     canvaData: { matches: matches ?? [], matchWeek: mw },
     captionVars: {
-      match_week: mw,
+      match_week: mw.replace(" FIXTURES", ""),
       results_summary: resultLines.join("\n"),
     },
     // Return individual match IDs so we create one record per match
@@ -134,7 +136,7 @@ async function fetchLeagueTableData(sb: ReturnType<typeof getSupabase>, gameweek
   return {
     canvaData: { standings: standings ?? [], matchWeek: mw },
     captionVars: {
-      match_week: mw,
+      match_week: mw.replace(" FIXTURES", ""),
       pos1_team: (top3[0] as any)?.team?.name ?? "—",
       pos1_pts:  String((top3[0] as any)?.points ?? 0),
       pos2_team: (top3[1] as any)?.team?.name ?? "—",
@@ -172,7 +174,7 @@ async function fetchMotmData(sb: ReturnType<typeof getSupabase>, gameweekId: str
   return {
     canvaData: { matches: matches ?? [], matchWeek: mw },
     captionVars: {
-      match_week: mw,
+      match_week: mw.replace(" FIXTURES", ""),
       motm_list: motmLines.join("\n"),
     },
   };
@@ -228,15 +230,17 @@ async function buildFixturesAutofill(canvaData: any): Promise<CanvaAutofillData>
     d[`match_${n}_home_name`] = textField(m.home_team?.name ?? "");
     d[`match_${n}_away_name`] = textField(m.away_team?.name ?? "");
     d[`match_${n}_time`]      = textField(time);
-    d[`match_${n}_pitch`]     = textField(`Pitch ${m.venue ?? "TBC"}`);
+    d[`match_${n}_pitch`]     = textField(m.venue ?? "TBC");
 
     // Upload logos to Canva assets and get asset IDs
     if (m.home_team?.sponsor_logo_url) {
-      const assetId = await uploadImageToCanva(m.home_team.sponsor_logo_url, `home_logo_${n}`);
+      const homeName = (m.home_team.name ?? "home").replace(/\s+/g, "_").toLowerCase();
+      const assetId = await uploadImageToCanva(m.home_team.sponsor_logo_url, `logo_${homeName}`);
       if (assetId) d[`match_${n}_home_logo`] = imageField(assetId);
     }
     if (m.away_team?.sponsor_logo_url) {
-      const assetId = await uploadImageToCanva(m.away_team.sponsor_logo_url, `away_logo_${n}`);
+      const awayName = (m.away_team.name ?? "away").replace(/\s+/g, "_").toLowerCase();
+      const assetId = await uploadImageToCanva(m.away_team.sponsor_logo_url, `logo_${awayName}`);
       if (assetId) d[`match_${n}_away_logo`] = imageField(assetId);
     }
   }
