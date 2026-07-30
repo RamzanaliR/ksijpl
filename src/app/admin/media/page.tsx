@@ -71,6 +71,52 @@ const UPLOAD_CATEGORIES = [
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+
+// ─── Canva Status Banner ─────────────────────────────────────────────────────
+
+function CanvaStatusBanner() {
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [tokenExpiry, setTokenExpiry] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from("admin_settings")
+      .select("key,value")
+      .in("key", ["canva_access_token","canva_token_expires_at"])
+      .then(({ data }) => {
+        const token   = data?.find((r: any) => r.key === "canva_access_token")?.value;
+        const expiry  = data?.find((r: any) => r.key === "canva_token_expires_at")?.value;
+        setConnected(!!token);
+        setTokenExpiry(expiry ?? null);
+      });
+    // Check URL params for OAuth result
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("canva_connected")) {
+      setConnected(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  if (connected === null) return null;
+
+  if (connected) {
+    const expiry = tokenExpiry ? new Date(tokenExpiry) : null;
+    const expired = expiry ? expiry < new Date() : false;
+    return (
+      <div className={`mt-3 rounded-lg text-xs px-3 py-2 flex items-center justify-between ${expired ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}`}>
+        <span>{expired ? "⚠️ Canva token expired — reconnect to resume generation." : `✓ Canva connected${expiry ? ` · token valid until ${expiry.toLocaleDateString()}` : ""}`}</span>
+        <a href="/api/canva/auth" className="underline font-semibold ml-3">{expired ? "Reconnect" : "Re-authorise"}</a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-3 rounded-lg bg-blue-50 text-blue-700 text-xs px-3 py-2 flex items-center justify-between">
+      <span>⚙️ Canva not connected — graphics will queue until authorised.</span>
+      <a href="/api/canva/auth" className="underline font-semibold ml-3 whitespace-nowrap">Connect Canva →</a>
+    </div>
+  );
+}
+
 export default function MediaAdmin() {
   // Division toggle
   const [division, setDivision] = useState<Division>("seniors");
@@ -378,9 +424,7 @@ export default function MediaAdmin() {
         {generateError && (
           <div className="mt-3 rounded-lg bg-red-50 text-red-700 text-xs px-3 py-2">{generateError}</div>
         )}
-        <div className="mt-3 rounded-lg bg-blue-50 text-blue-700 text-xs px-3 py-2">
-          ⚙️ Canva API credentials not yet configured — generation will queue graphics for when credentials are added. <a href="#" className="underline font-semibold">Set up credentials →</a>
-        </div>
+        <CanvaStatusBanner />
       </div>
 
       {/* ══════════════════════════════════════════════════════
