@@ -483,7 +483,7 @@ export default function MediaAdmin() {
           </div>
 
           {/* Grouped by match week */}
-          {gameweeks.slice(0, 5).map((gw) => {
+          {gameweeks.filter((gw) => filteredMedia.some((m) => m.gameweek_id === gw.id)).map((gw) => {
             const gwItems = filteredMedia.filter((m) => m.gameweek_id === gw.id);
             if (!gwItems.length) return null;
             return (
@@ -515,6 +515,11 @@ export default function MediaAdmin() {
             );
           })}
 
+          {filteredMedia.length > 0 && !gameweeks.filter((gw) => filteredMedia.some((m) => m.gameweek_id === gw.id)).length && (
+            <div className="px-4 py-3 text-xs text-[#0B3363]/40 dark:text-white/40">
+              Records exist but gameweek not in selector. Try refreshing.
+            </div>
+          )}
           {filteredMedia.length === 0 && (
             <div className="p-6 text-center text-xs text-[#0B3363]/30">
               No graphics yet for {division === "seniors" ? "goFiber PL" : "Care & Cure PL"}.
