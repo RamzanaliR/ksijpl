@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import PitchBackground from "@/components/PitchBackground";
-import PlayerJerseyCard from "@/components/PlayerJerseyCard";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -364,7 +363,7 @@ export default function TOTWAdminPage() {
               <div className="flex flex-col gap-3">
                 {/* FWD */}
                 {f.fwd > 0 && (
-                  <div className="flex justify-center gap-1 sm:gap-3">
+                  <div className="flex justify-center gap-2 sm:gap-4">
                     {activeSlots.filter((s) => s.startsWith("fwd")).map((slot) => (
                       <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
                         isActive={pickingSlot === slot}
@@ -375,7 +374,7 @@ export default function TOTWAdminPage() {
                 )}
                 {/* MID */}
                 {f.mid > 0 && (
-                  <div className="flex justify-center gap-1 sm:gap-3">
+                  <div className="flex justify-center gap-2 sm:gap-4">
                     {activeSlots.filter((s) => s.startsWith("mid")).map((slot) => (
                       <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
                         isActive={pickingSlot === slot}
@@ -386,7 +385,7 @@ export default function TOTWAdminPage() {
                 )}
                 {/* DEF */}
                 {f.def > 0 && (
-                  <div className="flex justify-center gap-1 sm:gap-3">
+                  <div className="flex justify-center gap-2 sm:gap-4">
                     {activeSlots.filter((s) => s.startsWith("def")).map((slot) => (
                       <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
                         isActive={pickingSlot === slot}
@@ -449,6 +448,25 @@ export default function TOTWAdminPage() {
   );
 }
 
+// ─── Jersey Mini ─────────────────────────────────────────────────────────────
+
+function JerseyMini({ teamSlug, isGk }: { teamSlug: string | null; isGk: boolean }) {
+  const [fmt, setFmt] = useState<"png"|"svg"|"placeholder">(teamSlug ? "png" : "placeholder");
+  const base = teamSlug ? `/jerseys/${teamSlug}${isGk ? "-gk-home" : "-home"}` : null;
+  const src  = fmt === "placeholder" ? "/jerseys/placeholder.png" : `${base}.${fmt}`;
+  return (
+    <img
+      src={src}
+      alt=""
+      className="w-8 h-8 sm:w-9 sm:h-9 object-contain"
+      onError={() => {
+        if (fmt === "png") setFmt("svg");
+        else if (fmt === "svg") setFmt("placeholder");
+      }}
+    />
+  );
+}
+
 // ─── TOTW Jersey Slot ─────────────────────────────────────────────────────────
 
 function TOTWJerseySlot({ slot, playerId, playerMap, isActive, onPick, onRemove }: {
@@ -461,31 +479,40 @@ function TOTWJerseySlot({ slot, playerId, playerMap, isActive, onPick, onRemove 
 }) {
   const player = playerId ? playerMap[playerId] : null;
 
+  const name = player ? displayName(player) : null;
+  const shortName = name ? name.split(" ").slice(-1)[0].slice(0, 8) : null;
+
   if (player) {
     return (
-      <div className="w-14 sm:w-20 md:w-24 flex-shrink-0">
-        <PlayerJerseyCard
-          name={displayName(player)}
-          teamSlug={player.teamSlug}
-          isGoalkeeper={slot === "gk"}
-          selected={isActive}
-          onRemove={onRemove}
-          onClick={onPick}
-        />
-      </div>
+      <button
+        onClick={onRemove}
+        className={`relative flex flex-col items-center gap-0.5 flex-shrink-0 w-[60px] sm:w-[72px]
+          ${isActive ? "opacity-70" : ""}`}
+      >
+        <div className={`w-full rounded-lg bg-white/15 flex flex-col items-center py-1.5 px-1 border-2 transition-all
+          ${isActive ? "border-[#F4B400]" : "border-white/20"}`}>
+          <JerseyMini teamSlug={player.teamSlug} isGk={slot === "gk"} />
+          <span className="text-[8px] sm:text-[9px] text-white font-semibold text-center leading-tight mt-0.5 truncate w-full px-0.5">
+            {shortName}
+          </span>
+        </div>
+        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </div>
+      </button>
     );
   }
 
   return (
     <button
       onClick={onPick}
-      className={`w-14 sm:w-20 md:w-24 flex-shrink-0 flex flex-col items-center gap-1 rounded-xl p-1.5 sm:p-2 transition-all
-        ${isActive ? "bg-[#F4B400]/30 ring-2 ring-[#F4B400]" : "bg-black/10 hover:bg-black/20"}`}
+      className={`flex-shrink-0 w-[60px] sm:w-[72px] flex flex-col items-center gap-0.5 rounded-lg p-1.5 border-2 border-dashed transition-all
+        ${isActive ? "border-[#F4B400] bg-[#F4B400]/20" : "border-white/30 bg-black/10 hover:bg-black/20 hover:border-white/50"}`}
     >
-      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-dashed border-white/50 flex items-center justify-center">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-dashed border-white/40 flex items-center justify-center">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
       </div>
-      <span className="text-[8px] sm:text-[9px] font-bold text-white/60 uppercase">{slotLabel(slot)}</span>
+      <span className="text-[8px] font-bold text-white/50 uppercase leading-none">{slotLabel(slot)}</span>
     </button>
   );
 }
