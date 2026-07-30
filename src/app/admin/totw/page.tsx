@@ -443,11 +443,11 @@ export default function TOTWAdminPage() {
               <button onClick={() => save(true)} disabled={saving || !allFilled} className="admin-btn admin-btn-primary text-xs">
                 {saving ? "Publishing…" : `Publish${!allFilled ? ` (${filledCount}/${totalCount})` : " ✓"}`}
               </button>
+              <button onClick={() => setSlots({})} disabled={filledCount === 0} className="admin-btn text-xs border border-red-100 text-red-400 hover:bg-red-50 disabled:opacity-30">
+                Clear
+              </button>
               {savedId && published && (
                 <button onClick={() => save(false)} disabled={saving} className="admin-btn text-xs border border-amber-200 text-amber-700">Unpublish</button>
-              )}
-              {savedId && (
-                <button onClick={() => setSlots({})} className="admin-btn text-xs border border-red-100 text-red-400 hover:bg-red-50 ml-auto">Clear all</button>
               )}
               {saveMsg && <span className={`text-xs font-semibold ${saveMsg.startsWith("Error") ? "text-red-600" : "text-green-600"}`}>{saveMsg}</span>}
             </div>
