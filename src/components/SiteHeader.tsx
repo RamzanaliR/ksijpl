@@ -7,16 +7,17 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import { supabase } from "@/lib/supabase";
 
-const NAV_ITEMS: { key: "home" | "seasons" | "teams" | "cup" | "news" | "fantasy"; label: string; href: string }[] = [
+const NAV_ITEMS: { key: "home" | "seasons" | "teams" | "cup" | "news" | "fantasy" | "stats"; label: string; href: string }[] = [
   { key: "home", label: "Home", href: "/" },
   { key: "seasons", label: "Seasons", href: "/seasons" },
+  { key: "stats", label: "Stats", href: "/stats" },
   { key: "teams", label: "Teams", href: "/teams" },
   { key: "cup", label: "Cup", href: "/cup" },
   { key: "news", label: "Latest News", href: "#" },
   { key: "fantasy", label: "Fantasy", href: "/fantasy" },
 ];
 
-export default function SiteHeader({ active }: { active?: "home" | "seasons" | "teams" | "cup" | "news" | "fantasy" }) {
+export default function SiteHeader({ active }: { active?: "home" | "seasons" | "teams" | "cup" | "news" | "fantasy" | "stats" }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);

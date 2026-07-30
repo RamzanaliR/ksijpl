@@ -13,6 +13,7 @@ type StandingRow = { team_id: string; played: number; won: number; goals_for: nu
 type PlayerStat = {
   id: string;
   full_name: string;
+  fpl_name: string | null;
   nickname: string | null;
   team_id: string;
   gp: number;
@@ -98,7 +99,7 @@ export default function SeasonsPage() {
 
       const teamIds = (teams ?? []).map((t: any) => t.id);
       const [{ data: players }, { data: attendance }, { data: events }, { data: matches }] = await Promise.all([
-        supabase.from("players").select("id,full_name,nickname,team_id").in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"]),
+        supabase.from("players").select("id,full_name,fpl_name,nickname,team_id").in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"]),
         supabase.from("match_attendance").select("player_id").in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"]),
         supabase.from("match_events").select("player_id,type").in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"]),
         supabase.from("matches").select("home_motm_player_id,away_motm_player_id").eq("season_id", selectedSeasonId),
@@ -120,6 +121,7 @@ export default function SeasonsPage() {
       const stats: PlayerStat[] = (players ?? []).map((p: any) => ({
         id: p.id,
         full_name: p.full_name,
+        fpl_name: p.fpl_name ?? null,
         nickname: p.nickname,
         team_id: p.team_id,
         gp: gpCount[p.id] ?? 0,
@@ -196,35 +198,35 @@ export default function SeasonsPage() {
                 League Table
               </div>
               <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[440px] overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-[10px] uppercase text-[#0B3363]/40 dark:text-white/40 border-b border-[#0B3363]/10 dark:border-white/10">
-                        <th className="text-left py-2 px-3">Pos</th>
+                        <th className="text-left py-2 px-3 w-8">Pos</th>
                         <th className="text-left py-2 px-3">Team</th>
-                        <th className="text-right py-2 px-2">GP</th>
-                        <th className="text-right py-2 px-2">W</th>
-                        <th className="text-right py-2 px-2">GF</th>
-                        <th className="text-right py-2 px-2">GA</th>
-                        <th className="text-right py-2 px-2">GD</th>
-                        <th className="text-right py-2 px-3">PTS</th>
+                        <th className="text-center py-2 px-2">GP</th>
+                        <th className="text-center py-2 px-2">W</th>
+                        <th className="text-center py-2 px-2">GF</th>
+                        <th className="text-center py-2 px-2">GA</th>
+                        <th className="text-center py-2 px-2">GD</th>
+                        <th className="text-center py-2 px-3">PTS</th>
                       </tr>
                     </thead>
                     <tbody>
                       {standings.map((row, i) => (
-                        <tr key={row.team_id} className="border-b border-[#0B3363]/5 dark:border-white/5 last:border-0 even:bg-[#0B3363]/[0.03] dark:even:bg-white/[0.03]">
-                          <td className="py-3 sm:py-2 px-3 text-[#0B3363]/40 dark:text-white/40 font-semibold">{i + 1}</td>
-                          <td className="py-3 sm:py-2 px-3">
+                        <tr key={row.team_id} className="h-10 border-b border-[#0B3363]/5 dark:border-white/5 last:border-0 even:bg-[#0B3363]/[0.03] dark:even:bg-white/[0.03]">
+                          <td className="px-3 text-[#0B3363]/40 dark:text-white/40 font-semibold text-center">{i + 1}</td>
+                          <td className="px-3">
                             <a href={`/teams/${row.team_id}`} className="hover:text-[#3EA0D9] transition-colors">
-                              <TeamBadge name={teamMap[row.team_id]} slug={teamSlugs[row.team_id]} logoUrl={teamLogoUrls[row.team_id]} size={26} />
+                              <TeamBadge name={teamMap[row.team_id]} slug={teamSlugs[row.team_id]} logoUrl={teamLogoUrls[row.team_id]} size={22} />
                             </a>
                           </td>
-                          <td className="py-3 sm:py-2 px-2 text-right">{row.played}</td>
-                          <td className="py-3 sm:py-2 px-2 text-right">{row.won}</td>
-                          <td className="py-3 sm:py-2 px-2 text-right">{row.goals_for}</td>
-                          <td className="py-3 sm:py-2 px-2 text-right">{row.goals_against}</td>
-                          <td className="py-3 sm:py-2 px-2 text-right">{row.goal_difference}</td>
-                          <td className="py-3 sm:py-2 px-3 text-right font-bold text-[#3EA0D9]">{row.points}</td>
+                          <td className="px-2 text-center">{row.played}</td>
+                          <td className="px-2 text-center">{row.won}</td>
+                          <td className="px-2 text-center">{row.goals_for}</td>
+                          <td className="px-2 text-center">{row.goals_against}</td>
+                          <td className="px-2 text-center">{row.goal_difference}</td>
+                          <td className="px-3 text-center font-bold text-[#3EA0D9]">{row.points}</td>
                         </tr>
                       ))}
                       {standings.length === 0 && (
@@ -248,30 +250,30 @@ export default function SeasonsPage() {
                       <tr className="text-[10px] uppercase text-[#0B3363]/40 dark:text-white/40 border-b border-[#0B3363]/10 dark:border-white/10">
                         <th className="text-left py-2 px-3">Name</th>
                         <th className="text-left py-2 px-2">Team</th>
-                        <th className="text-right py-2 px-2">GP</th>
-                        <th className="text-right py-2 px-2">G</th>
-                        <th className="text-right py-2 px-2">A</th>
-                        <th className="text-right py-2 px-2">YC</th>
-                        <th className="text-right py-2 px-2">RC</th>
-                        <th className="text-right py-2 px-3">MM</th>
+                        <th className="text-center py-2 px-2">GP</th>
+                        <th className="text-center py-2 px-2">G</th>
+                        <th className="text-center py-2 px-2">A</th>
+                        <th className="text-center py-2 px-2">YC</th>
+                        <th className="text-center py-2 px-2">RC</th>
+                        <th className="text-center py-2 px-3">MM</th>
                       </tr>
                     </thead>
                     <tbody>
                       {playerStats.map((p) => (
-                        <tr key={p.id} className="border-b border-[#0B3363]/5 dark:border-white/5 last:border-0">
-                          <td className="py-2 px-3 truncate max-w-[140px]">
-                            {p.full_name}
-                            {p.nickname && <span className="text-xs text-[#0B3363]/40 dark:text-white/40"> "{p.nickname}"</span>}
+                        <tr key={p.id} className="h-10 border-b border-[#0B3363]/5 dark:border-white/5 last:border-0">
+                          <td className="px-3 truncate max-w-[140px]">
+                            <span className="font-medium">{p.fpl_name || p.full_name}</span>
+                            {p.nickname && !p.fpl_name && <span className="text-xs text-[#0B3363]/40 dark:text-white/40"> "{p.nickname}"</span>}
                           </td>
-                          <td className="py-2 px-2">
+                          <td className="px-2">
                             <TeamBadge name={teamMap[p.team_id] ?? "—"} slug={teamSlugs[p.team_id]} logoUrl={teamLogoUrls[p.team_id]} size={16} className="text-xs" />
                           </td>
-                          <td className="py-2 px-2 text-right">{p.gp}</td>
-                          <td className="py-2 px-2 text-right font-bold text-[#3EA0D9]">{p.goals}</td>
-                          <td className="py-2 px-2 text-right">{p.assists}</td>
-                          <td className="py-2 px-2 text-right">{p.yellow}</td>
-                          <td className="py-2 px-2 text-right">{p.red}</td>
-                          <td className="py-2 px-3 text-right">{p.motm}</td>
+                          <td className="px-2 text-center">{p.gp}</td>
+                          <td className="px-2 text-center font-bold text-[#3EA0D9]">{p.goals}</td>
+                          <td className="px-2 text-center">{p.assists}</td>
+                          <td className="px-2 text-center">{p.yellow}</td>
+                          <td className="px-2 text-center">{p.red}</td>
+                          <td className="px-3 text-center">{p.motm}</td>
                         </tr>
                       ))}
                       {playerStats.length === 0 && (

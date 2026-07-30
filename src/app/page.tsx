@@ -4,6 +4,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import LeagueDivisionPanel, { type DivisionPanelData } from "@/components/LeagueDivisionPanel";
+import StatsWidget from "@/components/StatsWidget";
 import { getSponsorLogoMap } from "@/lib/sponsor-logos";
 
 
@@ -175,6 +176,7 @@ export default async function Home() {
 
       {/* Partners now live in the site-wide footer, above the link columns */}
 
+      <StatsWidget />
       <SiteFooter />
     </div>
   );
