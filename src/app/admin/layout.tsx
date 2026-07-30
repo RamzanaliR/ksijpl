@@ -73,6 +73,16 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/totw",
+    label: "Team of Week",
+    scope: "league",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.1 6.6-5.8-3.1-5.8 3.1 1.1-6.6-4.8-4.6 6.6-.9z" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/fantasy",
     label: "Fantasy",
     scope: "fantasy",
