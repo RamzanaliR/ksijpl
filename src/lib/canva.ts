@@ -204,8 +204,10 @@ export async function exportDesignToPng(designId: string): Promise<string | null
     },
     body: JSON.stringify({
       design_id: designId,
-      format: "png",
-      export_quality: "pro",
+      format: {
+        type: "png",
+        export_quality: "pro",
+      },
     }),
   });
 
@@ -227,7 +229,7 @@ export async function exportDesignToPng(designId: string): Promise<string | null
     const pollData = await pollRes.json();
 
     if (pollData.job?.status === "success") {
-      return pollData.job.urls?.[0] ?? null;
+      return pollData.job.result?.urls?.[0] ?? pollData.job.urls?.[0] ?? null;
     }
     if (pollData.job?.status === "failed") {
       console.error("[canva] export failed:", pollData.job.error);
