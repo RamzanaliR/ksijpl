@@ -48,7 +48,7 @@ const FORMATIONS: Record<string, Formation> = {
   "1-4-1-1": { label: "1-4-1-1", def: 4, mid: 1, fwd: 1 },
 };
 
-const PITCH_WIDTH = 420; // design width in px
+const PITCH_WIDTH = 730; // match Fantasy pick-team width exactly
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -380,21 +380,21 @@ export default function TOTWAdminPage() {
             </div>
 
             {/* Scaled pitch wrapper */}
-            <div ref={pitchWrapRef} className="w-full">
+            <div ref={pitchWrapRef} className="w-full overflow-hidden">
               <div
                 style={{
                   width: PITCH_WIDTH,
                   transformOrigin: "top left",
                   transform: `scale(${pitchScale})`,
-                  height: `calc(${pitchScale} * 100%)`,
-                  marginBottom: `calc((${pitchScale} - 1) * 420px)`,
+                  // Push container height to match scaled height
+                  marginBottom: pitchScale < 1 ? `calc((${pitchScale} - 1) * 500px)` : undefined,
                 }}
               >
                 <PitchBackground>
                   <div className="flex flex-col gap-4">
                     {/* FWD */}
                     {f.fwd > 0 && (
-                      <div className="flex justify-center gap-2 flex-wrap">
+                      <div className="flex justify-center gap-6">
                         {activeSlots.filter((s) => s.startsWith("fwd")).map((slot) => (
                           <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
                             isActive={pickingSlot === slot}
@@ -405,7 +405,7 @@ export default function TOTWAdminPage() {
                     )}
                     {/* MID */}
                     {f.mid > 0 && (
-                      <div className="flex justify-center gap-2 flex-wrap">
+                      <div className="flex justify-center gap-6">
                         {activeSlots.filter((s) => s.startsWith("mid")).map((slot) => (
                           <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
                             isActive={pickingSlot === slot}
@@ -416,7 +416,7 @@ export default function TOTWAdminPage() {
                     )}
                     {/* DEF */}
                     {f.def > 0 && (
-                      <div className="flex justify-center gap-2 flex-wrap">
+                      <div className="flex justify-center gap-6">
                         {activeSlots.filter((s) => s.startsWith("def")).map((slot) => (
                           <TOTWJerseySlot key={slot} slot={slot} playerId={slots[slot]} playerMap={playerMap}
                             isActive={pickingSlot === slot}
