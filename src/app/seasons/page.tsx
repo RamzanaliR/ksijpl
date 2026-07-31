@@ -52,6 +52,8 @@ export default function SeasonsPage() {
   const [playerStats, setPlayerStats] = useState<PlayerStat[]>([]);
   const [psSort, setPsSort] = useState<{ col: keyof PlayerStat; dir: "asc" | "desc" }>({ col: "goals", dir: "desc" });
   const [psPage, setPsPage] = useState(0);
+  const [psSearch, setPsSearch] = useState("");
+  const [psTeamFilter, setPsTeamFilter] = useState("");
   const PS_PER_PAGE = 10;
   const [loading, setLoading] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
@@ -158,14 +160,24 @@ export default function SeasonsPage() {
     if (typeof av === "number" && typeof bv === "number") return psSort.dir === "desc" ? bv - av : av - bv;
     return psSort.dir === "desc" ? String(bv).localeCompare(String(av)) : String(av).localeCompare(String(bv));
   });
-  const psTotal = sortedStats.length;
+  const filteredStats = sortedStats.filter((p) => {
+    const q = psSearch.toLowerCase();
+    const nameMatch = !q || p.full_name.toLowerCase().includes(q) || (p.fpl_name ?? "").toLowerCase().includes(q) || (p.nickname ?? "").toLowerCase().includes(q);
+    const teamMatch = !psTeamFilter || p.team_id === psTeamFilter;
+    return nameMatch && teamMatch;
+  });
+  const psTotal = filteredStats.length;
   const psTotalPages = Math.ceil(psTotal / PS_PER_PAGE);
-  const pagedStats = sortedStats.slice(psPage * PS_PER_PAGE, (psPage + 1) * PS_PER_PAGE);
+  const pagedStats = filteredStats.slice(psPage * PS_PER_PAGE, (psPage + 1) * PS_PER_PAGE);
 
   function toggleSort(col: keyof PlayerStat) {
     setPsSort((prev) => prev.col === col ? { col, dir: prev.dir === "desc" ? "asc" : "desc" } : { col, dir: "desc" });
     setPsPage(0);
   }
+
+  // Reset page on filter change
+  function handlePsSearch(v: string) { setPsSearch(v); setPsPage(0); }
+  function handlePsTeam(v: string) { setPsTeamFilter(v); setPsPage(0); }
 
   const activeComp = competitions.find((c) => c.id === activeCompId);
 
@@ -270,8 +282,26 @@ export default function SeasonsPage() {
 
             {/* Player Stats — 60% */}
             <section className="min-w-0">
-              <div className="inline-block bg-white text-[#0B3363] font-display font-bold text-sm px-3 py-1.5 rounded-lg mb-4">
-                Player Stats
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className="inline-block bg-white text-[#0B3363] font-display font-bold text-sm px-3 py-1.5 rounded-lg flex-shrink-0">
+                  Player Stats
+                </div>
+                <input
+                  value={psSearch}
+                  onChange={(e) => handlePsSearch(e.target.value)}
+                  placeholder="Search player…"
+                  className="flex-1 min-w-[140px] border border-[#0B3363]/15 dark:border-white/15 dark:bg-white/5 rounded-lg px-3 py-1.5 text-xs"
+                />
+                <select
+                  value={psTeamFilter}
+                  onChange={(e) => handlePsTeam(e.target.value)}
+                  className="border border-[#0B3363]/15 dark:border-white/15 dark:bg-[#0B1220] rounded-lg px-2 py-1.5 text-xs min-w-[130px]"
+                >
+                  <option value="">All teams</option>
+                  {Object.entries(teamMap).sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
               </div>
               <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -317,22 +347,44 @@ export default function SeasonsPage() {
                 </div>
               </div>
               {psTotalPages > 1 && (
-                <div className="flex items-center justify-between px-3 py-2 border-t border-[#0B3363]/8 dark:border-white/8">
-                  <span className="text-xs text-[#0B3363]/40 dark:text-white/40">
-                    {psPage * PS_PER_PAGE + 1}–{Math.min((psPage + 1) * PS_PER_PAGE, psTotal)} of {psTotal}
-                  </span>
-                  <div className="flex gap-1">
-                    <button onClick={() => setPsPage(p => Math.max(0, p - 1))} disabled={psPage === 0}
-                      className="px-2 py-1 text-xs rounded border border-[#0B3363]/15 dark:border-white/15 disabled:opacity-30 hover:border-[#3EA0D9]">←</button>
-                    {Array.from({ length: psTotalPages }).map((_, i) => (
-                      <button key={i} onClick={() => setPsPage(i)}
-                        className={`px-2 py-1 text-xs rounded border transition-colors ${i === psPage ? "bg-[#0B3363] text-white border-[#0B3363] dark:bg-[#3EA0D9] dark:border-[#3EA0D9]" : "border-[#0B3363]/15 dark:border-white/15 hover:border-[#3EA0D9]"}`}>
-                        {i + 1}
-                      </button>
-                    ))}
-                    <button onClick={() => setPsPage(p => Math.min(psTotalPages - 1, p + 1))} disabled={psPage === psTotalPages - 1}
-                      className="px-2 py-1 text-xs rounded border border-[#0B3363]/15 dark:border-white/15 disabled:opacity-30 hover:border-[#3EA0D9]">→</button>
-                  </div>
+                <div className="flex items-center justify-center gap-1 px-3 py-3 border-t border-[#0B3363]/8 dark:border-white/8 flex-wrap">
+                  {/* Prev */}
+                  <button onClick={() => setPsPage(p => Math.max(0, p - 1))} disabled={psPage === 0}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#0B3363]/15 dark:border-white/15 disabled:opacity-30 hover:border-[#3EA0D9] text-xs transition-colors">
+                    ‹
+                  </button>
+                  {/* Smart page numbers */}
+                  {(() => {
+                    const pages: (number | "...")[] = [];
+                    if (psTotalPages <= 7) {
+                      for (let i = 0; i < psTotalPages; i++) pages.push(i);
+                    } else {
+                      pages.push(0);
+                      if (psPage > 2) pages.push("...");
+                      for (let i = Math.max(1, psPage - 1); i <= Math.min(psTotalPages - 2, psPage + 1); i++) pages.push(i);
+                      if (psPage < psTotalPages - 3) pages.push("...");
+                      pages.push(psTotalPages - 1);
+                    }
+                    return pages.map((p, i) =>
+                      p === "..." ? (
+                        <span key={`dots-${i}`} className="w-8 h-8 flex items-center justify-center text-xs text-[#0B3363]/40 dark:text-white/40">…</span>
+                      ) : (
+                        <button key={p} onClick={() => setPsPage(p as number)}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold border transition-colors ${
+                            p === psPage
+                              ? "bg-[#3EA0D9] text-white border-[#3EA0D9]"
+                              : "border-[#0B3363]/15 dark:border-white/15 hover:border-[#3EA0D9]"
+                          }`}>
+                          {(p as number) + 1}
+                        </button>
+                      )
+                    );
+                  })()}
+                  {/* Next */}
+                  <button onClick={() => setPsPage(p => Math.min(psTotalPages - 1, p + 1))} disabled={psPage === psTotalPages - 1}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg border border-[#0B3363]/15 dark:border-white/15 disabled:opacity-30 hover:border-[#3EA0D9] text-xs transition-colors">
+                    ›
+                  </button>
                 </div>
               )}
             </section>
