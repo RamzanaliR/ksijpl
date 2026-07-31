@@ -137,46 +137,52 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Latest News (placeholder) */}
+      {/* News + Fantasy Banner (right 750px) + Stats Widget (left 360px) */}
       <section className="max-w-6xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display font-bold text-xl">Latest News</h2>
-          <Link href="#" className="text-xs font-bold uppercase text-[#3EA0D9]">View all →</Link>
-        </div>
-        <div className="grid md:grid-cols-3 gap-5">
-          {[
-            { tag: "Match Report", title: "Season 03 kicks off with five-goal thriller" },
-            { tag: "Fantasy", title: "Fantasy League launching soon — get ready" },
-            { tag: "Juniors", title: "Care & Cure Juniors PL: season preview" },
-          ].map((n, i) => (
-            <div key={i} className="rounded-2xl overflow-hidden border border-[#0B3363]/10 dark:border-white/10">
-              <div className="h-32 bg-gradient-to-br from-[#3EA0D9]/20 to-[#0B3363]/10" />
-              <div className="p-4">
-                <div className="text-[10px] font-bold uppercase text-[#3EA0D9]">{n.tag}</div>
-                <div className="font-semibold text-sm mt-1.5 leading-snug">{n.title}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+        <div className="grid lg:grid-cols-[360px_1fr] gap-6 items-start">
 
-      {/* Fantasy CTA */}
-      <section className="max-w-6xl mx-auto px-6 py-10">
-        <div className="rounded-2xl p-6 bg-[#0B3363] dark:bg-white text-white dark:text-[#0B3363] flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[#F4B400] flex items-center justify-center text-xl">⚽</div>
-            <div>
-              <div className="font-display font-bold text-lg">Fantasy League</div>
-              <div className="text-sm opacity-70">Pick your squad and compete with the community.</div>
+          {/* Left: Stats Widget — Goals, Assists, Clean Sheets */}
+          <div className="lg:sticky lg:top-6">
+            <StatsWidget compact />
+          </div>
+
+          {/* Right: Latest News 2x2 + Fantasy Banner */}
+          <div className="space-y-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-bold text-xl">Latest News</h2>
+              <Link href="#" className="text-xs font-bold uppercase text-[#3EA0D9]">View all →</Link>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { tag: "Match Report", title: "Season 03 kicks off with five-goal thriller" },
+                { tag: "Fantasy", title: "Fantasy League launching soon — get ready" },
+                { tag: "Juniors", title: "Care & Cure Juniors PL: season preview" },
+                { tag: "League", title: "Meet the 12 teams of Season 03" },
+              ].map((n, i) => (
+                <div key={i} className="rounded-2xl overflow-hidden border border-[#0B3363]/10 dark:border-white/10 cursor-pointer hover:border-[#3EA0D9]/40 transition-colors">
+                  <div className="h-28 bg-gradient-to-br from-[#3EA0D9]/20 to-[#0B3363]/10" />
+                  <div className="p-3">
+                    <div className="text-[10px] font-bold uppercase text-[#3EA0D9]">{n.tag}</div>
+                    <div className="font-semibold text-sm mt-1 leading-snug">{n.title}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Fantasy Banner */}
+            <div className="rounded-2xl p-5 bg-[#0B3363] dark:bg-white/10 text-white flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-[#F4B400] flex items-center justify-center text-lg flex-shrink-0">⚽</div>
+                <div>
+                  <div className="font-display font-bold text-base">Fantasy League</div>
+                  <div className="text-sm opacity-70">Pick your squad and compete with the community.</div>
+                </div>
+              </div>
+              <Link href="/fantasy" className="px-5 py-2 rounded-lg bg-[#F4B400] text-[#0B3363] font-bold text-sm whitespace-nowrap">Sign Up</Link>
             </div>
           </div>
-          <Link href="/fantasy" className="px-5 py-2.5 rounded-lg bg-[#F4B400] text-[#0B3363] font-bold text-sm">Sign Up</Link>
         </div>
       </section>
-
-      {/* Partners now live in the site-wide footer, above the link columns */}
-
-      <StatsWidget />
       <SiteFooter />
     </div>
   );

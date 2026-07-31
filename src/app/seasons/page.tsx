@@ -24,6 +24,17 @@ type PlayerStat = {
   motm: number;
 };
 
+const PS_COLS: { col: string; label: string; center: boolean }[] = [
+  { col: "full_name", label: "Name",  center: false },
+  { col: "",          label: "Team",  center: false },
+  { col: "gp",        label: "GP",    center: true  },
+  { col: "goals",     label: "G",     center: true  },
+  { col: "assists",   label: "A",     center: true  },
+  { col: "yellow",    label: "YC",    center: true  },
+  { col: "red",       label: "RC",    center: true  },
+  { col: "motm",      label: "MM",    center: true  },
+];
+
 const DIVISION_LABELS: Record<string, string> = {
   gofiber: "gofiber KSIJ PL",
   "Care & Cure": "Care & Cure KSIJ PL",
@@ -39,6 +50,9 @@ export default function SeasonsPage() {
   const [teamLogoUrls, setTeamLogoUrls] = useState<Record<string, string>>({});
   const [standings, setStandings] = useState<StandingRow[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStat[]>([]);
+  const [psSort, setPsSort] = useState<{ col: keyof PlayerStat; dir: "asc" | "desc" }>({ col: "goals", dir: "desc" });
+  const [psPage, setPsPage] = useState(0);
+  const PS_PER_PAGE = 10;
   const [loading, setLoading] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
 
@@ -136,6 +150,22 @@ export default function SeasonsPage() {
       setLoadingData(false);
     })();
   }, [selectedSeasonId, activeCompId, competitions]);
+
+  // Sorted + paginated player stats
+  const sortedStats = [...playerStats].sort((a, b) => {
+    const av = a[psSort.col] as number | string;
+    const bv = b[psSort.col] as number | string;
+    if (typeof av === "number" && typeof bv === "number") return psSort.dir === "desc" ? bv - av : av - bv;
+    return psSort.dir === "desc" ? String(bv).localeCompare(String(av)) : String(av).localeCompare(String(bv));
+  });
+  const psTotal = sortedStats.length;
+  const psTotalPages = Math.ceil(psTotal / PS_PER_PAGE);
+  const pagedStats = sortedStats.slice(psPage * PS_PER_PAGE, (psPage + 1) * PS_PER_PAGE);
+
+  function toggleSort(col: keyof PlayerStat) {
+    setPsSort((prev) => prev.col === col ? { col, dir: prev.dir === "desc" ? "asc" : "desc" } : { col, dir: "desc" });
+    setPsPage(0);
+  }
 
   const activeComp = competitions.find((c) => c.id === activeCompId);
 
@@ -244,22 +274,25 @@ export default function SeasonsPage() {
                 Player Stats
               </div>
               <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
-                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-white dark:bg-[#0B1220]">
                       <tr className="text-[10px] uppercase text-[#0B3363]/40 dark:text-white/40 border-b border-[#0B3363]/10 dark:border-white/10">
-                        <th className="text-left py-2 px-3">Name</th>
-                        <th className="text-left py-2 px-2">Team</th>
-                        <th className="text-center py-2 px-2">GP</th>
-                        <th className="text-center py-2 px-2">G</th>
-                        <th className="text-center py-2 px-2">A</th>
-                        <th className="text-center py-2 px-2">YC</th>
-                        <th className="text-center py-2 px-2">RC</th>
-                        <th className="text-center py-2 px-3">MM</th>
+                        {PS_COLS.map(({ col, label, center }) =>
+                          col === "" ? (
+                            <th key="team" className="text-left py-2 px-2">{label}</th>
+                          ) : (
+                            <th key={col}
+                              onClick={() => toggleSort(col as keyof PlayerStat)}
+                              className={"py-2 px-2 cursor-pointer select-none hover:text-[#3EA0D9] transition-colors " + (center ? "text-center " : "text-left ") + (psSort.col === col ? "text-[#3EA0D9]" : "")}>
+                              {label}{psSort.col === col ? (psSort.dir === "desc" ? " ↓" : " ↑") : ""}
+                            </th>
+                          )
+                        )}
                       </tr>
                     </thead>
                     <tbody>
-                      {playerStats.map((p) => (
+                      {pagedStats.map((p) => (
                         <tr key={p.id} className="h-10 border-b border-[#0B3363]/5 dark:border-white/5 last:border-0">
                           <td className="px-3 truncate max-w-[140px]">
                             <span className="font-medium">{p.fpl_name || p.full_name}</span>
@@ -276,13 +309,32 @@ export default function SeasonsPage() {
                           <td className="px-3 text-center">{p.motm}</td>
                         </tr>
                       ))}
-                      {playerStats.length === 0 && (
+                      {pagedStats.length === 0 && (
                         <tr><td colSpan={8} className="py-6 text-center text-xs text-[#0B3363]/40 dark:text-white/40">No players found</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
               </div>
+              {psTotalPages > 1 && (
+                <div className="flex items-center justify-between px-3 py-2 border-t border-[#0B3363]/8 dark:border-white/8">
+                  <span className="text-xs text-[#0B3363]/40 dark:text-white/40">
+                    {psPage * PS_PER_PAGE + 1}–{Math.min((psPage + 1) * PS_PER_PAGE, psTotal)} of {psTotal}
+                  </span>
+                  <div className="flex gap-1">
+                    <button onClick={() => setPsPage(p => Math.max(0, p - 1))} disabled={psPage === 0}
+                      className="px-2 py-1 text-xs rounded border border-[#0B3363]/15 dark:border-white/15 disabled:opacity-30 hover:border-[#3EA0D9]">←</button>
+                    {Array.from({ length: psTotalPages }).map((_, i) => (
+                      <button key={i} onClick={() => setPsPage(i)}
+                        className={`px-2 py-1 text-xs rounded border transition-colors ${i === psPage ? "bg-[#0B3363] text-white border-[#0B3363] dark:bg-[#3EA0D9] dark:border-[#3EA0D9]" : "border-[#0B3363]/15 dark:border-white/15 hover:border-[#3EA0D9]"}`}>
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button onClick={() => setPsPage(p => Math.min(psTotalPages - 1, p + 1))} disabled={psPage === psTotalPages - 1}
+                      className="px-2 py-1 text-xs rounded border border-[#0B3363]/15 dark:border-white/15 disabled:opacity-30 hover:border-[#3EA0D9]">→</button>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
         )}
