@@ -22,6 +22,7 @@ type PlayerStat = {
   yellow: number;
   red: number;
   motm: number;
+  clean_sheets: number | null;
 };
 
 const PS_COLS: { col: string; label: string; center: boolean }[] = [
@@ -33,6 +34,11 @@ const PS_COLS: { col: string; label: string; center: boolean }[] = [
   { col: "yellow",    label: "YC",    center: true  },
   { col: "red",       label: "RC",    center: true  },
   { col: "motm",      label: "MM",    center: true  },
+];
+
+const PS_COLS_CS: { col: string; label: string; center: boolean }[] = [
+  ...PS_COLS,
+  { col: "clean_sheets", label: "CS", center: true },
 ];
 
 const DIVISION_LABELS: Record<string, string> = {
@@ -50,6 +56,7 @@ export default function SeasonsPage() {
   const [teamLogoUrls, setTeamLogoUrls] = useState<Record<string, string>>({});
   const [standings, setStandings] = useState<StandingRow[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStat[]>([]);
+  const [psHasCS, setPsHasCS] = useState(false);
   const [psSort, setPsSort] = useState<{ col: keyof PlayerStat; dir: "asc" | "desc" }>({ col: "goals", dir: "desc" });
   const [psPage, setPsPage] = useState(0);
   const [psSearch, setPsSearch] = useState("");
@@ -114,6 +121,36 @@ export default function SeasonsPage() {
       setStandings(standingsData ?? []);
 
       const teamIds = (teams ?? []).map((t: any) => t.id);
+
+      const { data: archived } = await supabase
+        .from("season_player_stats")
+        .select("id,player_name,player_id,team_id,pld,goals,assists,yellow,red,motm,clean_sheets")
+        .eq("season_id", selectedSeasonId);
+
+      if (archived && archived.length) {
+        const hasCS = archived.some((a: any) => a.clean_sheets !== null);
+        setPsHasCS(hasCS);
+        const stats: PlayerStat[] = archived.map((a: any) => ({
+          id: a.id,
+          full_name: a.player_name,
+          fpl_name: null,
+          nickname: null,
+          team_id: a.team_id ?? "",
+          gp: a.pld,
+          goals: a.goals,
+          assists: a.assists,
+          yellow: a.yellow,
+          red: a.red,
+          motm: a.motm,
+          clean_sheets: a.clean_sheets,
+        }));
+        stats.sort((a, b) => b.goals - a.goals || b.assists - a.assists || b.gp - a.gp);
+        setPlayerStats(stats);
+        setLoadingData(false);
+        return;
+      }
+      setPsHasCS(false);
+
       const [{ data: players }, { data: attendance }, { data: events }, { data: matches }] = await Promise.all([
         supabase.from("players").select("id,full_name,fpl_name,nickname,team_id").in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"]),
         supabase.from("match_attendance").select("player_id").in("team_id", teamIds.length ? teamIds : ["00000000-0000-0000-0000-000000000000"]),
@@ -146,6 +183,7 @@ export default function SeasonsPage() {
         yellow: evCount[p.id]?.yellow_card ?? 0,
         red: evCount[p.id]?.red_card ?? 0,
         motm: motmCount[p.id] ?? 0,
+        clean_sheets: null,
       }));
       stats.sort((a, b) => b.goals - a.goals || b.assists - a.assists || b.gp - a.gp);
       setPlayerStats(stats);
@@ -308,7 +346,7 @@ export default function SeasonsPage() {
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-white dark:bg-[#0B1220]">
                       <tr className="text-[10px] uppercase text-[#0B3363]/40 dark:text-white/40 border-b border-[#0B3363]/10 dark:border-white/10">
-                        {PS_COLS.map(({ col, label, center }) =>
+                        {(psHasCS ? PS_COLS_CS : PS_COLS).map(({ col, label, center }) =>
                           col === "" ? (
                             <th key="team" className="text-left py-2 px-2">{label}</th>
                           ) : (
@@ -329,7 +367,11 @@ export default function SeasonsPage() {
                             {p.nickname && !p.fpl_name && <span className="text-xs text-[#0B3363]/40 dark:text-white/40"> "{p.nickname}"</span>}
                           </td>
                           <td className="px-2">
-                            <TeamBadge name={teamMap[p.team_id] ?? "—"} slug={teamSlugs[p.team_id]} logoUrl={teamLogoUrls[p.team_id]} size={16} className="text-xs" />
+                            {p.team_id ? (
+                              <TeamBadge name={teamMap[p.team_id] ?? "—"} slug={teamSlugs[p.team_id]} logoUrl={teamLogoUrls[p.team_id]} size={16} className="text-xs" />
+                            ) : (
+                              <span className="text-xs text-[#0B3363]/30 dark:text-white/30">—</span>
+                            )}
                           </td>
                           <td className="px-2 text-center">{p.gp}</td>
                           <td className="px-2 text-center font-bold text-[#3EA0D9]">{p.goals}</td>
@@ -337,10 +379,11 @@ export default function SeasonsPage() {
                           <td className="px-2 text-center">{p.yellow}</td>
                           <td className="px-2 text-center">{p.red}</td>
                           <td className="px-3 text-center">{p.motm}</td>
+                          {psHasCS && <td className="px-3 text-center">{p.clean_sheets ?? 0}</td>}
                         </tr>
                       ))}
                       {pagedStats.length === 0 && (
-                        <tr><td colSpan={8} className="py-6 text-center text-xs text-[#0B3363]/40 dark:text-white/40">No players found</td></tr>
+                        <tr><td colSpan={psHasCS ? 9 : 8} className="py-6 text-center text-xs text-[#0B3363]/40 dark:text-white/40">No players found</td></tr>
                       )}
                     </tbody>
                   </table>
