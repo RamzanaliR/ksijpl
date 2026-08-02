@@ -445,7 +445,7 @@ export default function TransfersPage() {
                     const rowPlayers = effectiveSquad.filter((p) => p.position === pos);
                     if (rowPlayers.length === 0) return null;
                     return (
-                      <div key={pos} className="flex justify-center gap-1 sm:gap-3 lg:gap-6">
+                      <div key={pos} className="flex justify-center gap-2 sm:gap-4 lg:gap-6">
                         {rowPlayers.map((p) => {
                           const isPending = pending.some((t) => t.inPlayer.id === p.playerId);
                           const originalId = isPending ? pending.find((t) => t.inPlayer.id === p.playerId)!.outPlayerId : p.playerId;

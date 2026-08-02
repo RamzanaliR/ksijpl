@@ -535,7 +535,7 @@ export default function PickTeam() {
                       const rowPlayers = startingPlayers.filter((p) => p.position === pos);
                       if (rowPlayers.length === 0) return null;
                       return (
-                        <div key={pos} className="flex justify-center gap-1 sm:gap-3 lg:gap-6">
+                        <div key={pos} className="flex justify-center gap-2 sm:gap-4 lg:gap-6">
                           {rowPlayers.map((p) => (
                             <PlayerJerseyCard
                               key={p.id}
@@ -570,7 +570,7 @@ export default function PickTeam() {
                       <div key={p.id} className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{p.position}</div>
                     ))}
                   </div>
-                  <div className="flex gap-1 sm:gap-3 overflow-x-auto pb-1 min-w-0 w-full justify-center">
+                  <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 min-w-0 w-full justify-center">
                     {benchPlayers.map((p) => (
                       <PlayerJerseyCard
                         key={p.id}

@@ -56,7 +56,7 @@ export default function PlayerJerseyCard({
 
   return (
     <div
-      className={`relative w-16 sm:w-20 lg:w-24 flex-shrink-0 transition-all rounded-xl bg-white/10 p-1.5 pt-2 ${dimmed ? "opacity-40" : ""} ${
+      className={`relative w-[70px] sm:w-20 lg:w-24 flex-shrink-0 transition-all rounded-xl bg-white/10 p-1.5 pt-2 ${dimmed ? "opacity-40" : ""} ${
         selected ? "ring-2 ring-[#F4B400]" : ""
       } ${highlighted ? "ring-2 ring-[#3EA0D9] scale-105" : ""}`}
     >
@@ -125,7 +125,7 @@ export default function PlayerJerseyCard({
           </div>
         )}
         {/* Jersey sits taller than the boxes below it and is deliberately overlapped by them, so its shoulders/collar peek out above */}
-        <div className="w-14 h-14 sm:w-18 sm:h-18 lg:w-20 lg:h-20 -mb-4 relative z-0">
+        <div className="w-[56px] h-[56px] sm:w-16 sm:h-16 lg:w-20 lg:h-20 -mb-4 relative z-0">
           <img src={jerseySrc} alt={name} className="w-full h-full object-contain" onError={handleImgError} />
         </div>
         <div className="w-full relative z-10">

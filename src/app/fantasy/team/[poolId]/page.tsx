@@ -562,7 +562,7 @@ export default function SquadBuilder() {
               <PitchBackground>
                 <div className="flex flex-col gap-4">
                   {POSITIONS.map((pos) => (
-                    <div key={pos} className="flex justify-center gap-1 sm:gap-3 lg:gap-6">
+                    <div key={pos} className="flex justify-center gap-2 sm:gap-4 lg:gap-6">
                       {buildSlots(pos).map((p, i) => (
                         <div key={p?.id ?? `${pos}-empty-${i}`}>
                           {p ? (
