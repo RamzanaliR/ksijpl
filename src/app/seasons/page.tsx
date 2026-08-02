@@ -118,7 +118,23 @@ export default function SeasonsPage() {
       setTeamMap(tMap);
       setTeamSlugs(tSlugs);
       getSponsorLogoMap().then(setTeamLogoUrls);
-      setStandings(standingsData ?? []);
+
+      const hasLiveStandings = (standingsData ?? []).some((r: any) => (r.played ?? 0) > 0);
+      if (!hasLiveStandings) {
+        const { data: archivedStandings } = await supabase
+          .from("season_standings")
+          .select("team_id,played,won,goals_for,goals_against,goal_difference,points")
+          .eq("season_id", selectedSeasonId)
+          .order("points", { ascending: false })
+          .order("goal_difference", { ascending: false });
+        if (archivedStandings && archivedStandings.length) {
+          setStandings(archivedStandings);
+        } else {
+          setStandings(standingsData ?? []);
+        }
+      } else {
+        setStandings(standingsData ?? []);
+      }
 
       const teamIds = (teams ?? []).map((t: any) => t.id);
 
