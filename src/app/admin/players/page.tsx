@@ -7,6 +7,8 @@ import Modal from "@/components/admin/Modal";
 type Division = { id: string; name: string; slug: string };
 type Team = { id: string; name: string; division_id: string };
 type Player = { id: string; full_name: string; position: string | null; squad_number: number | null; team_id: string; fpl_name: string | null };
+type Season = { id: string; label: string; division_id: string };
+type SeasonPlayer = { id: string; player_id: string; full_name: string };
 
 const POSITIONS = ["GK", "DEF", "MID", "FWD"];
 
@@ -47,19 +49,33 @@ export default function PlayersAdmin() {
   const [saving, setSaving] = useState(false);
   const [mobileTab, setMobileTab] = useState(0);
 
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [seasonId, setSeasonId] = useState(""); // "" = current-team-assignment mode
+  const [seasonSquad, setSeasonSquad] = useState<SeasonPlayer[]>([]);
+  const [seasonAddPlayerId, setSeasonAddPlayerId] = useState("");
+  const [seasonBusy, setSeasonBusy] = useState(false);
+
   const orderedDivisions = useMemo(
     () => [...divisions].sort((a, b) => ["juniors", "seniors"].indexOf(a.slug) - ["juniors", "seniors"].indexOf(b.slug)),
     [divisions]
   );
 
   async function loadBase() {
-    const [{ data: divs }, { data: tms }, { data: pools }] = await Promise.all([
+    const [{ data: divs }, { data: tms }, { data: pools }, { data: seas }] = await Promise.all([
       supabase.from("divisions").select("id,name,slug").order("name"),
       supabase.from("teams").select("id,name,division_id").order("name"),
       supabase.from("fantasy_settings").select("id,seasons(competitions(division_id))").eq("is_active", true),
+      supabase.from("seasons").select("id,label,created_at,competitions(division_id,type)").order("created_at", { ascending: false }),
     ]);
     setDivisions(divs ?? []);
     setTeams(tms ?? []);
+    const seasonNum = (label: string) => parseInt(label.match(/\d+/)?.[0] ?? "0", 10);
+    setSeasons(
+      (seas ?? [])
+        .filter((s: any) => s.competitions?.type === "league")
+        .map((s: any) => ({ id: s.id, label: s.label, division_id: s.competitions.division_id }))
+        .sort((a, b) => seasonNum(b.label) - seasonNum(a.label))
+    );
     const poolMap: Record<string, string> = {};
     (pools ?? []).forEach((p: any) => {
       const divId = p.seasons?.competitions?.division_id;
@@ -117,6 +133,65 @@ export default function PlayersAdmin() {
       if (teamId) loadPlayers(teamId);
     });
   }, [selectedTeamByDivision]);
+
+  const seasonDivisionId = seasons.find((s) => s.id === seasonId)?.division_id ?? "";
+  const seasonTeamId = seasonDivisionId ? selectedTeamByDivision[seasonDivisionId] ?? "" : "";
+
+  async function loadSeasonSquad(sid: string, teamId: string) {
+    if (!sid || !teamId) {
+      setSeasonSquad([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("season_players")
+      .select("id,player_id,players(full_name)")
+      .eq("season_id", sid)
+      .eq("team_id", teamId);
+    setSeasonSquad((data ?? []).map((r: any) => ({ id: r.id, player_id: r.player_id, full_name: r.players?.full_name ?? "—" })));
+  }
+
+  useEffect(() => {
+    loadSeasonSquad(seasonId, seasonTeamId);
+  }, [seasonId, seasonTeamId]);
+
+  async function addToSeasonSquad() {
+    if (!seasonId || !seasonTeamId || !seasonAddPlayerId) return;
+    setSeasonBusy(true);
+    const { error } = await supabase
+      .from("season_players")
+      .insert({ season_id: seasonId, team_id: seasonTeamId, player_id: seasonAddPlayerId });
+    setSeasonBusy(false);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setSeasonAddPlayerId("");
+    loadSeasonSquad(seasonId, seasonTeamId);
+  }
+
+  async function removeFromSeasonSquad(rowId: string) {
+    await supabase.from("season_players").delete().eq("id", rowId);
+    loadSeasonSquad(seasonId, seasonTeamId);
+  }
+
+  async function copyCurrentSquad() {
+    if (!seasonId || !seasonTeamId) return;
+    const current = playersByTeam[seasonTeamId] ?? [];
+    if (!current.length) return;
+    setSeasonBusy(true);
+    const { error } = await supabase
+      .from("season_players")
+      .upsert(
+        current.map((p) => ({ season_id: seasonId, team_id: seasonTeamId, player_id: p.id })),
+        { onConflict: "season_id,player_id" }
+      );
+    setSeasonBusy(false);
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    loadSeasonSquad(seasonId, seasonTeamId);
+  }
 
   async function addPlayer(e: React.FormEvent) {
     e.preventDefault();
@@ -176,6 +251,64 @@ export default function PlayersAdmin() {
         <button onClick={() => setAddOpen(true)} className="admin-btn admin-btn-primary">
           <PlusIcon /> Add Player
         </button>
+      </div>
+
+      <div className="admin-card p-4 mb-8">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-1">
+          <h2 className="font-semibold text-[#0B3363] text-sm">Season Squad</h2>
+          <select value={seasonId} onChange={(e) => setSeasonId(e.target.value)} className="admin-select w-auto">
+            <option value="">Current team assignment (no season)</option>
+            {orderedDivisions.map((d) => (
+              <optgroup key={d.id} label={DIVISION_LABELS[d.slug] ?? d.name}>
+                {seasons.filter((s) => s.division_id === d.id).map((s) => (
+                  <option key={s.id} value={s.id}>{s.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        {seasonId ? (
+          <>
+            <p className="text-xs text-[#0B3363]/50 mb-3">
+              Squad for {teams.find((t) => t.id === seasonTeamId)?.name ?? "—"} in {seasons.find((s) => s.id === seasonId)?.label}.
+              Pick the team above in that division's list, then manage its season roster here.
+            </p>
+            <div className="flex items-center gap-2 mb-3">
+              <select
+                value={seasonAddPlayerId}
+                onChange={(e) => setSeasonAddPlayerId(e.target.value)}
+                className="admin-select w-auto"
+                disabled={!seasonTeamId}
+              >
+                <option value="">Add player to this season…</option>
+                {(playersByTeam[seasonTeamId] ?? [])
+                  .filter((p) => !seasonSquad.some((sp) => sp.player_id === p.id))
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>{p.full_name}</option>
+                  ))}
+              </select>
+              <button onClick={addToSeasonSquad} disabled={seasonBusy || !seasonAddPlayerId} className="admin-btn admin-btn-secondary">
+                Add
+              </button>
+              <button onClick={copyCurrentSquad} disabled={seasonBusy || !seasonTeamId} className="admin-btn admin-btn-secondary">
+                Copy current squad
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {seasonSquad.map((sp) => (
+                <span key={sp.id} className="admin-pill flex items-center gap-1.5">
+                  {sp.full_name}
+                  <button onClick={() => removeFromSeasonSquad(sp.id)} className="text-[#0B3363]/50 hover:text-red-500" aria-label="Remove">×</button>
+                </span>
+              ))}
+              {seasonSquad.length === 0 && <span className="text-xs text-[#0B3363]/40">No players in this season's squad yet.</span>}
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-[#0B3363]/50">
+            Select a season to build that season's squad per team (used for archived seasons on the public Team page).
+          </p>
+        )}
       </div>
 
       <div className="flex items-center gap-2 mb-4 md:hidden">

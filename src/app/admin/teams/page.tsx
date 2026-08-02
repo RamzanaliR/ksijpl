@@ -6,6 +6,7 @@ import Modal from "@/components/admin/Modal";
 
 type Division = { id: string; name: string; slug: string };
 type Team = { id: string; name: string; short_name: string | null; division_id: string; website_url: string | null };
+type Season = { id: string; label: string; division_id: string };
 
 const DIVISION_LABELS: Record<string, string> = {
   juniors: "Care & Cure KSIJ PL Teams",
@@ -56,14 +57,27 @@ export default function TeamsAdmin() {
   const [editWebsite, setEditWebsite] = useState("");
   const [mobileTab, setMobileTab] = useState(0);
 
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [rosterSeasonId, setRosterSeasonId] = useState("");
+  const [rosterTeamIds, setRosterTeamIds] = useState<Set<string>>(new Set());
+  const [rosterLoading, setRosterLoading] = useState(false);
+
   async function load() {
     setLoading(true);
-    const [{ data: divs }, { data: tms }] = await Promise.all([
+    const [{ data: divs }, { data: tms }, { data: seas }] = await Promise.all([
       supabase.from("divisions").select("id,name,slug").order("name"),
       supabase.from("teams").select("id,name,short_name,division_id,website_url").order("name"),
+      supabase.from("seasons").select("id,label,created_at,competitions(division_id,type)").order("created_at", { ascending: false }),
     ]);
     setDivisions(divs ?? []);
     setTeams(tms ?? []);
+    const seasonNum = (label: string) => parseInt(label.match(/\d+/)?.[0] ?? "0", 10);
+    const leagueSeasons = (seas ?? [])
+      .filter((s: any) => s.competitions?.type === "league")
+      .map((s: any) => ({ id: s.id, label: s.label, division_id: s.competitions.division_id }))
+      .sort((a, b) => seasonNum(b.label) - seasonNum(a.label));
+    setSeasons(leagueSeasons);
+    if (leagueSeasons.length && !rosterSeasonId) setRosterSeasonId(leagueSeasons[0].id);
     if (divs && divs.length && !newDivision) setNewDivision(divs[0].id);
     setLoading(false);
   }
@@ -71,6 +85,33 @@ export default function TeamsAdmin() {
   useEffect(() => {
     load();
   }, []);
+
+  async function loadRoster(seasonId: string) {
+    if (!seasonId) return;
+    setRosterLoading(true);
+    const { data } = await supabase.from("season_teams").select("team_id").eq("season_id", seasonId);
+    setRosterTeamIds(new Set((data ?? []).map((r: any) => r.team_id)));
+    setRosterLoading(false);
+  }
+
+  useEffect(() => {
+    if (rosterSeasonId) loadRoster(rosterSeasonId);
+  }, [rosterSeasonId]);
+
+  async function toggleRosterTeam(teamId: string, inSeason: boolean) {
+    if (!rosterSeasonId) return;
+    if (inSeason) {
+      await supabase.from("season_teams").delete().eq("season_id", rosterSeasonId).eq("team_id", teamId);
+      setRosterTeamIds((prev) => {
+        const next = new Set(prev);
+        next.delete(teamId);
+        return next;
+      });
+    } else {
+      await supabase.from("season_teams").insert({ season_id: rosterSeasonId, team_id: teamId });
+      setRosterTeamIds((prev) => new Set(prev).add(teamId));
+    }
+  }
 
   async function addTeam(e: React.FormEvent) {
     e.preventDefault();
@@ -139,6 +180,46 @@ export default function TeamsAdmin() {
         <div className="admin-subtitle">Loading…</div>
       ) : (
         <>
+          <div className="admin-card p-4 mb-8">
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+              <h2 className="font-semibold text-[#0B3363] text-sm">Season Roster</h2>
+              <select
+                value={rosterSeasonId}
+                onChange={(e) => setRosterSeasonId(e.target.value)}
+                className="admin-select w-auto"
+              >
+                {orderedDivisions.map((d) => (
+                  <optgroup key={d.id} label={DIVISION_LABELS[d.slug] ?? d.name}>
+                    {seasons.filter((s) => s.division_id === d.id).map((s) => (
+                      <option key={s.id} value={s.id}>{s.label}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <p className="text-xs text-[#0B3363]/50 mb-3">
+              Tick which teams played in the selected season. Controls the Season dropdown filter on the public Teams page.
+            </p>
+            {rosterLoading ? (
+              <div className="admin-subtitle">Loading…</div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-x-8 gap-y-1.5">
+                {teams
+                  .filter((t) => t.division_id === seasons.find((s) => s.id === rosterSeasonId)?.division_id)
+                  .map((t) => (
+                    <label key={t.id} className="flex items-center gap-2 text-sm text-[#0B3363] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={rosterTeamIds.has(t.id)}
+                        onChange={() => toggleRosterTeam(t.id, rosterTeamIds.has(t.id))}
+                      />
+                      {t.name}
+                    </label>
+                  ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-2 mb-4 md:hidden">
             {orderedDivisions.map((d, i) => (
               <button

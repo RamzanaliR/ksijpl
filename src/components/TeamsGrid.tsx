@@ -1,33 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
 type Team = { id: string; name: string; short_name: string | null; slug: string | null; division_id: string };
 type Division = { id: string; name: string; slug: string; label: string };
+type Season = { id: string; label: string; division_id: string };
 
-export default function TeamsGrid({ divisions, teams }: { divisions: Division[]; teams: Team[] }) {
+export default function TeamsGrid({
+  divisions,
+  teams,
+  seasons = [],
+  seasonTeamMap = {},
+}: {
+  divisions: Division[];
+  teams: Team[];
+  seasons?: Season[];
+  seasonTeamMap?: Record<string, string[]>;
+}) {
   const [active, setActive] = useState(0);
   const division = divisions[active];
-  const divisionTeams = teams.filter((t) => t.division_id === division?.id);
+
+  const divisionSeasons = seasons.filter((s) => s.division_id === division?.id);
+  const [seasonId, setSeasonId] = useState(divisionSeasons[0]?.id ?? "");
+
+  useEffect(() => {
+    const stillValid = divisionSeasons.some((s) => s.id === seasonId);
+    if (!stillValid) setSeasonId(divisionSeasons[0]?.id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const seasonTeamIds = seasonId ? seasonTeamMap[seasonId] : undefined;
+  const divisionTeams = teams
+    .filter((t) => t.division_id === division?.id)
+    .filter((t) => !seasonTeamIds || seasonTeamIds.includes(t.id));
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-8">
-        {divisions.map((d, i) => (
-          <button
-            key={d.id}
-            onClick={() => setActive(i)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              i === active
-                ? "bg-[#0B3363] text-white dark:bg-[#3EA0D9] dark:text-[#0B1220]"
-                : "bg-[#0B3363]/5 dark:bg-white/10 hover:bg-[#0B3363]/10 dark:hover:bg-white/15"
-            }`}
+      <div className="flex items-center justify-between flex-wrap gap-3 mb-8">
+        <div className="flex items-center gap-2">
+          {divisions.map((d, i) => (
+            <button
+              key={d.id}
+              onClick={() => setActive(i)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                i === active
+                  ? "bg-[#0B3363] text-white dark:bg-[#3EA0D9] dark:text-[#0B1220]"
+                  : "bg-[#0B3363]/5 dark:bg-white/10 hover:bg-[#0B3363]/10 dark:hover:bg-white/15"
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+        {divisionSeasons.length > 0 && (
+          <select
+            value={seasonId}
+            onChange={(e) => setSeasonId(e.target.value)}
+            className="rounded-lg text-sm font-semibold px-3 py-2 bg-[#0B3363]/5 dark:bg-white/10 text-[#0B3363] dark:text-white border-none outline-none"
           >
-            {d.label}
-          </button>
-        ))}
+            {divisionSeasons.map((s) => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">

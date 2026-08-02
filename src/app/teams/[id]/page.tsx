@@ -6,6 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 import TeamBadge from "@/components/TeamBadge";
 import { getSponsorLogoMap } from "@/lib/sponsor-logos";
 import JerseyImage from "@/components/JerseyImage";
+import TeamSeasonPanel from "@/components/TeamSeasonPanel";
 
 const DIVISION_LABELS: Record<string, string> = {
   juniors: "Care & Cure KSIJ Juniors PL",
@@ -29,7 +30,7 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
   const sponsorLogoMap = await getSponsorLogoMap();
   const teamLogoUrl = sponsorLogoMap[team.id];
 
-  const [{ data: players }, { data: homeMatches }, { data: awayMatches }, { data: allTeamsRaw }, { data: attendance }, { data: events }] =
+  const [{ data: players }, { data: homeMatches }, { data: awayMatches }, { data: allTeamsRaw }, { data: attendance }, { data: events }, { data: seasonTeamRows }] =
     await Promise.all([
       supabase.from("players").select("id,full_name,nickname,position,squad_number").eq("team_id", id).order("squad_number"),
       supabase
@@ -43,7 +44,17 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
       supabase.from("teams").select("id,name,slug"),
       supabase.from("match_attendance").select("player_id").eq("team_id", id),
       supabase.from("match_events").select("player_id,type").eq("team_id", id),
+      supabase
+        .from("season_teams")
+        .select("season_id,seasons(label,created_at,competitions(type))")
+        .eq("team_id", id),
     ]);
+
+  const seasonNum = (label: string) => parseInt(label.match(/\d+/)?.[0] ?? "0", 10);
+  const teamSeasons = (seasonTeamRows ?? [])
+    .filter((r: any) => r.seasons?.competitions?.type === "league")
+    .map((r: any) => ({ id: r.season_id, label: r.seasons.label }))
+    .sort((a: any, b: any) => seasonNum(b.label) - seasonNum(a.label));
 
   const teamName = (tid: string) => allTeamsRaw?.find((t) => t.id === tid)?.name ?? "—";
   const teamSlug = (tid: string) => allTeamsRaw?.find((t) => t.id === tid)?.slug ?? null;
@@ -189,74 +200,99 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
           </section>
 
           {/* Middle: Squad + Stats — one table */}
-          <section className="min-w-0">
-            <h2 className="font-display font-bold text-lg mb-4">Squad &amp; Stats</h2>
+          {teamSeasons.length > 1 ? (
+            <TeamSeasonPanel
+              teamId={id}
+              seasons={teamSeasons}
+              currentSeasonId={teamSeasons[0].id}
+              currentStats={{ played: stats.played, won: stats.won, drawn: stats.drawn, lost: stats.lost, gf: stats.gf, ga: stats.ga, pts: points }}
+              currentPlayers={sortedPlayers.map((p) => {
+                const ev = eventCount[p.id] ?? {};
+                return {
+                  id: p.id,
+                  squad_number: p.squad_number,
+                  full_name: p.full_name,
+                  nickname: p.nickname,
+                  position: p.position,
+                  gp: appearanceCount[p.id] ?? 0,
+                  goals: ev.goal ?? 0,
+                  assists: ev.assist ?? 0,
+                  yellow: ev.yellow_card ?? 0,
+                  red: ev.red_card ?? 0,
+                  motm: motmCount[p.id] ?? 0,
+                };
+              })}
+            />
+          ) : (
+            <section className="min-w-0">
+              <h2 className="font-display font-bold text-lg mb-4">Squad &amp; Stats</h2>
 
-            {/* Season stats row — white boxes */}
-            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-6">
-              {[
-                ["P", stats.played],
-                ["W", stats.won],
-                ["D", stats.drawn],
-                ["L", stats.lost],
-                ["GF", stats.gf],
-                ["GA", stats.ga],
-                ["PTS", points],
-              ].map(([label, value]) => (
-                <div key={label as string} className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm py-2 text-center">
-                  <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">{label}</div>
-                  <div className="font-display font-bold text-lg text-[#0B3363]">{value}</div>
-                </div>
-              ))}
-            </div>
+              {/* Season stats row — white boxes */}
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mb-6">
+                {[
+                  ["P", stats.played],
+                  ["W", stats.won],
+                  ["D", stats.drawn],
+                  ["L", stats.lost],
+                  ["GF", stats.gf],
+                  ["GA", stats.ga],
+                  ["PTS", points],
+                ].map(([label, value]) => (
+                  <div key={label as string} className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm py-2 text-center">
+                    <div className="text-[10px] font-bold uppercase text-[#0B3363]/40">{label}</div>
+                    <div className="font-display font-bold text-lg text-[#0B3363]">{value}</div>
+                  </div>
+                ))}
+              </div>
 
-            {sortedPlayers.length === 0 ? (
-              <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-6 text-center text-sm text-[#0B3363]/40 dark:text-white/40">
-                No players registered yet.
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-[10px] uppercase text-[#0B3363]/40 dark:text-white/40 border-b border-[#0B3363]/10 dark:border-white/10">
-                        <th className="text-left py-2 px-3">#</th>
-                        <th className="text-left py-2 px-3">Name</th>
-                        <th className="text-left py-2 px-3">Pos</th>
-                        <th className="text-right py-2 px-2">GP</th>
-                        <th className="text-right py-2 px-2">G</th>
-                        <th className="text-right py-2 px-2">A</th>
-                        <th className="text-right py-2 px-2">YC</th>
-                        <th className="text-right py-2 px-2">RC</th>
-                        <th className="text-right py-2 px-3">MM</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedPlayers.map((p) => {
-                        const ev = eventCount[p.id] ?? {};
-                        return (
-                          <tr key={p.id} className="border-b border-[#0B3363]/5 dark:border-white/5 last:border-0">
-                            <td className="py-2 px-3 text-[#0B3363]/40 dark:text-white/40">{p.squad_number ?? "—"}</td>
-                            <td className="py-2 px-3 truncate max-w-[160px]">
-                              {p.full_name}
-                              {p.nickname && <span className="text-xs text-[#0B3363]/40 dark:text-white/40"> "{p.nickname}"</span>}
-                            </td>
-                            <td className="py-2 px-3 text-xs font-bold text-[#3EA0D9]">{p.position ?? "—"}</td>
-                            <td className="py-2 px-2 text-right">{appearanceCount[p.id] ?? 0}</td>
-                            <td className="py-2 px-2 text-right">{ev.goal ?? 0}</td>
-                            <td className="py-2 px-2 text-right">{ev.assist ?? 0}</td>
-                            <td className="py-2 px-2 text-right">{ev.yellow_card ?? 0}</td>
-                            <td className="py-2 px-2 text-right">{ev.red_card ?? 0}</td>
-                            <td className="py-2 px-3 text-right">{motmCount[p.id] ?? 0}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              {sortedPlayers.length === 0 ? (
+                <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 p-6 text-center text-sm text-[#0B3363]/40 dark:text-white/40">
+                  No players registered yet.
                 </div>
-              </div>
-            )}
-          </section>
+              ) : (
+                <div className="rounded-2xl border border-[#0B3363]/10 dark:border-white/10 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-[10px] uppercase text-[#0B3363]/40 dark:text-white/40 border-b border-[#0B3363]/10 dark:border-white/10">
+                          <th className="text-left py-2 px-3">#</th>
+                          <th className="text-left py-2 px-3">Name</th>
+                          <th className="text-left py-2 px-3">Pos</th>
+                          <th className="text-right py-2 px-2">GP</th>
+                          <th className="text-right py-2 px-2">G</th>
+                          <th className="text-right py-2 px-2">A</th>
+                          <th className="text-right py-2 px-2">YC</th>
+                          <th className="text-right py-2 px-2">RC</th>
+                          <th className="text-right py-2 px-3">MM</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedPlayers.map((p) => {
+                          const ev = eventCount[p.id] ?? {};
+                          return (
+                            <tr key={p.id} className="border-b border-[#0B3363]/5 dark:border-white/5 last:border-0">
+                              <td className="py-2 px-3 text-[#0B3363]/40 dark:text-white/40">{p.squad_number ?? "—"}</td>
+                              <td className="py-2 px-3 truncate max-w-[160px]">
+                                {p.full_name}
+                                {p.nickname && <span className="text-xs text-[#0B3363]/40 dark:text-white/40"> "{p.nickname}"</span>}
+                              </td>
+                              <td className="py-2 px-3 text-xs font-bold text-[#3EA0D9]">{p.position ?? "—"}</td>
+                              <td className="py-2 px-2 text-right">{appearanceCount[p.id] ?? 0}</td>
+                              <td className="py-2 px-2 text-right">{ev.goal ?? 0}</td>
+                              <td className="py-2 px-2 text-right">{ev.assist ?? 0}</td>
+                              <td className="py-2 px-2 text-right">{ev.yellow_card ?? 0}</td>
+                              <td className="py-2 px-2 text-right">{ev.red_card ?? 0}</td>
+                              <td className="py-2 px-3 text-right">{motmCount[p.id] ?? 0}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Right: Last Result (small) + Upcoming Fixtures — white boxes */}
           <div className="flex flex-col gap-6 min-w-0">
