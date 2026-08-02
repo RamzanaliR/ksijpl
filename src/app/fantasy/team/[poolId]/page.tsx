@@ -531,7 +531,7 @@ export default function SquadBuilder() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
+        <div className="flex flex-col-reverse lg:grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
           <div className="hidden lg:block">
             <div className="grid grid-cols-2 gap-2 mb-4 mt-[60px]">
               <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
@@ -553,7 +553,7 @@ export default function SquadBuilder() {
           </div>
 
           <div className="min-w-0">
-            <div className="w-[730px] max-w-full mx-auto">
+            <div className="w-full max-w-[730px] mx-auto">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <h2 className="font-display font-bold text-base">Your Squad</h2>
               </div>
@@ -562,7 +562,7 @@ export default function SquadBuilder() {
               <PitchBackground>
                 <div className="flex flex-col gap-4">
                   {POSITIONS.map((pos) => (
-                    <div key={pos} className="flex justify-center gap-10 flex-wrap">
+                    <div key={pos} className="flex justify-center gap-1 sm:gap-3 lg:gap-6">
                       {buildSlots(pos).map((p, i) => (
                         <div key={p?.id ?? `${pos}-empty-${i}`}>
                           {p ? (

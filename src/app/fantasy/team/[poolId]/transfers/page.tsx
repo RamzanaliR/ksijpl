@@ -396,7 +396,7 @@ export default function TransfersPage() {
         {error && <div className="rounded-lg bg-red-50 text-red-700 text-sm px-3 py-2 mb-4">{error}</div>}
         {alertMsg && <div className="rounded-lg bg-amber-50 text-amber-800 text-sm px-3 py-2 mb-4">{alertMsg}</div>}
 
-        <div className="grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
+        <div className="flex flex-col-reverse lg:grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
           <div className="hidden lg:block">
             <div className="grid grid-cols-3 gap-2 mb-4 mt-[60px]">
               <div className="rounded-xl bg-white border border-[#0B3363]/10 shadow-sm px-2 py-2.5 text-center">
@@ -421,7 +421,7 @@ export default function TransfersPage() {
           </div>
 
           <div className="min-w-0">
-            <div className="w-[730px] max-w-full mx-auto">
+            <div className="w-full max-w-[730px] mx-auto">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-base">Your Squad</h2>
@@ -445,7 +445,7 @@ export default function TransfersPage() {
                     const rowPlayers = effectiveSquad.filter((p) => p.position === pos);
                     if (rowPlayers.length === 0) return null;
                     return (
-                      <div key={pos} className="flex justify-center gap-10 flex-wrap">
+                      <div key={pos} className="flex justify-center gap-1 sm:gap-3 lg:gap-6">
                         {rowPlayers.map((p) => {
                           const isPending = pending.some((t) => t.inPlayer.id === p.playerId);
                           const originalId = isPending ? pending.find((t) => t.inPlayer.id === p.playerId)!.outPlayerId : p.playerId;

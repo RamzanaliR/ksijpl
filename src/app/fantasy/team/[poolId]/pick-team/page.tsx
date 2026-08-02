@@ -479,7 +479,7 @@ export default function PickTeam() {
           <a href={`/fantasy/team/${poolId}/points`} className="text-sm font-semibold text-[#3EA0D9] hover:underline">← My Team</a>
         </div>
 
-        <div className="grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
+        <div className="flex flex-col-reverse lg:grid lg:grid-cols-[350px_730px] gap-6 min-w-0">
           {/* Left: Chips + Fixtures (desktop only) */}
           <div className="hidden lg:block">
             {chipsCard}
@@ -488,7 +488,7 @@ export default function PickTeam() {
 
           {/* Right: Pick Team */}
           <div className="min-w-0">
-            <div className="w-[730px] max-w-full mx-auto">
+            <div className="w-full max-w-[730px] mx-auto">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h2 className="font-display font-bold text-base">Pick Team</h2>
@@ -535,7 +535,7 @@ export default function PickTeam() {
                       const rowPlayers = startingPlayers.filter((p) => p.position === pos);
                       if (rowPlayers.length === 0) return null;
                       return (
-                        <div key={pos} className="flex justify-center gap-10 flex-wrap">
+                        <div key={pos} className="flex justify-center gap-1 sm:gap-3 lg:gap-6">
                           {rowPlayers.map((p) => (
                             <PlayerJerseyCard
                               key={p.id}
@@ -570,7 +570,7 @@ export default function PickTeam() {
                       <div key={p.id} className="text-[10px] font-bold uppercase text-[#0B3363]/50 dark:text-white/50 tracking-wide">{p.position}</div>
                     ))}
                   </div>
-                  <div className="flex gap-10 overflow-x-auto pb-1 min-w-0 w-full justify-center">
+                  <div className="flex gap-1 sm:gap-3 overflow-x-auto pb-1 min-w-0 w-full justify-center">
                     {benchPlayers.map((p) => (
                       <PlayerJerseyCard
                         key={p.id}
