@@ -73,6 +73,27 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/gauntlet",
+    label: "Gauntlet",
+    scope: "league",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/>
+        <path d="M12 9v4M9 11h6"/>
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/rollover",
+    label: "Season Rollover",
+    scope: "league",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+      </svg>
+    ),
+  },
+  {
     href: "/admin/totw",
     label: "Team of Week",
     scope: "league",
