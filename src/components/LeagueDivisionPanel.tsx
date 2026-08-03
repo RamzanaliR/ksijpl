@@ -241,7 +241,10 @@ export default function LeagueDivisionPanel({ divisions }: { divisions: Division
 
         {/* Fixtures */}
         <div className="rounded-2xl p-5 border border-[#0B3363]/10 dark:border-white/10 min-w-0 flex flex-col">
-          <CardTitle>Upcoming Fixtures</CardTitle>
+          <div className="flex items-center justify-between mb-1">
+            <CardTitle>Upcoming Fixtures</CardTitle>
+            <a href="/fixtures" className="text-xs font-semibold text-[#3EA0D9] hover:underline">View all →</a>
+          </div>
           <div className="flex-1">
             <ResponsiveList
               items={d.fixtures}
