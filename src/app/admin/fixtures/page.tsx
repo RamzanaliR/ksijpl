@@ -6,7 +6,7 @@ import Modal from "@/components/admin/Modal";
 import { generateRoundRobin, scheduleMatchdays, type ScheduledMatch } from "@/lib/round-robin";
 
 type Division = { id: string; name: string };
-type Season = { id: string; label: string; competitions: { name: string; division_id: string; sponsor_name: string } | null };
+type Season = { id: string; label: string; is_current: boolean; competitions: { name: string; division_id: string; sponsor_name: string } | null };
 type Team = { id: string; name: string; division_id: string };
 type Gameweek = { id: string; number: number };
 type Match = {
@@ -94,7 +94,7 @@ export default function FixturesAdmin() {
   async function loadSeasons() {
     const { data } = await supabase
       .from("seasons")
-      .select("id,label,competitions(name,division_id,sponsor_name,type)")
+      .select("id,label,is_current,competitions(name,division_id,sponsor_name,type)")
       .order("label");
     const ordered = [...((data as any) ?? [])]
       .filter((s: any) => s.competitions?.type === "league")
@@ -626,17 +626,36 @@ export default function FixturesAdmin() {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
+      <div className="flex flex-wrap gap-2 items-center mb-6">
         {seasons.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setSelectedSeason(s.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-              s.id === selectedSeason ? "admin-btn-primary" : "bg-[#0B3363]/5 text-[#0B3363] hover:bg-[#0B3363]/10"
-            }`}
-          >
-            {DIVISION_LABELS[s.competitions?.sponsor_name ?? ""] ?? s.competitions?.name} — {s.label}
-          </button>
+          <div key={s.id} className="flex items-center gap-1">
+            <button
+              onClick={() => setSelectedSeason(s.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                s.id === selectedSeason ? "admin-btn-primary" : "bg-[#0B3363]/5 text-[#0B3363] hover:bg-[#0B3363]/10"
+              }`}
+            >
+              {DIVISION_LABELS[s.competitions?.sponsor_name ?? ""] ?? s.competitions?.name} — {s.label}
+              {s.is_current && <span className="ml-1.5 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full font-bold">LIVE</span>}
+            </button>
+            {!s.is_current && s.id === selectedSeason && (
+              <button
+                onClick={async () => {
+                  // Unset all is_current for this competition, then set this one
+                  const compId = s.competitions ? seasons.filter(x => x.competitions?.name === s.competitions?.name).map(x => x.id) : [];
+                  await supabase.from("seasons").update({ is_current: false }).in("id", compId);
+                  await supabase.from("seasons").update({ is_current: true }).eq("id", s.id);
+                  setSeasons(prev => prev.map(x => ({
+                    ...x,
+                    is_current: compId.includes(x.id) ? x.id === s.id : x.is_current
+                  })));
+                }}
+                className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-lg hover:bg-green-100 whitespace-nowrap"
+              >
+                Set as current
+              </button>
+            )}
+          </div>
         ))}
       </div>
 

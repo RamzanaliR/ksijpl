@@ -36,24 +36,18 @@ export default function LiveMatchPicker() {
 
   useEffect(() => {
     (async () => {
-      // Load only current (most recent) season per competition
+      // Load only is_current seasons (one per competition)
       const { data } = await supabase
         .from("seasons")
         .select("id,label,competitions(name,division_id,sponsor_name,type)")
-        .order("created_at", { ascending: false });
-      const allLeague = [...((data as any) ?? [])].filter((s: any) => s.competitions?.type === "league");
-      // Keep only the most recent season per competition
-      const seen = new Set<string>();
-      const current: typeof allLeague = [];
-      for (const s of allLeague) {
-        const compName = s.competitions?.name ?? s.id;
-        if (!seen.has(compName)) { seen.add(compName); current.push(s); }
-      }
-      const ordered = current.sort(
-        (a: any, b: any) =>
-          ["gofiber", "Care & Cure"].indexOf(a.competitions?.sponsor_name) -
-          ["gofiber", "Care & Cure"].indexOf(b.competitions?.sponsor_name)
-      );
+        .eq("is_current", true);
+      const ordered = [...((data as any) ?? [])]
+        .filter((s: any) => s.competitions?.type === "league")
+        .sort(
+          (a: any, b: any) =>
+            ["gofiber", "Care & Cure"].indexOf(a.competitions?.sponsor_name) -
+            ["gofiber", "Care & Cure"].indexOf(b.competitions?.sponsor_name)
+        );
       setSeasons(ordered);
       if (ordered.length) setSelectedSeason(ordered[0].id);
       const { data: tms } = await supabase.from("teams").select("id,name,slug,short_name,division_id").order("name");
