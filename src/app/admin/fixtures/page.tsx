@@ -48,6 +48,7 @@ export default function FixturesAdmin() {
   const [wipeResult, setWipeResult] = useState("");
   const [recomputing, setRecomputing] = useState(false);
   const [recomputeMsg, setRecomputeMsg] = useState("");
+  const [eventMatchId, setEventMatchId] = useState<string | null>(null);
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; errors: string[] } | null>(null);
@@ -753,7 +754,7 @@ export default function FixturesAdmin() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {gwMatches.map((m) => (
-          <MatchRow key={m.id} match={m} teamName={teamName} />
+          <MatchRow key={m.id} match={m} teamName={teamName} onEditEvents={() => setEventMatchId(m.id)} />
         ))}
         {gwMatches.length === 0 && (
           <div className="admin-empty md:col-span-2">
@@ -933,9 +934,11 @@ export default function FixturesAdmin() {
 function MatchRow({
   match,
   teamName,
+  onEditEvents,
 }: {
   match: Match;
   teamName: (id: string) => string;
+  onEditEvents: () => void;
 }) {
   const played = match.status === "completed";
   return (
@@ -948,9 +951,14 @@ function MatchRow({
             : "Time TBD"}
           {match.venue ? ` · ${match.venue}` : ""}
         </div>
-        <span className={`admin-pill ${played ? "admin-pill-success" : match.status === "live" ? "admin-pill-warning" : "admin-pill-neutral"}`}>
-          {match.status}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`admin-pill ${played ? "admin-pill-success" : match.status === "live" ? "admin-pill-warning" : "admin-pill-neutral"}`}>
+            {match.status}
+          </span>
+          <button onClick={onEditEvents} className="text-[10px] font-semibold text-[#3EA0D9] hover:underline">
+            Edit events
+          </button>
+        </div>
       </div>
 
       {/* Teams + score */}
@@ -969,5 +977,157 @@ function MatchRow({
         Edit
       </a>
     </div>
+  );
+}
+
+
+// ─── Match Event Editor Modal ────────────────────────────────────────────────
+
+function EventEditorModal({
+  matchId,
+  homeTeamId,
+  awayTeamId,
+  homeTeamName,
+  awayTeamName,
+  onClose,
+}: {
+  matchId: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  onClose: () => void;
+}) {
+  const [events, setEvents] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  // New event form
+  const [newType, setNewType] = useState("goal");
+  const [newPlayerId, setNewPlayerId] = useState("");
+  const [newTeamId, setNewTeamId] = useState(homeTeamId);
+  const [newMinute, setNewMinute] = useState("");
+
+  const EVENT_TYPES = ["goal", "assist", "yellow_card", "red_card", "own_goal", "penalty_save", "penalty_miss"];
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const [{ data: evts }, { data: pls }] = await Promise.all([
+        supabase.from("match_events").select("*").eq("match_id", matchId).order("minute"),
+        supabase.from("players").select("id,full_name,fpl_name,position,team_id")
+          .in("team_id", [homeTeamId, awayTeamId]).order("full_name"),
+      ]);
+      setEvents(evts ?? []);
+      setPlayers(pls ?? []);
+      setLoading(false);
+    })();
+  }, [matchId, homeTeamId, awayTeamId]);
+
+  const playerName = (pid: string) => {
+    const p = players.find((pl) => pl.id === pid);
+    return p ? (p.fpl_name || p.full_name) : pid;
+  };
+
+  async function addEvent() {
+    if (!newPlayerId) { setMsg("Select a player."); return; }
+    setSaving(true); setMsg("");
+    const { data, error } = await supabase.from("match_events").insert({
+      match_id: matchId,
+      team_id: newTeamId,
+      player_id: newPlayerId,
+      type: newType,
+      minute: newMinute ? parseInt(newMinute) : null,
+    }).select().single();
+    if (error) { setMsg(`Error: ${error.message}`); }
+    else { setEvents((prev) => [...prev, data].sort((a, b) => (a.minute ?? 99) - (b.minute ?? 99))); setMsg("Added."); setNewPlayerId(""); setNewMinute(""); }
+    setSaving(false);
+  }
+
+  async function deleteEvent(id: string) {
+    if (!confirm("Delete this event?")) return;
+    const { error } = await supabase.from("match_events").delete().eq("id", id);
+    if (!error) setEvents((prev) => prev.filter((e) => e.id !== id));
+    else setMsg(`Error: ${error.message}`);
+  }
+
+  const homeTeamPlayers = players.filter((p) => p.team_id === homeTeamId);
+  const awayTeamPlayers = players.filter((p) => p.team_id === awayTeamId);
+  const filteredPlayers = newTeamId === homeTeamId ? homeTeamPlayers : awayTeamPlayers;
+
+  const EVENT_ICON: Record<string, string> = {
+    goal: "⚽", assist: "🅰️", yellow_card: "🟨", red_card: "🟥",
+    own_goal: "🚩", penalty_save: "🧤", penalty_miss: "❌",
+  };
+
+  return (
+    <Modal open onClose={onClose} title="Edit Match Events" description={`${homeTeamName} vs ${awayTeamName}`} maxWidth="max-w-lg">
+      {loading ? (
+        <div className="py-6 text-center text-sm text-[#0B3363]/40">Loading…</div>
+      ) : (
+        <div className="space-y-4">
+          {/* Current events */}
+          <div>
+            <div className="admin-label mb-2">Current events ({events.length})</div>
+            {events.length === 0 ? (
+              <div className="text-sm text-[#0B3363]/30 py-3 text-center">No events recorded.</div>
+            ) : (
+              <div className="divide-y divide-[#0B3363]/8 rounded-lg border border-[#0B3363]/10 overflow-hidden">
+                {events.map((e) => (
+                  <div key={e.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <span className="text-base">{EVENT_ICON[e.type] ?? "•"}</span>
+                    <span className="font-semibold flex-1">{playerName(e.player_id)}</span>
+                    <span className="text-xs text-[#0B3363]/50 capitalize">{e.type.replace(/_/g," ")}</span>
+                    {e.minute && <span className="text-xs text-[#0B3363]/40">{e.minute}&apos;</span>}
+                    <button onClick={() => deleteEvent(e.id)} className="text-red-400 hover:text-red-600 text-xs ml-1">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add new event */}
+          <div className="border-t border-[#0B3363]/10 pt-4">
+            <div className="admin-label mb-2">Add event</div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <label className="admin-label">Type</label>
+                <select value={newType} onChange={(e) => setNewType(e.target.value)} className="admin-select w-full">
+                  {EVENT_TYPES.map((t) => <option key={t} value={t}>{EVENT_ICON[t]} {t.replace(/_/g," ")}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="admin-label">Minute</label>
+                <input value={newMinute} onChange={(e) => setNewMinute(e.target.value)} type="number" min="1" max="120" placeholder="e.g. 34" className="admin-input w-full" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <label className="admin-label">Team</label>
+                <select value={newTeamId} onChange={(e) => { setNewTeamId(e.target.value); setNewPlayerId(""); }} className="admin-select w-full">
+                  <option value={homeTeamId}>{homeTeamName}</option>
+                  <option value={awayTeamId}>{awayTeamName}</option>
+                </select>
+              </div>
+              <div>
+                <label className="admin-label">Player</label>
+                <select value={newPlayerId} onChange={(e) => setNewPlayerId(e.target.value)} className="admin-select w-full">
+                  <option value="">— select —</option>
+                  {filteredPlayers.map((p) => (
+                    <option key={p.id} value={p.id}>{p.fpl_name || p.full_name} ({p.position})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {msg && <div className={`text-xs mb-2 font-semibold ${msg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>{msg}</div>}
+            <button onClick={addEvent} disabled={saving} className="admin-btn admin-btn-primary w-full">
+              {saving ? "Adding…" : "Add event"}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }

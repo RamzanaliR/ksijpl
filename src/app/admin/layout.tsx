@@ -83,6 +83,16 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/prices",
+    label: "Player Prices",
+    scope: "fantasy",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 6v2m0 8v2M9 9h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3H15"/>
+      </svg>
+    ),
+  },
+  {
     href: "/admin/fantasy",
     label: "Fantasy",
     scope: "fantasy",
