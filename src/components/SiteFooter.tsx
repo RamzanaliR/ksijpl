@@ -38,7 +38,7 @@ export default function SiteFooter() {
             <div className="space-y-2 text-sm">
               <Link href="/seasons"  className="block hover:text-[#F4B400] transition-colors">Seasons</Link>
               <Link href="/stats"    className="block hover:text-[#F4B400] transition-colors">Stats</Link>
-              <Link href="/seasons"  className="block hover:text-[#F4B400] transition-colors">Fixtures</Link>
+              <Link href="/fixtures" className="block hover:text-[#F4B400] transition-colors">Fixtures</Link>
             </div>
           </div>
 
@@ -46,9 +46,9 @@ export default function SiteFooter() {
           <div>
             <h5 className="font-display font-bold text-xs uppercase tracking-wide mb-3 opacity-70">Fantasy</h5>
             <div className="space-y-2 text-sm">
-              <Link href="/fantasy"  className="block hover:text-[#F4B400] transition-colors">Create Squad</Link>
-              <Link href="/fantasy"  className="block hover:text-[#F4B400] transition-colors">Leaderboard</Link>
-              <Link href="/fantasy"  className="block hover:text-[#F4B400] transition-colors">Rules</Link>
+              <Link href="/fantasy"         className="block hover:text-[#F4B400] transition-colors">Create Squad</Link>
+              <Link href="/fantasy"         className="block hover:text-[#F4B400] transition-colors">Leaderboard</Link>
+              <Link href="/fantasy/rules"    className="block hover:text-[#F4B400] transition-colors">Rules</Link>
             </div>
           </div>
 

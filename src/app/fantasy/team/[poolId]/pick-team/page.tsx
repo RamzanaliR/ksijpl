@@ -48,6 +48,7 @@ export default function PickTeam() {
   const [teamShortNames, setTeamShortNames] = useState<Record<string, string>>({});
   const [upcomingFixtures, setUpcomingFixtures] = useState<any[]>([]);
   const [upcomingGwNumber, setUpcomingGwNumber] = useState<number | null>(null);
+  const [mw1Deadline, setMw1Deadline] = useState<Date | null>(null);
   const [upcomingGwId, setUpcomingGwId] = useState<string | null>(null);
   const [teamNames, setTeamNames] = useState<Record<string, string>>({});
   const [totalPointsByPlayer, setTotalPointsByPlayer] = useState<Record<string, number>>({});
@@ -137,6 +138,13 @@ export default function PickTeam() {
 
       const seasonId = (settingsRow as any).season_id;
       const { data: gws } = await supabase.from("gameweeks").select("id,number").eq("season_id", seasonId).order("number");
+      // Fetch MW1 fixtures to compute the MW1 deadline for Free Hit visibility
+      const mw1Gw = (gws ?? []).find((g: any) => g.number === 1);
+      if (mw1Gw) {
+        const { data: mw1Fixtures } = await supabase.from("matches").select("kickoff_at").eq("gameweek_id", mw1Gw.id);
+        const mw1D = computeDeadline(mw1Fixtures ?? []);
+        setMw1Deadline(mw1D);
+      }
       const { data: allMatches } = await supabase
         .from("matches")
         .select("id,home_team_id,away_team_id,kickoff_at,status,gameweek_id")
@@ -323,8 +331,9 @@ export default function PickTeam() {
       setChipMessage("Only one chip can be active per match week.");
       return;
     }
-    if (chip === "free_hit" && upcomingGwNumber === 1) {
-      setChipMessage("Free Hit unlocks from Match Week 2 onward.");
+    const mw1DeadlinePassed = mw1Deadline ? new Date() > mw1Deadline : false;
+    if (chip === "free_hit" && !mw1DeadlinePassed) {
+      setChipMessage("Free Hit unlocks after Match Week 1 deadline.");
       return;
     }
 
@@ -393,7 +402,7 @@ export default function PickTeam() {
       <h2 className="font-display font-bold text-sm mb-3">Chips</h2>
       <div className="flex justify-around gap-2">
         {(["bench_boost", "triple_captain", "free_hit"] as const)
-          .filter((key) => key !== "free_hit" || upcomingGwNumber !== 1)
+          .filter((key) => key !== "free_hit" || (mw1Deadline ? new Date() > mw1Deadline : false))
           .map((key) => {
           const label = key === "bench_boost" ? "Bench Boost" : key === "triple_captain" ? "Triple Captain" : "Free Hit";
           const used = usedChips[key];

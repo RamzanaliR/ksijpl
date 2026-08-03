@@ -90,6 +90,20 @@ export default function CupAdmin() {
     return divisionTeams.find((t) => t.id === id)?.name ?? "—";
   }
 
+  async function deleteSeason() {
+    if (!selectedSeasonId) return;
+    if (!confirm("Delete this cup season? This will remove all brackets, results, and matches. This cannot be undone.")) return;
+    // Delete matches first, then gameweeks, then season
+    const { data: gws } = await supabase.from("gameweeks").select("id").eq("season_id", selectedSeasonId);
+    const gwIds = (gws ?? []).map((g: any) => g.id);
+    if (gwIds.length) await supabase.from("matches").delete().in("gameweek_id", gwIds);
+    await supabase.from("gameweeks").delete().eq("season_id", selectedSeasonId);
+    await supabase.from("season_teams").delete().eq("season_id", selectedSeasonId);
+    await supabase.from("seasons").delete().eq("id", selectedSeasonId);
+    setSeasons((prev) => prev.filter((s) => s.id !== selectedSeasonId));
+    setSelectedSeasonId("");
+  }
+
   async function togglePublic() {
     const current = seasons.find((s) => s.id === selectedSeasonId);
     if (!current) return;
@@ -255,9 +269,14 @@ export default function CupAdmin() {
             </select>
           </div>
           {selectedSeasonId && (
-            <button onClick={togglePublic} className="admin-btn admin-btn-gold text-sm">
-              {seasons.find((s) => s.id === selectedSeasonId)?.is_public ? "✓ Visible to public" : "Hidden — click to publish"}
-            </button>
+            <div className="flex gap-2">
+              <button onClick={togglePublic} className="admin-btn admin-btn-gold text-sm">
+                {seasons.find((s) => s.id === selectedSeasonId)?.is_public ? "✓ Visible to public" : "Hidden — click to publish"}
+              </button>
+              <button onClick={deleteSeason} className="admin-btn text-sm border border-red-200 text-red-600 hover:bg-red-50">
+                🗑 Delete cup
+              </button>
+            </div>
           )}
         </div>
       ) : (
