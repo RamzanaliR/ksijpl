@@ -1,342 +1,538 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type CheckItem = { label: string; done: boolean; href: string; detail?: string };
-type LiveStat  = { label: string; value: string | number; sub?: string; href?: string; alert?: boolean };
-type Activity  = { label: string; time: string; href?: string };
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type GwPhase = "setup" | "lockout" | "live" | "scoring" | "closed";
+
+type GwStatus = {
+  id: string;
+  label: string;
+  number: number;
+  phase: GwPhase;
+  totalMatches: number;
+  completedMatches: number;
+  firstKickoff: string | null;
+  lastKickoff: string | null;
+  deadlineAt: string | null;
+};
+
+type SystemPing = {
+  label: string;
+  status: "ok" | "warn" | "error";
+  detail: string;
+  href?: string;
+};
+
+type QueueItem = {
+  severity: "critical" | "warning" | "routine";
+  label: string;
+  detail: string;
+  actionLabel: string;
+  href: string;
+};
+
+type LiveStat = { label: string; value: string | number; sub?: string; href?: string; alert?: boolean };
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const SENIORS_ID = "e0eee160-729a-4cbd-a29a-20d36115db31";
-const JUNIORS_ID = "544019cb-0615-4b38-b9b8-03e71dfe1706";
+
+const PHASE_CONFIG: Record<GwPhase, { label: string; color: string; bg: string; dot: string }> = {
+  setup:   { label: "Setup",   color: "text-slate-500",  bg: "bg-slate-100",  dot: "bg-slate-400" },
+  lockout: { label: "Lockout", color: "text-amber-700",  bg: "bg-amber-50",   dot: "bg-amber-500" },
+  live:    { label: "Live",    color: "text-green-700",  bg: "bg-green-50",   dot: "bg-green-500" },
+  scoring: { label: "Scoring", color: "text-blue-700",   bg: "bg-blue-50",    dot: "bg-blue-500" },
+  closed:  { label: "Closed",  color: "text-[#0B3363]/40", bg: "bg-slate-50", dot: "bg-slate-300" },
+};
+
+const PHASES: GwPhase[] = ["setup", "lockout", "live", "scoring", "closed"];
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [checks, setChecks]   = useState<CheckItem[]>([]);
+  const [gw, setGw]           = useState<GwStatus | null>(null);
+  const [pings, setPings]     = useState<SystemPing[]>([]);
+  const [queue, setQueue]     = useState<QueueItem[]>([]);
   const [stats, setStats]     = useState<LiveStat[]>([]);
-  const [activity, setActivity] = useState<Activity[]>([]);
+  const [countdown, setCountdown] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [gwLabel, setGwLabel] = useState("—");
   const [greeting, setGreeting] = useState("");
+  const [adoptionRate, setAdoptionRate] = useState<number | null>(null);
+  const [now, setNow]         = useState(new Date());
 
+  // Live clock
   useEffect(() => {
-    const hr = new Date().getHours();
-    setGreeting(hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening");
-    loadDashboard();
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  async function loadDashboard() {
-    // ── Current gameweek ──────────────────────────────────────────────────
-    const { data: seniorSeasons } = await supabase.from("seasons").select("id")
+  useEffect(() => {
+    const hr = now.getHours();
+    setGreeting(hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening");
+
+    // Update countdown
+    if (gw?.deadlineAt) {
+      const diff = new Date(gw.deadlineAt).getTime() - now.getTime();
+      if (diff > 0) {
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        if (d > 0) setCountdown(`${d}d ${h}h`);
+        else if (h > 0) setCountdown(`${h}h ${m}m`);
+        else setCountdown(`${m}m ${s}s`);
+      } else {
+        setCountdown("Expired");
+      }
+    } else if (gw?.firstKickoff) {
+      const diff = new Date(gw.firstKickoff).getTime() - now.getTime();
+      if (diff > 0) {
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        if (d > 0) setCountdown(`Kickoff in ${d}d ${h}h`);
+        else if (h > 0) setCountdown(`Kickoff in ${h}h ${m}m`);
+        else setCountdown(`Kickoff in ${m}m`);
+      } else {
+        setCountdown("");
+      }
+    }
+  }, [now, gw]);
+
+  const load = useCallback(async () => {
+    const nowIso = new Date().toISOString();
+
+    // ── Current season + gameweek ────────────────────────────────────────
+    const { data: seasons } = await supabase.from("seasons").select("id")
       .eq("competition_id", SENIORS_ID).order("created_at", { ascending: false }).limit(1);
-    const seniorSeasonId = seniorSeasons?.[0]?.id;
+    const seasonId = seasons?.[0]?.id;
 
-    const { data: gws } = await supabase.from("gameweeks").select("id,number,round_name")
-      .eq("season_id", seniorSeasonId ?? "00000000-0000-0000-0000-000000000000")
+    const { data: gwData } = await supabase.from("gameweeks")
+      .select("id,number,round_name")
+      .eq("season_id", seasonId ?? "x")
       .order("number", { ascending: false }).limit(1);
-    const gw = gws?.[0];
-    const gwLbl = gw?.round_name ?? (gw ? `Match Week ${gw.number}` : "—");
-    const gwId  = gw?.id;
-    setGwLabel(gwLbl);
+    const gwRow = gwData?.[0];
+    const gwId = gwRow?.id;
 
-    // ── Fetch data in parallel ────────────────────────────────────────────
-    const [
-      { data: allMatches },
-      { data: completedMatches },
-      { data: pendingMedia },
-      { data: fantasyTeams },
-      { data: fantasySettings },
-      { count: playerCount },
-      { count: teamCount },
-    ] = await Promise.all([
-      supabase.from("matches").select("id,home_score,kickoff_at").eq("season_id", seniorSeasonId ?? "x"),
-      supabase.from("matches").select("id").eq("season_id", seniorSeasonId ?? "x").not("home_score","is",null),
-      supabase.from("generated_media").select("id").eq("status","pending_approval"),
-      supabase.from("fantasy_teams").select("id"),
-      supabase.from("fantasy_settings").select("id,budget,squad_size").limit(1),
-      supabase.from("players").select("*",{count:"exact",head:true}),
-      supabase.from("teams").select("*",{count:"exact",head:true}),
-    ]);
+    const { data: matches } = await supabase.from("matches")
+      .select("id,home_score,kickoff_at").eq("gameweek_id", gwId ?? "x");
 
-    // All players count (without team filter)
-    const { count: allPlayerCount } = await supabase.from("players").select("*",{count:"exact",head:true});
-    const { count: allTeamCount }   = await supabase.from("teams").select("*",{count:"exact",head:true});
+    const completed = (matches ?? []).filter((m: any) => m.home_score !== null).length;
+    const total     = (matches ?? []).length;
+    const kickoffs  = (matches ?? []).map((m: any) => m.kickoff_at).filter(Boolean).sort();
+    const first     = kickoffs[0] ?? null;
+    const last      = kickoffs[kickoffs.length - 1] ?? null;
 
-    // Matches needing results (kickoff in past, no score)
-    const now = new Date().toISOString();
-    const needingResults = (allMatches ?? []).filter((m: any) => m.kickoff_at < now && m.home_score == null).length;
+    // Deadline: 4 hours before first kickoff
+    const deadlineAt = first ? new Date(new Date(first).getTime() - 4 * 3600000).toISOString() : null;
 
-    // TOTW published for current gw?
+    // Determine phase
+    let phase: GwPhase = "setup";
+    if (total === 0) phase = "setup";
+    else if (deadlineAt && nowIso < deadlineAt) phase = "setup";
+    else if (deadlineAt && nowIso >= deadlineAt && first && nowIso < first) phase = "lockout";
+    else if (first && nowIso >= first && last && nowIso <= last) phase = "live";
+    else if (last && nowIso > last && completed < total) phase = "scoring";
+    else if (completed === total && total > 0) phase = "closed";
+
+    const gwStatus: GwStatus = {
+      id: gwId ?? "",
+      label: gwRow?.round_name ?? (gwRow ? `Match Week ${gwRow.number}` : "—"),
+      number: gwRow?.number ?? 0,
+      phase,
+      totalMatches: total,
+      completedMatches: completed,
+      firstKickoff: first,
+      lastKickoff: last,
+      deadlineAt,
+    };
+    setGw(gwStatus);
+
+    // ── System pings ─────────────────────────────────────────────────────
+    const { data: adminSettings } = await supabase.from("admin_settings")
+      .select("key,value,updated_at")
+      .in("key", ["canva_access_token","canva_token_expires_at","instagram_access_token"]);
+
+    const byKey = Object.fromEntries((adminSettings ?? []).map((r: any) => [r.key, r]));
+    const canvaToken   = byKey["canva_access_token"]?.value;
+    const canvaExpiry  = byKey["canva_token_expires_at"]?.value;
+    const igToken      = byKey["instagram_access_token"]?.value;
+    const canvaExpired = canvaExpiry ? new Date(canvaExpiry) < new Date() : true;
+
+    const newPings: SystemPing[] = [
+      {
+        label: "Canva",
+        status: !canvaToken || canvaToken.length < 10 ? "error" : canvaExpired ? "warn" : "ok",
+        detail: !canvaToken || canvaToken.length < 10
+          ? "Not connected"
+          : canvaExpired ? "Token expired — re-authorise" : "Connected",
+        href: canvaExpired || !canvaToken ? "/admin/media" : undefined,
+      },
+      {
+        label: "Instagram",
+        status: !igToken || igToken.length < 10 ? "warn" : "ok",
+        detail: !igToken || igToken.length < 10 ? "Not configured" : "Connected",
+        href: "/admin/media",
+      },
+      {
+        label: "Fantasy Deadline",
+        status: phase === "lockout" ? "warn" : phase === "live" || phase === "scoring" || phase === "closed" ? "ok" : "ok",
+        detail: phase === "lockout" ? "Transfers locked" : phase === "live" ? "In progress" : deadlineAt ? new Date(deadlineAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "No deadline set",
+      },
+    ];
+    setPings(newPings);
+
+    // ── Exception queue ──────────────────────────────────────────────────
+    const newQueue: QueueItem[] = [];
+
+    // Critical: results missing for past matches
+    const pastNoScore = (matches ?? []).filter((m: any) =>
+      m.kickoff_at < nowIso && m.home_score === null
+    ).length;
+    if (pastNoScore > 0) {
+      newQueue.push({
+        severity: "critical",
+        label: `${pastNoScore} match${pastNoScore > 1 ? "es" : ""} missing results`,
+        detail: "Matches have kicked off but scores haven't been entered.",
+        actionLabel: "Enter results →",
+        href: "/admin/fixtures",
+      });
+    }
+
+    // Warning: Canva expired
+    if (canvaToken && canvaExpired) {
+      newQueue.push({
+        severity: "critical",
+        label: "Canva token expired",
+        detail: "Graphics cannot be generated until you re-authorise.",
+        actionLabel: "Re-authorise →",
+        href: "/admin/media",
+      });
+    }
+
+    // Warning: pending media
+    const { data: pendingMedia } = await supabase.from("generated_media")
+      .select("id").eq("status","pending_approval");
+    if ((pendingMedia?.length ?? 0) > 0) {
+      newQueue.push({
+        severity: "warning",
+        label: `${pendingMedia!.length} graphic${pendingMedia!.length > 1 ? "s" : ""} awaiting approval`,
+        detail: "Generated graphics need review before publishing to Instagram.",
+        actionLabel: "Review graphics →",
+        href: "/admin/media",
+      });
+    }
+
+    // Warning: TOTW not published
     const { data: totw } = await supabase.from("team_of_week")
       .select("published").eq("gameweek_id", gwId ?? "x").eq("division","seniors").maybeSingle();
-    const totwDone = totw?.published === true;
+    if (!totw?.published && phase !== "setup") {
+      newQueue.push({
+        severity: "warning",
+        label: "Team of the Week not published",
+        detail: `${gwStatus.label} TOTW hasn't been selected yet.`,
+        actionLabel: "Select TOTW →",
+        href: "/admin/totw",
+      });
+    }
 
-    // Fantasy gameweek points computed?
+    // Routine: fantasy not scored
     const { data: fpts } = await supabase.from("fantasy_gameweek_points")
       .select("id").eq("gameweek_id", gwId ?? "x").limit(1);
-    const fantasyScored = (fpts?.length ?? 0) > 0;
-
-    // Fantasy deadline set?
-    const { data: deadline } = await supabase.from("gameweeks")
-      .select("id").eq("id", gwId ?? "x").not("number","is",null).maybeSingle();
-
-    // ── Weekly checklist ──────────────────────────────────────────────────
-    setChecks([
-      {
-        label: "Fixtures entered",
-        done: (allMatches?.length ?? 0) > 0,
-        href: "/admin/fixtures",
-        detail: `${allMatches?.length ?? 0} matches in current season`,
-      },
-      {
-        label: "Results entered",
-        done: needingResults === 0,
-        href: "/admin/fixtures",
-        detail: needingResults > 0 ? `${needingResults} match${needingResults > 1 ? "es" : ""} need results` : "All results up to date",
-        ...(needingResults > 0 ? {} : {}),
-      },
-      {
-        label: "TOTW selected & published",
-        done: totwDone,
-        href: "/admin/totw",
-        detail: totwDone ? "Published" : "Not published yet",
-      },
-      {
-        label: "Fantasy points computed",
-        done: fantasyScored,
+    if ((fpts?.length ?? 0) === 0 && phase === "scoring") {
+      newQueue.push({
+        severity: "routine",
+        label: "Fantasy points not computed",
+        detail: "All matches are complete — ready to run the scoring engine.",
+        actionLabel: "Compute points →",
         href: "/admin/fantasy",
-        detail: fantasyScored ? "Scored" : "Not yet scored for this gameweek",
-      },
-      {
-        label: "Media graphics approved",
-        done: (pendingMedia?.length ?? 0) === 0,
-        href: "/admin/media",
-        detail: (pendingMedia?.length ?? 0) > 0
-          ? `${pendingMedia!.length} graphic${pendingMedia!.length > 1 ? "s" : ""} awaiting approval`
-          : "All approved",
-      },
-    ]);
+      });
+    }
 
-    // ── Live numbers ──────────────────────────────────────────────────────
+    setQueue(newQueue);
+
+    // ── Adoption rate ────────────────────────────────────────────────────
+    const { data: allTeams }  = await supabase.from("fantasy_teams").select("id");
+    const { data: squadTeams } = await supabase.from("fantasy_gameweek_squads")
+      .select("fantasy_team_id").eq("gameweek_id", gwId ?? "x");
+    const totalManagers = allTeams?.length ?? 0;
+    const submittedManagers = new Set((squadTeams ?? []).map((r: any) => r.fantasy_team_id)).size;
+    setAdoptionRate(totalManagers > 0 ? Math.round((submittedManagers / totalManagers) * 100) : null);
+
+    // ── Live stats ───────────────────────────────────────────────────────
+    const { count: playerCount } = await supabase.from("players").select("*",{count:"exact",head:true});
+    const { count: teamCount }   = await supabase.from("teams").select("*",{count:"exact",head:true});
+
     setStats([
+      { label: "Managers",       value: totalManagers,    sub: "fantasy teams",          href: "/admin/fantasy" },
+      { label: "Submitted",      value: submittedManagers, sub: "squads finalised",       href: "/admin/fantasy" },
+      { label: "Matches played", value: completed,         sub: `of ${total} this week`,  href: "/admin/fixtures" },
+      { label: "Players",        value: playerCount ?? 0,  sub: "registered",             href: "/admin/players" },
+      { label: "Teams",          value: teamCount ?? 0,    sub: "total clubs",            href: "/admin/teams" },
       {
-        label: "Fantasy Managers",
-        value: fantasyTeams?.length ?? 0,
-        sub: "registered teams",
-        href: "/admin/fantasy",
-      },
-      {
-        label: "Pending Results",
-        value: needingResults,
-        sub: "matches need scores",
-        href: "/admin/fixtures",
-        alert: needingResults > 0,
-      },
-      {
-        label: "Media Pending",
+        label: "Pending media",
         value: pendingMedia?.length ?? 0,
-        sub: "graphics awaiting review",
+        sub: "need approval",
         href: "/admin/media",
         alert: (pendingMedia?.length ?? 0) > 0,
       },
-      {
-        label: "Players",
-        value: allPlayerCount ?? 0,
-        sub: "registered this season",
-        href: "/admin/players",
-      },
-      {
-        label: "Teams",
-        value: allTeamCount ?? 0,
-        sub: "total clubs",
-        href: "/admin/teams",
-      },
-      {
-        label: "Matches Played",
-        value: completedMatches?.length ?? 0,
-        sub: `of ${allMatches?.length ?? 0} total`,
-        href: "/admin/fixtures",
-      },
     ]);
 
-    // ── Quick activity ────────────────────────────────────────────────────
-    const { data: recentMedia } = await supabase.from("generated_media")
-      .select("template_type,status,created_at").order("created_at",{ascending:false}).limit(5);
-    const { data: recentMatches } = await supabase.from("matches")
-      .select("home_score,away_score,kickoff_at,home_team:teams!matches_home_team_id_fkey(name),away_team:teams!matches_away_team_id_fkey(name)")
-      .not("home_score","is",null).order("kickoff_at",{ascending:false}).limit(4);
-
-    const acts: Activity[] = [];
-    (recentMatches ?? []).forEach((m: any) => {
-      acts.push({
-        label: `Result: ${m.home_team?.name} ${m.home_score}–${m.away_score} ${m.away_team?.name}`,
-        time: formatRelative(m.kickoff_at),
-        href: "/admin/fixtures",
-      });
-    });
-    (recentMedia ?? []).forEach((m: any) => {
-      acts.push({
-        label: `${capitalise(m.template_type.replace(/_/g," "))} graphic — ${m.status.replace(/_/g," ")}`,
-        time: formatRelative(m.created_at),
-        href: "/admin/media",
-      });
-    });
-    acts.sort((a, b) => 0); // keep insertion order (already time-sorted)
-    setActivity(acts.slice(0, 8));
-
     setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  const phase = gw?.phase ?? "setup";
+  const phaseCfg = PHASE_CONFIG[phase];
+
+  function deadlineUrgent() {
+    if (!gw?.deadlineAt) return false;
+    const diff = new Date(gw.deadlineAt).getTime() - Date.now();
+    return diff > 0 && diff < 2 * 3600000; // within 2 hours
   }
 
-  function formatRelative(iso: string) {
-    const diff = Date.now() - new Date(iso).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  }
+  const criticalCount = queue.filter((q) => q.severity === "critical").length;
+  const warningCount  = queue.filter((q) => q.severity === "warning").length;
 
-  function capitalise(s: string) {
-    return s.replace(/\b\w/g, (c) => c.toUpperCase());
-  }
+  // ── Quick actions (phase-aware) ───────────────────────────────────────────
 
-  const doneCount = checks.filter((c) => c.done).length;
+  const primaryAction = phase === "setup"
+    ? { label: "Import Fixtures", icon: "📅", href: "/admin/fixtures" }
+    : phase === "lockout"
+    ? { label: "Broadcast Deadline Reminder", icon: "📣", href: "/admin/fantasy" }
+    : phase === "live"
+    ? { label: "Open Live Console", icon: "📺", href: "/admin/live" }
+    : phase === "scoring"
+    ? { label: "Execute Scoring Run", icon: "⚡", href: "/admin/fantasy" }
+    : { label: "Set Up Next Match Week", icon: "📅", href: "/admin/fixtures" };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="admin-page-title mb-0.5">{greeting} 👋</h1>
-          <p className="admin-subtitle">
-            {loading ? "Loading…" : `${gwLabel} · KSIJ DAR PL`}
-          </p>
+    <div className="space-y-5">
+
+      {/* ══ PULSE BAR ══════════════════════════════════════════════════════ */}
+      <div className="admin-card px-4 py-3 flex flex-wrap items-center gap-4">
+
+        {/* Greeting + GW label */}
+        <div className="flex-1 min-w-0">
+          <div className="font-display font-bold text-sm">{greeting} — {gw?.label ?? "Loading…"}</div>
+          <div className="text-[11px] text-[#0B3363]/40 dark:text-white/40 mt-0.5">
+            {now.toLocaleDateString("en-GB", { weekday:"long", day:"numeric", month:"long" })} · {now.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit", second:"2-digit" })}
+          </div>
         </div>
-        {!loading && (
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold ${
-            doneCount === checks.length
-              ? "bg-green-50 text-green-700"
-              : "bg-amber-50 text-amber-700"
+
+        {/* Gameweek lifecycle stepper */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {PHASES.map((p, i) => {
+            const cfg   = PHASE_CONFIG[p];
+            const active = p === phase;
+            const past   = PHASES.indexOf(p) < PHASES.indexOf(phase);
+            return (
+              <div key={p} className="flex items-center gap-1">
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold transition-all ${
+                  active ? `${cfg.bg} ${cfg.color} ring-1 ring-current` :
+                  past   ? "bg-[#0B3363]/5 text-[#0B3363]/30 dark:text-white/30" :
+                           "bg-transparent text-[#0B3363]/20 dark:text-white/20"
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${active ? cfg.dot : past ? "bg-[#0B3363]/20" : "bg-[#0B3363]/10"}`} />
+                  {cfg.label}
+                </div>
+                {i < PHASES.length - 1 && <div className="w-3 h-px bg-[#0B3363]/10 dark:bg-white/10" />}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Countdown */}
+        {countdown && (
+          <div className={`flex-shrink-0 text-sm font-bold px-3 py-1 rounded-lg ${
+            deadlineUrgent() ? "bg-red-50 text-red-600 animate-pulse" :
+            phase === "live"  ? "bg-green-50 text-green-700" :
+                                "bg-[#0B3363]/5 text-[#0B3363] dark:text-white"
           }`}>
-            <span className="text-lg">{doneCount === checks.length ? "✅" : "⚠️"}</span>
-            {doneCount}/{checks.length} tasks complete
+            {phase === "lockout" ? "⏳" : phase === "live" ? "🔴" : "⏱"} {countdown}
           </div>
         )}
+
+        {/* System pings */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {pings.map((p, i) => (
+            p.href ? (
+              <Link key={i} href={p.href} title={`${p.label}: ${p.detail}`}
+                className="flex items-center gap-1 text-[10px] font-medium hover:opacity-80">
+                <div className={`w-2 h-2 rounded-full ${p.status === "ok" ? "bg-green-500" : p.status === "warn" ? "bg-amber-400" : "bg-red-500"}`} />
+                <span className="hidden sm:inline text-[#0B3363]/50 dark:text-white/50">{p.label}</span>
+              </Link>
+            ) : (
+              <div key={i} title={`${p.label}: ${p.detail}`}
+                className="flex items-center gap-1 text-[10px] font-medium">
+                <div className={`w-2 h-2 rounded-full ${p.status === "ok" ? "bg-green-500" : p.status === "warn" ? "bg-amber-400" : "bg-red-500"}`} />
+                <span className="hidden sm:inline text-[#0B3363]/50 dark:text-white/50">{p.label}</span>
+              </div>
+            )
+          ))}
+        </div>
       </div>
 
-      {/* Weekly Checklist + Live Stats */}
-      <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
+      {/* ══ MAIN GRID ══════════════════════════════════════════════════════ */}
+      <div className="grid lg:grid-cols-[1fr_320px] gap-5 items-start">
 
-        {/* Checklist */}
-        <div className="admin-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#0B3363]/8 flex items-center justify-between">
-            <h2 className="font-display font-bold text-sm">This week's checklist</h2>
-            <span className="text-xs text-[#0B3363]/40">{gwLabel}</span>
-          </div>
-          {loading ? (
-            <div className="p-6 text-center text-sm text-[#0B3363]/30">Loading…</div>
-          ) : (
-            <div className="divide-y divide-[#0B3363]/5">
-              {checks.map((item, i) => (
-                <Link key={i} href={item.href}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-[#0B3363]/3 transition-colors group">
-                  <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs ${
-                    item.done ? "bg-green-100 text-green-600" : "bg-amber-50 text-amber-500"
-                  }`}>
-                    {item.done ? "✓" : "!"}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className={`text-sm font-semibold ${item.done ? "text-[#0B3363]/50 dark:text-white/50 line-through" : ""}`}>
-                      {item.label}
-                    </div>
-                    {item.detail && (
-                      <div className="text-xs text-[#0B3363]/40 dark:text-white/40 mt-0.5">{item.detail}</div>
-                    )}
-                  </div>
-                  <svg className="w-4 h-4 text-[#0B3363]/20 group-hover:text-[#3EA0D9] transition-colors flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
-                </Link>
-              ))}
+        {/* Left column */}
+        <div className="space-y-5">
+
+          {/* ── Exception Queue ─────────────────────────────────────────── */}
+          <div className="admin-card overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#0B3363]/8 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="font-display font-bold text-sm">Action Queue</h2>
+                {criticalCount > 0 && (
+                  <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                    {criticalCount} critical
+                  </span>
+                )}
+                {warningCount > 0 && (
+                  <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                    {warningCount} warning
+                  </span>
+                )}
+              </div>
+              {!loading && queue.length === 0 && (
+                <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">All clear ✓</span>
+              )}
             </div>
-          )}
+
+            {loading ? (
+              <div className="p-6 text-center text-sm text-[#0B3363]/30">Loading…</div>
+            ) : queue.length === 0 ? (
+              <div className="px-4 py-5 text-center">
+                <div className="text-2xl mb-1">✅</div>
+                <div className="text-sm font-semibold text-[#0B3363]/60 dark:text-white/60">Nothing needs your attention right now.</div>
+                <div className="text-xs text-[#0B3363]/30 dark:text-white/30 mt-1">Queue will populate when action is required.</div>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#0B3363]/5">
+                {queue.map((item, i) => (
+                  <div key={i} className={`px-4 py-3 flex items-start gap-3 ${
+                    item.severity === "critical" ? "bg-red-50/50 dark:bg-red-900/10" :
+                    item.severity === "warning"  ? "bg-amber-50/50 dark:bg-amber-900/10" : ""
+                  }`}>
+                    <span className="text-lg flex-shrink-0 mt-0.5">
+                      {item.severity === "critical" ? "🔴" : item.severity === "warning" ? "🟡" : "🔵"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold">{item.label}</div>
+                      <div className="text-xs text-[#0B3363]/50 dark:text-white/50 mt-0.5">{item.detail}</div>
+                    </div>
+                    <Link href={item.href}
+                      className="flex-shrink-0 text-xs font-semibold text-[#3EA0D9] hover:underline whitespace-nowrap mt-0.5">
+                      {item.actionLabel}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Phase-Aware Quick Action Dock ────────────────────────────── */}
+          <div className="admin-card overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#0B3363]/8">
+              <h2 className="font-display font-bold text-sm">Quick actions</h2>
+            </div>
+            <div className="p-4 space-y-3">
+              {/* Primary CTA — phase-aware */}
+              <Link href={primaryAction.href}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-[#0B3363] dark:bg-[#3EA0D9] text-white hover:opacity-90 transition-opacity">
+                <span className="text-xl">{primaryAction.icon}</span>
+                <div>
+                  <div className="text-sm font-bold">{primaryAction.label}</div>
+                  <div className="text-[10px] opacity-70 capitalize">Recommended for {phaseCfg.label.toLowerCase()} phase</div>
+                </div>
+                <svg className="ml-auto w-4 h-4 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+              </Link>
+
+              {/* Secondary actions grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: "Enter results", icon: "⚽", href: "/admin/fixtures" },
+                  { label: "Generate graphics", icon: "🎨", href: "/admin/media" },
+                  { label: "Select TOTW", icon: "🏆", href: "/admin/totw" },
+                  { label: "Live console", icon: "📺", href: "/admin/live" },
+                  { label: "Add players", icon: "👤", href: "/admin/players" },
+                  { label: "Manage fixtures", icon: "📅", href: "/admin/fixtures" },
+                  { label: "Fantasy settings", icon: "⚙️", href: "/admin/fantasy" },
+                  { label: "Media assets", icon: "🖼️", href: "/admin/media" },
+                ].map((a, i) => (
+                  <Link key={i} href={a.href}
+                    className="flex flex-col items-center gap-1 p-2.5 rounded-xl border border-[#0B3363]/8 hover:border-[#3EA0D9] hover:bg-[#3EA0D9]/5 transition-colors text-center group">
+                    <span className="text-lg">{a.icon}</span>
+                    <span className="text-[10px] font-semibold text-[#0B3363]/70 dark:text-white/70 group-hover:text-[#3EA0D9] transition-colors leading-tight">{a.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Live numbers */}
-        <div className="space-y-3">
-          {loading ? (
-            <div className="admin-card p-6 text-center text-sm text-[#0B3363]/30">Loading…</div>
-          ) : (
-            stats.map((s, i) => (
+        {/* Right column */}
+        <div className="space-y-5">
+
+          {/* ── Deadline Adoption Rate ───────────────────────────────────── */}
+          <div className="admin-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display font-bold text-sm">Deadline Adoption</h2>
+              <Link href="/admin/fantasy" className="text-xs text-[#3EA0D9] hover:underline">View →</Link>
+            </div>
+            {adoptionRate === null ? (
+              <div className="text-sm text-[#0B3363]/30">Loading…</div>
+            ) : (
+              <>
+                <div className="flex items-end gap-2 mb-2">
+                  <span className="font-display font-bold text-3xl">{adoptionRate}%</span>
+                  <span className="text-xs text-[#0B3363]/40 dark:text-white/40 mb-1">of managers submitted</span>
+                </div>
+                <div className="w-full bg-[#0B3363]/8 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all ${
+                      adoptionRate >= 80 ? "bg-green-500" :
+                      adoptionRate >= 50 ? "bg-amber-400" : "bg-red-400"
+                    }`}
+                    style={{ width: `${adoptionRate}%` }}
+                  />
+                </div>
+                <div className="text-[10px] text-[#0B3363]/30 dark:text-white/30 mt-1.5">
+                  {adoptionRate >= 80 ? "Great adoption rate" :
+                   adoptionRate >= 50 ? "Some managers haven't submitted yet" :
+                   "Most managers haven't set their squad"}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── Live stat cards ──────────────────────────────────────────── */}
+          <div className="space-y-2">
+            {loading ? (
+              <div className="admin-card p-4 text-center text-sm text-[#0B3363]/30">Loading…</div>
+            ) : stats.map((s, i) => (
               <Link key={i} href={s.href ?? "#"}
-                className={`admin-card flex items-center gap-3 px-4 py-3 hover:border-[#3EA0D9] transition-colors ${s.alert ? "border-amber-200 bg-amber-50/50" : ""}`}>
+                className={`admin-card flex items-center gap-3 px-4 py-2.5 hover:border-[#3EA0D9] transition-colors ${s.alert ? "border-amber-200 bg-amber-50/50" : ""}`}>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-[#0B3363]/50 dark:text-white/50 font-medium">{s.label}</div>
+                  <div className="text-xs font-semibold text-[#0B3363]/70 dark:text-white/70">{s.label}</div>
                   {s.sub && <div className="text-[10px] text-[#0B3363]/30 dark:text-white/30">{s.sub}</div>}
                 </div>
-                <div className={`font-display font-bold text-xl flex-shrink-0 ${
+                <div className={`font-display font-bold text-lg flex-shrink-0 ${
                   s.alert && Number(s.value) > 0 ? "text-amber-600" : "text-[#0B3363] dark:text-white"
                 }`}>{s.value}</div>
               </Link>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Quick Actions + Recent Activity */}
-      <div className="grid lg:grid-cols-2 gap-6">
-
-        {/* Quick Actions */}
-        <div className="admin-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#0B3363]/8">
-            <h2 className="font-display font-bold text-sm">Quick actions</h2>
-          </div>
-          <div className="p-4 grid grid-cols-2 gap-3">
-            {[
-              { label: "Enter results", icon: "⚽", href: "/admin/fixtures", desc: "Update match scores" },
-              { label: "Generate graphics", icon: "🎨", href: "/admin/media", desc: "Create match week graphics" },
-              { label: "Select TOTW", icon: "🏆", href: "/admin/totw", desc: "Pick team of the week" },
-              { label: "Live console", icon: "📺", href: "/admin/live", desc: "Score live matches" },
-              { label: "Add players", icon: "👤", href: "/admin/players", desc: "Register new players" },
-              { label: "Manage fixtures", icon: "📅", href: "/admin/fixtures", desc: "Add or edit fixtures" },
-              { label: "Fantasy settings", icon: "⚙️", href: "/admin/fantasy", desc: "Deadlines & scoring" },
-              { label: "Media assets", icon: "🖼️", href: "/admin/media", desc: "Logos, jerseys, crests" },
-            ].map((a, i) => (
-              <Link key={i} href={a.href}
-                className="flex items-start gap-2.5 p-3 rounded-xl border border-[#0B3363]/8 hover:border-[#3EA0D9] hover:bg-[#3EA0D9]/5 transition-colors group">
-                <span className="text-xl flex-shrink-0">{a.icon}</span>
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-[#0B3363] dark:text-white group-hover:text-[#3EA0D9] transition-colors">{a.label}</div>
-                  <div className="text-[10px] text-[#0B3363]/40 dark:text-white/40 mt-0.5">{a.desc}</div>
-                </div>
-              </Link>
             ))}
           </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="admin-card overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#0B3363]/8 flex items-center justify-between">
-            <h2 className="font-display font-bold text-sm">Recent activity</h2>
-          </div>
-          {loading ? (
-            <div className="p-6 text-center text-sm text-[#0B3363]/30">Loading…</div>
-          ) : activity.length === 0 ? (
-            <div className="p-8 text-center text-sm text-[#0B3363]/30">
-              No activity yet — enter some results or generate graphics to get started.
-            </div>
-          ) : (
-            <div className="divide-y divide-[#0B3363]/5">
-              {activity.map((a, i) => (
-                <Link key={i} href={a.href ?? "#"}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-[#0B3363]/3 transition-colors">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#3EA0D9] flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium truncate">{a.label}</div>
-                  </div>
-                  <div className="text-[10px] text-[#0B3363]/30 dark:text-white/30 flex-shrink-0">{a.time}</div>
-                </Link>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

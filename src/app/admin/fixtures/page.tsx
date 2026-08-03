@@ -46,6 +46,8 @@ export default function FixturesAdmin() {
   const [wipeConfirmText, setWipeConfirmText] = useState("");
   const [wiping, setWiping] = useState(false);
   const [wipeResult, setWipeResult] = useState("");
+  const [recomputing, setRecomputing] = useState(false);
+  const [recomputeMsg, setRecomputeMsg] = useState("");
 
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<{ added: number; errors: string[] } | null>(null);
@@ -175,6 +177,33 @@ export default function FixturesAdmin() {
       loadGameweeks(selectedSeason);
     }
   }, [selectedSeason]);
+
+  async function recomputeStandings() {
+    if (!selectedSeason) return;
+    setRecomputing(true); setRecomputeMsg("");
+    try {
+      const { data: ms } = await supabase.from("matches")
+        .select("home_team_id,away_team_id,home_score,away_score")
+        .eq("season_id", selectedSeason).not("home_score","is",null);
+      const tally: Record<string, {p:number,w:number,d:number,l:number,gf:number,ga:number}> = {};
+      const inc = (tid: string) => { if (!tally[tid]) tally[tid]={p:0,w:0,d:0,l:0,gf:0,ga:0}; return tally[tid]; };
+      (ms ?? []).forEach((m: any) => {
+        const h = inc(m.home_team_id); const a = inc(m.away_team_id);
+        h.p++; a.p++; h.gf+=m.home_score; h.ga+=m.away_score; a.gf+=m.away_score; a.ga+=m.home_score;
+        if (m.home_score>m.away_score){h.w++;a.l++;}else if(m.home_score<m.away_score){a.w++;h.l++;}else{h.d++;a.d++;}
+      });
+      const rows = Object.entries(tally).map(([team_id,s])=>({
+        season_id:selectedSeason, team_id, played:s.p, won:s.w, drawn:s.d, lost:s.l,
+        goals_for:s.gf, goals_against:s.ga, goal_difference:s.gf-s.ga, points:s.w*3+s.d,
+      }));
+      if (!rows.length) { setRecomputeMsg("No completed matches found — enter results first."); }
+      else {
+        await supabase.from("season_standings").upsert(rows, { onConflict: "season_id,team_id" });
+        setRecomputeMsg(`✓ Standings recomputed for ${rows.length} teams.`);
+      }
+    } catch(e:any){ setRecomputeMsg(`Error: ${e.message}`); }
+    setRecomputing(false);
+  }
 
   function teamName(id: string) {
     return teams.find((t) => t.id === id)?.name ?? "—";
@@ -556,6 +585,10 @@ export default function FixturesAdmin() {
               if (file) handleImportFile(file);
             }}
           />
+          <button onClick={recomputeStandings} disabled={recomputing} className="admin-btn text-xs sm:text-sm px-3 sm:px-4 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100">
+            {recomputing ? "Recomputing…" : "↻ Recompute Standings"}
+          </button>
+          {recomputeMsg && <span className="text-xs font-semibold text-green-600">{recomputeMsg}</span>}
           {isSuperAdmin && (
             <button onClick={() => setWipeOpen(true)} className="admin-btn text-xs sm:text-sm px-3 sm:px-4 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100">
               Danger Zone
