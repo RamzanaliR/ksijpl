@@ -51,10 +51,13 @@ export default async function TeamProfile({ params }: { params: Promise<{ id: st
     ]);
 
   const seasonNum = (label: string) => parseInt(label.match(/\d+/)?.[0] ?? "0", 10);
-  const teamSeasons = (seasonTeamRows ?? [])
+  const rawTeamSeasons = (seasonTeamRows ?? [])
     .filter((r: any) => r.seasons?.competitions?.type === "league")
-    .map((r: any) => ({ id: r.season_id, label: r.seasons.label }))
-    .sort((a: any, b: any) => seasonNum(b.label) - seasonNum(a.label));
+    .map((r: any) => ({ id: r.season_id, label: r.seasons.label }));
+
+  const teamSeasons = Array.from(new Map(rawTeamSeasons.map((s) => [s.id, s])).values()).sort(
+    (a, b) => seasonNum(b.label) - seasonNum(a.label)
+  );
 
   const teamName = (tid: string) => allTeamsRaw?.find((t) => t.id === tid)?.name ?? "—";
   const teamSlug = (tid: string) => allTeamsRaw?.find((t) => t.id === tid)?.slug ?? null;
