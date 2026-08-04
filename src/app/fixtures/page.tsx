@@ -70,41 +70,48 @@ export default function FixturesPage() {
     const { data: gws } = await supabase.from("gameweeks")
       .select("id,number,round_name").eq("season_id", seasonId).order("number");
 
-    // Get all matches
+    // Get all matches (no FK join — fetch teams separately for reliability)
     const { data: rawMatches } = await supabase.from("matches")
-      .select(`
-        id, kickoff_at, venue, home_score, away_score, home_pen_score, away_pen_score,
-        gameweek_id,
-        home_team:teams!matches_home_team_id_fkey(id,name,slug,sponsor_logo_url),
-        away_team:teams!matches_away_team_id_fkey(id,name,slug,sponsor_logo_url)
-      `)
+      .select("id,kickoff_at,venue,home_score,away_score,home_pen_score,away_pen_score,gameweek_id,home_team_id,away_team_id")
       .eq("season_id", seasonId)
       .order("kickoff_at");
+
+    // Get all teams for this season
+    const { data: seasonTeams } = await supabase.from("season_teams")
+      .select("team_id,teams(id,name,slug,sponsor_logo_url)").eq("season_id", seasonId);
+    const teamMap: Record<string, any> = {};
+    (seasonTeams ?? []).forEach((st: any) => {
+      if (st.teams) teamMap[st.teams.id] = st.teams;
+    });
 
     const gwMap: Record<string, { number: number; label: string }> = {};
     (gws ?? []).forEach((g: any) => {
       gwMap[g.id] = { number: g.number, label: g.round_name ?? `Match Week ${g.number}` };
     });
 
-    const matches: Match[] = (rawMatches ?? []).map((m: any) => ({
-      id: m.id,
-      kickoff_at: m.kickoff_at,
-      venue: m.venue,
-      home_score: m.home_score,
-      away_score: m.away_score,
-      home_pen_score: m.home_pen_score,
-      away_pen_score: m.away_pen_score,
-      gameweek_number: gwMap[m.gameweek_id]?.number ?? 0,
-      gameweek_label: gwMap[m.gameweek_id]?.label ?? "—",
-      home_team_id: m.home_team?.id,
-      home_team_name: m.home_team?.name ?? "—",
-      home_team_slug: m.home_team?.slug ?? null,
-      home_logo: m.home_team?.sponsor_logo_url ?? null,
-      away_team_id: m.away_team?.id,
-      away_team_name: m.away_team?.name ?? "—",
-      away_team_slug: m.away_team?.slug ?? null,
-      away_logo: m.away_team?.sponsor_logo_url ?? null,
-    }));
+    const matches: Match[] = (rawMatches ?? []).map((m: any) => {
+      const ht = teamMap[m.home_team_id] ?? {};
+      const at = teamMap[m.away_team_id] ?? {};
+      return {
+        id: m.id,
+        kickoff_at: m.kickoff_at,
+        venue: m.venue,
+        home_score: m.home_score,
+        away_score: m.away_score,
+        home_pen_score: m.home_pen_score,
+        away_pen_score: m.away_pen_score,
+        gameweek_number: gwMap[m.gameweek_id]?.number ?? 0,
+        gameweek_label: gwMap[m.gameweek_id]?.label ?? "—",
+        home_team_id: m.home_team_id,
+        home_team_name: ht.name ?? "—",
+        home_team_slug: ht.slug ?? null,
+        home_logo: ht.sponsor_logo_url ?? null,
+        away_team_id: m.away_team_id,
+        away_team_name: at.name ?? "—",
+        away_team_slug: at.slug ?? null,
+        away_logo: at.sponsor_logo_url ?? null,
+      };
+    });
 
     // Group by gameweek + date
     const grouped: Record<string, MatchGroup> = {};
