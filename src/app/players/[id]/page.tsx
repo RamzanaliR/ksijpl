@@ -59,11 +59,17 @@ export default function PlayerProfilePage() {
     if (!id) return;
     (async () => {
       // Load player
-      const { data: p } = await supabase.from("players")
-        .select("id,full_name,fpl_name,nickname,position,team_id,headshot_url,teams(name,slug,sponsor_logo_url)")
-        .eq("id", id).single();
+      const { data: p, error: pErr } = await supabase.from("players")
+        .select("id,full_name,fpl_name,nickname,position,team_id,headshot_url,squad_number")
+        .eq("id", id).maybeSingle();
 
+      if (pErr) console.error("Player fetch error:", pErr);
       if (!p) { setLoading(false); return; }
+
+      // Fetch team separately
+      const { data: teamData } = await supabase.from("teams")
+        .select("name,slug,sponsor_logo_url").eq("id", p.team_id).maybeSingle();
+
       setPlayer({
         id: p.id,
         full_name: p.full_name,
@@ -71,20 +77,20 @@ export default function PlayerProfilePage() {
         nickname: p.nickname,
         position: p.position,
         team_id: p.team_id,
-        team_name: (p as any).teams?.name ?? "—",
-        team_slug: (p as any).teams?.slug ?? null,
-        team_logo_url: (p as any).teams?.sponsor_logo_url ?? null,
+        team_name: teamData?.name ?? "—",
+        team_slug: teamData?.slug ?? null,
+        team_logo_url: teamData?.sponsor_logo_url ?? null,
         headshot_url: p.headshot_url,
       });
 
       // Load match events across all seasons
       const { data: events } = await supabase.from("match_events")
-        .select("type,matches(season_id,home_motm_player_id,away_motm_player_id,seasons(label,competitions(id)),home_team_id,away_team_id)")
+        .select("type,match_id,matches!inner(season_id,seasons!inner(label))")
         .eq("player_id", id);
 
       // Load all-time archived stats (season_player_stats)
       const { data: archivedStats } = await supabase.from("season_player_stats")
-        .select("season_id,goals,assists,yellow_cards,red_cards,motm_awards,clean_sheets,appearances,seasons(label,competitions(id)),team_name")
+        .select("season_id,goals,assists,yellow_cards,red_cards,motm_awards,clean_sheets,appearances,team_name,seasons(label)")
         .eq("player_id", id);
 
       // Load MOTM from matches
@@ -95,7 +101,7 @@ export default function PlayerProfilePage() {
       // Aggregate per season from archived data
       const statMap: Record<string, SeasonStat> = {};
       (archivedStats ?? []).forEach((s: any) => {
-        const label = s.seasons?.label ?? "Unknown";
+        const label = (s as any).seasons?.label ?? "Unknown";
         statMap[label] = {
           season_label: label,
           team_name: s.team_name ?? "—",
@@ -115,7 +121,7 @@ export default function PlayerProfilePage() {
       const liveYC: Record<string, number> = {};
       const liveRC: Record<string, number> = {};
       (events ?? []).forEach((e: any) => {
-        const label = e.matches?.seasons?.label ?? "Unknown";
+        const label = (e as any).matches?.seasons?.label ?? "Unknown";
         if (e.type === "goal")        liveGoals[label]   = (liveGoals[label]   ?? 0) + 1;
         if (e.type === "assist")      liveAssists[label] = (liveAssists[label] ?? 0) + 1;
         if (e.type === "yellow_card") liveYC[label]      = (liveYC[label]      ?? 0) + 1;
