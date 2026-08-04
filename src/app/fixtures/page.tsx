@@ -70,19 +70,22 @@ export default function FixturesPage() {
     const { data: gws } = await supabase.from("gameweeks")
       .select("id,number,round_name").eq("season_id", seasonId).order("number");
 
-    // Get all matches (no FK join — fetch teams separately for reliability)
+    // Get all matches
     const { data: rawMatches } = await supabase.from("matches")
       .select("id,kickoff_at,venue,home_score,away_score,home_pen_score,away_pen_score,gameweek_id,home_team_id,away_team_id")
       .eq("season_id", seasonId)
       .order("kickoff_at");
 
-    // Get all teams for this season
-    const { data: seasonTeams } = await supabase.from("season_teams")
-      .select("team_id,teams(id,name,slug,sponsor_logo_url)").eq("season_id", seasonId);
+    // Get all unique team IDs from the matches, then fetch team data
+    const teamIds = [...new Set([
+      ...(rawMatches ?? []).map((m: any) => m.home_team_id),
+      ...(rawMatches ?? []).map((m: any) => m.away_team_id),
+    ].filter(Boolean))];
+    const { data: teamsData } = teamIds.length
+      ? await supabase.from("teams").select("id,name,slug,sponsor_logo_url").in("id", teamIds)
+      : { data: [] };
     const teamMap: Record<string, any> = {};
-    (seasonTeams ?? []).forEach((st: any) => {
-      if (st.teams) teamMap[st.teams.id] = st.teams;
-    });
+    (teamsData ?? []).forEach((t: any) => { teamMap[t.id] = t; });
 
     const gwMap: Record<string, { number: number; label: string }> = {};
     (gws ?? []).forEach((g: any) => {
